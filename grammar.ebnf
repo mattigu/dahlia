@@ -1,0 +1,246 @@
+(* Lexer rules are ALL CAPS *)
+(* Parser rules are lowercase *)
+program
+    = { function_definition
+    | COMMENT
+    | struct_definition };
+
+NEWLINE
+    = "\n"
+    | "\r\n"
+    | "\r";
+
+COMMENT
+    = "#", { ? any character except NEWLINE ? }, NEWLINE;
+
+function_definition
+    = "fn", IDENTIFIER, "(", [ function_params ], ")", [ "->", type ], block;
+
+function_params
+    = function_param, { ",", function_param };
+
+function_param
+    = [ "mut" ], IDENTIFIER, ":", type;
+
+struct_definition
+    = "struct", IDENTIFIER, "{", struct_fields, "}";
+
+struct_fields
+    = struct_field, { ",", struct_field }, [ "," ];
+
+struct_field
+    = IDENTIFIER, ":", type;
+
+type
+    = "int"
+    | "float"
+    | "bool"
+    | "str"
+    | "vec", "<", type, ">"
+    | IDENTIFIER;
+
+block
+    = "{", { statement }, "}";
+
+statement
+    = let_binding
+    | assignment_statement
+    | if_statement
+    | while_statement
+    | for_statement
+    | return_statement
+    | break_statement
+    | continue_statement
+    | block
+    | expression, ";";
+
+let_binding
+    = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", expression, ";";
+
+assignment_statement
+    = assignable, ( "="
+    | compound_assignment_op ), expression, ";";
+
+assignable
+    = IDENTIFIER
+    | IDENTIFIER, "[", expression, "]"
+    | IDENTIFIER, ".", IDENTIFIER;
+
+compound_assignment_op
+    = "+="
+    | "-="
+    | "*="
+    | "/="
+    | "%=";
+
+if_statement
+    = "if", expression, block, { "else", "if", expression, block }, [ "else", block ];
+
+while_statement
+    = "while", expression, block;
+
+for_statement
+    = "for", [ "mut" ], IDENTIFIER, "in", range, block;
+
+range
+    = range_bound, "..", [ "=" ], range_bound, [ "..", range_bound ];
+
+range_bound
+    = IDENTIFIER
+    | literal
+    | "(", expression, ")";
+
+return_statement
+    = "return", [ expression ], ";";
+
+break_statement
+    = "break", ";";
+
+continue_statement
+    = "continue", ";";
+
+(* Change if swap to unicode *)
+(* Keywords are excluded from identifiers *)
+IDENTIFIER
+    = LETTER, { LETTER
+    | DIGIT
+    | "_" };
+
+LETTER
+    = ? [a-zA-Z] ?;
+
+STRING
+    = '"', { STRING_CHAR
+    | ESCAPE_SEQUENCE }, '"';
+
+(* Change if swap to unicode *)
+STRING_CHAR
+    = ? any ASCII character except '"' and '\' and NEWLINE ?;
+
+ESCAPE_SEQUENCE
+    = "\\", ( '"'
+    | "\\"
+    | "n"
+    | "t"
+    | "r"
+    | "x", HEX_DIGIT, HEX_DIGIT );
+
+HEX_DIGIT
+    = DIGIT
+    | ? [a-fA-F] ?;
+
+INTEGER
+    = DIGIT_NON_ZERO, { DIGIT
+    | ( "_", DIGIT ) }
+    | "0";
+
+FLOAT
+    = ( DIGIT_NON_ZERO, { DIGIT
+    | ( "_", DIGIT ) }
+    | "0" ), ".", DIGIT, { DIGIT
+    | ( "_", DIGIT ) };
+
+BOOL
+    = "true"
+    | "false";
+
+DIGIT
+    = DIGIT_NON_ZERO
+    | "0";
+
+DIGIT_NON_ZERO
+    = "1"
+    | "2"
+    | "3"
+    | "4"
+    | "5"
+    | "6"
+    | "7"
+    | "8"
+    | "9";
+
+literal
+    = INTEGER
+    | FLOAT
+    | STRING
+    | BOOL
+    | vec_literal;
+
+vec_literal
+    = "[", [ vec_elements ], "]";
+
+vec_elements
+    = expression, { ",", expression }, [ "," ];
+
+function_call
+    = IDENTIFIER, "(", [ function_arguments ], ")";
+
+function_arguments
+    = expression, { ",", expression };
+
+struct_construction
+    = IDENTIFIER, "{", [ struct_arguments ], "}";
+
+struct_arguments
+    = struct_argument, { ",", struct_argument }, [ "," ];
+
+struct_argument
+    = IDENTIFIER, ":", expression
+    | IDENTIFIER;
+
+unary_operator
+    = "-"
+    | "!"
+    | "@";
+
+(* Compound assignment is not here, as it's only allowed in assignment statements *)
+binary_operator
+    = "+"
+    | "-"
+    | "*"
+    | "/"
+    | "%"
+    | "!="
+    | "=="
+    | "<"
+    | ">"
+    | "<="
+    | ">="
+    | "and"
+    | "or"
+    | "?"
+    | ":>"
+    | "><"
+    | "in";
+
+expression
+    = literal
+    | IDENTIFIER
+    | function_call
+    | struct_construction
+    | unary_operator, expression
+    | expression, binary_operator, expression
+    | if_expression
+    | expression, "[", expression, "]"
+    | expression, ".", IDENTIFIER
+    | "(", expression, ")";
+
+(* Technically not used right now *)
+KEYWORD
+    = "let"
+    | "mut"
+    | "fn"
+    | "if"
+    | "else"
+    | "while"
+    | "for"
+    | "in"
+    | "break"
+    | "continue"
+    | "return"
+    | "struct"
+    | "true"
+    | "false"
+    | "and"
+    | "or"
+    | "not";
