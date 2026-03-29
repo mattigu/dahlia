@@ -1,93 +1,819 @@
-# TKOM_26L
+# Dahlia
+Dahlia is a general purpouse scripting language.
 
+## Key features
+- Statically and weakly typed
+- Immutable bindings by default
+- Reference semantics for objects, value semantics for primitives
 
+## Interpreter usage
 
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
+### Interpreter options
 ```
-cd existing_repo
-git remote add origin https://gitlab-stud.elka.pw.edu.pl/TKOM_26L_WW/Mateusz_Gulinski/tkom_26l.git
-git branch -M main
-git push -uf origin main
+$ dal [options] [file]
 ```
 
-## Integrate with your tools
+| Option | Description |
+|---|---|
+| `--help`, `-h` | Print help information |
+| `--version`, `-v` | Print the interpreter version |
+| `--no-warnings`, `-w` | Disable all warnings |
 
-* [Set up project integrations](https://gitlab-stud.elka.pw.edu.pl/TKOM_26L_WW/Mateusz_Gulinski/tkom_26l/-/settings/integrations)
+### Running from a file
+```
+# example.dal
+fn main() {
+    println("Hello from file.");
+}
+```
 
-## Collaborate with your team
+```
+$ dal example.dal
+Hello from file!
+```
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### Running from a stream
 
-## Test and Deploy
+```
+$ echo 'fn main() { println("Hello from stream."); }' | dal
+Hello from stream!
+```
 
-Use the built-in continuous integration in GitLab.
+## Language features
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+### Types
+- [`int`](#int) - 64-bit signed integer
+- [`float`](#float) - IEEE 754 64-bit float
+- [`bool`](#bool) - true or false
+- [`str`](#str) - a sequence of ASCII characters
+- [`struct`](#struct) - a user defined type that groups named fields together
+- [`vector`](#vec) `vec<T>` - a homogeneous collection where `T` is the element type. See [Collections](#collections)
 
-***
+`int`, `float`, `bool` are always copied when passed into function or a `struct`. All other types are passed by reference.
 
-# Editing this README
+#### int
+`int` is a 64-bit signed integer type with a range of `-2^63` to `2^63 - 1`. Overflow and underflow produce a [runtime error](#integer-underflow-and-overflow).
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+#### float
+`float` is an IEEE 754 64-bit double precision floating point number. Inf and NaN are not allowed and produce a [runtime error](#invalid-float-states).
 
-## Suggestions for a good README
+#### bool
+`bool` can be either `true` or `false`.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+#### str
+`str` is a string of ascii characters. `\` can be used to escape special characters: `\`, `"`, `\r`, `\n`, `\t`.
 
-## Name
-Choose a self-explaining name for your project.
+```
+let a = "123\" \\abc";
+println(a);
+>>> 123" \abc
+```
+There is also hex escape `\x` used to escape a byte specified by two hexadecimal characters. Example with ansi color codes.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```
+println("\x1B[31mRed text\x1B[0m");
+>>> Red text    # Displayed in red.
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+Strings are indexable.
+```
+let a = "123";
+let b = a[0];   # 1 (copy)
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+The `@` operator returns the size of the string.
+```
+let a = "123";
+let size = @a;  # 3
+```
+#### struct
+`struct` is a user defined type that groups named fields together.
+Structures can only be defined in the top level scope.
+```
+struct Point {
+    x: int,
+    y: int,     # Comma after last field is optional
+}
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+let p = Point { x: 1, y: 2 };   # named field initialization
+let x = 1;
+let p = Point { x, y: 2 };      # shorthand when variable name matches field name
+```
+Field mutability follows the binding - if the binding is `mut`, all fields are mutable:
+```
+let p = Point { x: 1, y: 2 };
+p.x = 5;                        # error - p is immutable
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+let mut p = Point { x: 1, y: 2 };
+p.x = 5;                        # fine
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Invalid states
+```
+# A struct must have at least 1 field. ( May be changed if methods are added )
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+struct Point {}
+ERROR: struct "Point" must have at least 1 field.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+# Field names must not repeat inside a struct.
+struct Point {
+    a : int,
+    a : int,
+}
+ERROR: field "a" is already defined in struct "Point"
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+# A struct with the same name can't be redefined.
+struct Point { ... }
+struct Point { ... }
+ERROR: struct "Point" is already defined.
+```
 
-## License
-For open source projects, say how it is licensed.
+#### Numeric literals
+`int` and `float` support "_" separators for readability
+```
+# Valid
+int a = 100_200          # 100200
+float b = 1_5.00_3      # 15.003
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+# Invalid
+let a = _100;       # illegal - leading underscore
+let a = 100_;       # illegal - trailing underscore
+let a = 1__000;     # illegal - double separator
+let a = 1_.0;       # illegal - separator directly before decimal point
+let a = 1._0;       # illegal - separator directly after decimal point
+```
+
+### Built-in functions
+
+`println(text : str)` - printlns to stdout and appends a new line symbol at the end.
+
+```
+println(123);
+>>> 123
+```
+
+`clone(obj : T) -> T` - creates a deep copy of the object.
+
+```
+let a = "123"
+
+let b = a;              # immutable reference
+let mut c = a           # illegal
+let mut d = clone(a);   # mutable independent copy
+```
+
+`str(obj : str)` `float(obj : float)` `int(obj : int)` are functions that cast the argument to the given type.
+
+```
+str(1);         # "1"
+str(1.23);      # "1,23"
+
+int(2.71);      # 2         Floating point numbers are truncated towards 0.
+int("617");     # 617
+
+float("1.23");  # "1.23"
+float(1);       # "1.0"
+```
+If the conversion is impossible an error is raised.
+```
+int("a");
+ERROR: str "a" can not be converted to "int".
+```
+
+### Comments
+The `#` character is used for comments
+```
+# This is a single line comment
+```
+
+### Variables
+
+Variables are declared with the `let` keyword.
+```
+let a : int = 1;
+```
+
+If no type is specified, the variable’s type is inferred from the assigned expression. The inferred types are `int`, `float` or `str`.
+
+```
+let a = 3;      # int
+let b = 1.0;    # float
+let c = "abc";  # str
+```
+
+When a variable is assigned from another variable, the source variable’s type is used.
+
+```
+let a : float = 3.0;
+let b = a;              # float
+let c : int = a;        # int
+```
+
+Variables are weakly(loosely) typed. Numbers and strings are easily convertible both ways.
+When a target type is known then `let a : type = expression` is equivalent to `let a = type(expression)`
+
+```
+let a : str = 123;      # "123"
+let b : str = 1.12;     # "1.12"
+
+let c : int = "123";    # 123
+let d : float = "1.12"; # 1.12
+```
+
+If the type of the expression is not convertible to the type of the variable, an error is raised.
+```
+let a : int = SomeStruct {};    # ERROR: SomeStruct is not convertible to int
+```
+
+Variables are immutable by default unless specified otherwise with the `mut` keyword.
+
+```
+let a = 1;
+a = 3;
+ERROR: assignment to immutable variable "a".
+
+let mut a = 1
+a = 3;
+```
+
+When assigning from another variable, non-primitive values are referenced, while primitive values are copied.
+
+```
+let a = 3;
+let b = a;  # copy
+
+let c = SomeStruct{};
+let d = c;  # immutable reference
+```
+
+This requires that a mutable binding cannot reference an immutable object.
+```
+let a = 3;
+let mut b = a;  # copy
+
+let c = SomeStruct{};
+let mut d = c;  # error
+
+let mut c = SomeStruct{};
+let d = c;                  # immutable reference
+
+let mut e = SomeStruct{};
+let mut f = e;              # mutable reference
+```
+
+
+### Scopes
+A new scope is created with `{}`. Variables declared inside a scope are only visible within it and are destroyed when the scope ends.
+```
+let a = 5;
+{
+    let a = 10;     # shadows outer a
+    let b = 20;     # only visible inside this scope
+}
+# a is 5 here again
+# b is not accessible here
+```
+Scopes are created implicitly by functions, if/else blocks, and loops.
+```
+if condition {
+    let x = 5;      # x only exists inside this if block
+}
+# x is not accessible here
+```
+
+Variables can be redefined in the same scope.
+```
+let a = "abc";
+let b = a;
+let a = 1;
+
+# "abc" still exists, but can only be accessed through b.
+
+println(b);
+>>> abc
+println(a);
+>>> 1
+```
+### Functions
+Functions are declared with the `fn` keyword. Functions can only be defined in the top level scope.
+
+```
+# A simple function which adds two numbers.
+fn add(a: int, b: int) -> int { return a + b; }
+
+# A function with no return type (void).
+fn test_void() { return; }
+```
+
+Parameters can be made mutable with the `mut` keyword.
+```
+fn add(mut a : int, b : int) -> int {
+    a += b;
+    # b += a will not work since b is immutable
+    return a;
+}
+```
+
+All arguments are passed by reference except for primitives (`int`, `float`, `bool`), which are copied. The same rules apply for return types.
+```
+fn test(mut a : SomeStruct, b : SomeStruct) -> int {
+    # a is a mutable reference
+    # b is an immutable reference
+}
+```
+
+The arguments will be converted to match the functions signature if possible.
+```
+fn add(a : int) { ... }
+
+add("12") # equivalent to add(12)
+
+add("abc")
+ERROR: argument "abc" is not convertible to "int"
+```
+
+There can't exist two functions with the same name.
+```
+fn test() {}
+fn test() {}
+ERROR: function "test" was already defined.
+```
+
+Parameter names can't be the same within a function.
+```
+fn test(a : int, a : int) {}
+ERROR: multiple parameters with the identifier "a" in function "fn test(a : int, a : int)"
+```
+
+Recursion example
+```
+fn factorial(n : int) -> int {
+    if n < 2 {
+        return 1;
+    }
+    return n * factorial(n-1);
+}
+```
+The maximum call depth is 1000. Exceeding this limit, for example through infinite recursion, results in a runtime error.
+```
+fn foo() {
+    foo();
+}
+foo();
+ERROR: maximum call depth of 1000 exceeded
+```
+### if/else
+
+```
+if condition {
+    #
+} else if condition {
+    #
+} else {
+    #
+}
+```
+The `else if` and `else` block are optional. Any type can be used as a condition. See [bool coercion](#logic-operators-and-bool-coercion)
+
+It's also possible to do if/else expressions.
+
+```
+# Type is mandatory, the result will attempt to get coerced into that type.
+let a : int = if condition { 5 } else { "10" }; # else is mandatory
+
+let a = if ...
+ERROR: if expression requires a specified type.
+```
+
+### Loops
+
+While loops
+```
+while condition {
+    # Do something
+}
+```
+
+For loops
+```
+# The left number is included, the right one is not.
+
+for x in 0..4 {
+    # Repeat 4 times with values of x: 0, 1, 2, 3
+}
+
+for x in 4..0 {
+    # Repeat 4 times with values of x: 4, 3, 2, 1
+}
+```
+
+To include the right number, use `=`.
+
+```
+for x in 0..=4 {
+    # Repeat 5 times with values of x: 0, 1, 2, 3, 4
+}
+```
+
+A step can be specified as an optional argument
+```
+for x in 0..=4..2 {
+    # Repeat 3 times with values of x: 0, 2, 4
+}
+
+Providing an incorrect step results in an error.
+
+for x in 0..4..-2 {}
+ERROR: step must be positive for forward range (0..4..-2)
+HINT: did you mean 0..4..2
+```
+
+Both loop types support the `break` and `continue` operations.
+```
+for i in 0..8 {
+    if i == 2 { continue; }
+    else if i == 4 { break; }
+    println(i);
+}
+>>> 0
+>>> 1
+>>> 3
+```
+
+The loop variable shadows other variables of the same name, exactly like block scope shadowing.
+```
+let a = 10;
+for a in 0..4 {
+    println("{}", a);   # prints 0, 1, - a is the loop variable
+}
+println(a);         # prints 10 - outer a is back
+>>> 0
+>>> 1
+>>> 10
+```
+The loop variable can be declared `mut`. Mutating it only mutates a local copy in one iteration.
+
+```
+for mut a in 0..3 {
+    if a == 1 { a = 60; }
+    println(a);
+}
+>>> 0
+>>> 60
+>>> 2
+```
+
+It's possible to use expressions in the `a..b` for loop syntax. Parentheses are required. `..` is not an operator, just syntax sugar for loops.
+```
+for i in 0..(1 + 2) { println(i); }
+>>> 0
+>>> 1
+>>> 2
+```
+
+
+### Operators
+
+| Operator | Description |
+|---|---|
+| `+` `-` `*` `/` `%` | Arithmetic |
+| `+=` `-=` `*=` `/=` `%=` | Compound assignment |
+| `==` `!=` `<` `>` `<=` `>=` | Comparison
+| `and` `or` `!` | Logical AND, OR, NOT |
+
+
+#### Coercion rules for arithmetic operators.
+All combinations not mentioned below are not allowed. Order never matters.
+
+Any operation between float and int, promotes the int to a float
+
+```
+float + int = float
+float - int = float
+float / int = float
+float * int = float
+float % int = float
+
+let a = 5 / 2.0     # 2.5
+let a = 5.0 / 2     # 2.5
+```
+
+Any operation with string, promotes the other operand to a string
+```
+string + int    = string
+string + float  = string
+string * int    = string
+
+# Examples
+
+1.5 + 1;        # 2.5
+"abc" + 1.51;   # "abc1.51"
+"abc" + 1;      # "abc1"
+"135" * 2;      # "135135"
+
+3.4 * "a";
+ERROR: Operator "*" is not allowed for float and str.
+```
+
+
+Other interactions
+```
+# int / int is always integer division.
+5 / 2   # 2
+
+# modulo for negative numbers
+-5 % 2      # 1
+5 % -2      # -1
+```
+
+#### Logic operators and bool coercion
+Logic operators can be applied to any types. Each operand gets converted into a `bool`.
+Values are considered falsy if they are:
+- `0`, `0.0`
+- `""` (empty string)
+- Empty collection
+- false
+Everything else is truthy.
+
+```
+"" or 4;    # true
+"" and 4;   # false
+
+![1, 2]     # false
+```
+
+Conditions in `if` statemenets behave in the same way.
+```
+let falsy = 0;
+let truthy = "abc";
+
+if falsy { println(1); }
+else if truthy { println(2); }
+```
+
+#### Comparison operators
+
+Strings can be compared using `<`, `>`, `<=`, `>=`. The comparison is lexicographical characters are compared one by one from left to right by their ASCII value. The first differing character determines the result.
+
+```
+"abc" < "abd"   # true - 'c' (99) < 'd' (100)
+"abc" < "abcd"  # true - "abc" is a prefix, shorter string is less
+"abc" == "abc"  # true - identical
+"b" > "abc"     # true - 'b' (98) > 'a' (97), first character decides
+"ABC" < "abc"   # true - uppercase letters have lower ASCII values
+```
+
+#### Integer underflow and overflow
+Integers can overflow and underflow. A runtime error is thrown when that happens.
+```
+# Integer overflow
+let a = 9223372036854775807;    # INT64_MAX
+let b = a + 1;
+ERROR: Integer overflow in expression (9223372036854775807 + 1)
+
+# Integer underflow
+let a = -9223372036854775808;   # INT64_MIN
+let b = a - 1;
+ERROR: Integer underflow in expression (-9223372036854775808 - 1)
+```
+
+#### Invalid float states
+Floats can reach states like `NaN`, `-Inf`, `Inf`. A runtime error is thrown when that happens.
+
+```
+# Note that 2e308 syntax is not supported and is only here to show the number.
+
+# Float overflow
+let a = 2e308;
+let b = a * 10.0;
+ERROR: Float overflow in expression (1.8e308 * 10.0)
+
+# Float invalid operation (same applies for int division by 0)
+let a = 0.0 / 0.0;
+ERROR: Invalid float operation (0.0 / 0.0) - result is NaN
+
+# Float underflow
+let a = 5e-323;
+let b = a / 100.0;
+ERROR: Float underflow in expression (5e-324 / 10.0)
+```
+
+#### Vector operator
+| `vec<T>` Operator | Description |
+|---|---|
+| `@v` | Size/length of collection |
+| `v + elem` | Append element to collection |
+| `v + v2` | Concatenate two collections |
+| `x in v` | Check if element is in collection |
+| `v ? pred` | Filter collection by predicate |
+| `v :> fn` | Map collection by function |
+| `v1 >< v2` | Intersection of two collections |
+| `v[i]` | Access element at index i |
+
+
+#### Operator assiociativity
+
+| Level | Operators | Associativity |
+|---|---|---|
+| 1 (highest) | `[]`  | Left |
+| 2 | `!` `-` (unary) `@` (unary) | Right |
+| 3 | `*` `/` `%` | Left |
+| 4 | `+` `-` | Left |
+| 5 | `><` | Left |
+| 6 | `in` | Left |
+| 7 | `==` `!=` `<` `>` `<=` `>=` | Left |
+| 8 | `and` | Left |
+| 9 | `not` | Left |
+| 10 | `?` `:>` | Left |
+
+
+The order of evaluation can be explicitly stated using parentheses `(`,`)`
+```
+let a = 8 / 1 + 1   # 9
+let b = 8 / (1 + 1) # 4
+```
+
+Comparison is done by comparing values.
+```
+"123" == "123"  # Always true
+```
+
+#### Logic operators
+
+`and`, `or` and `!` work on any type and always produce a `bool`. Each operand is converted to a bool. The rules were already described in more detail in the if/else section.
+
+### Collections
+
+#### vec
+Vector or `vec<T>` is an ordered collection of elements packed consecutively in memory.
+
+Initialization
+```
+let nums : vec<int> = [1, 2, 3, 4, 5,]; # optional trailing comma
+let nums = [1, 2, 3, 4, 5];             # The type can be skipped, if the list is not empty.
+
+let nums : vec<int> = [];
+let nums = [];
+ERROR: The type of "nums" cannot be inferred.
+
+# The values must all be the same type
+let nums : vec<int> = [1, 2, "3"];      # No coercion
+ERROR: "3" is not of type "int"
+```
+
+Elements can be indexed with the `[index]` operator.
+```
+let nums : vec<int> = [1, 2, 3, 4, 5,];
+
+let a = nums[1];    # 2
+let b = nums[10];
+ERROR: index out of bounds - index 10 is out of range for vec<int> "b" of length 3
+
+# Indexing follows existing reference semantics.
+let a = nums[0];        # copy
+let mut b = nums[1];    # copy
+
+
+let vec_of_structs = [...];
+let a = vec_of_structs[0];      # immutable reference
+let mut b = vec_of_structs[0];  # illegal
+```
+The `@` operator returns the number of elements in the vector.
+```
+let size = @nums;   # 5
+```
+
+```
+# Elements can be appended with the `+` and `+=` operator.
+let mut a = [1, 2];
+a += 3;             # [1, 2, 3]
+
+let b = a + 3;      # independent vector [1, 2, 3]
+
+# Types must explicitly match when appending.
+let a = [1, 2] + "3";
+ERROR: Can't append "3" to vec<int>
+```
+
+Vectors can be concatenated with the `+` and `+=` operator.
+```
+let a = [1, 2] + [3, 4];    # [1, 2, 3, 4]
+
+# Same as when appending, types must explicitly match.
+let a = [1, 2] + ["3"]
+ERROR: Can't concatenate vectors vec<int>[1, 2] with vec<str>["3"] of non matching types.
+```
+
+The `in` operator can be used, to check if an element is contained in the vector.
+```
+let nums = [1, 2, 3];
+let t = 1 in nums;      # true
+let f = -1 in nums;     # false
+```
+
+Vectors can be filtered by a predicate with the `?` operator. The ? operator returns a new vector containing only the elements that satisfy the predicate.
+
+```
+fn odd(n : int) -> bool { return n % 2; }
+
+let odd = nums ? odd;        # [1, 3, 5]
+```
+
+The `:>` operator applies a function to each element, returning a new vector. The original vector is unchanged.
+
+```
+fn square(n : int) -> int { return n*n; }
+
+let squared = nums :> square;    # [1, 4, 9, 16, 25]
+```
+If the predicate signature for `:>` or `?` doesn't match the vector's element type a runtime error is produced.
+```
+fn min(n : vec<int>) -> int { ... }
+
+let a = nums :> min;
+ERROR: predicate "min" and "nums" do not match.
+```
+
+The `><` operator returns elements common to both vectors. Duplicates are removed.
+```
+let a = [1, 1, 3, 4];
+let b = [1, 1, 1, 4];
+let c = a >< b;         # [1, 4]
+```
+
+
+### Error messages
+When an error is detected, the interpreted program is stopped.
+The error is logged in the following format.
+
+`ERROR in {{file_path} at line { line } column { column }: {message}`
+
+An additional hint can be provided if the cause of the error easy to detect.
+
+Example
+
+```
+ERROR in ./example.dal at line 10, column 43
+    Error description
+HINT: Hint description
+```
+
+### Warnings
+Warnings might be reported when code that is likely to be a mistake is detected.
+
+The warning is logged in the following format.
+`WARNING in { file_path } at line { line } column { column }: { message }`
+
+Examples:
+```
+1 + 1;
+WARNING: expression "1 + 1" is not assigned to anything.
+```
+
+```
+struct SomeStruct { a : int }
+let a = SomeStruct{ a : 1 };
+if a { ... }
+WARNING: expression "a" always evaluates to true.
+```
+
+```
+let a = 5;
+# a never used
+WARNING: variable "a" is declared but never used.
+```
+
+### Possible features
+- Importing other files
+- Vector initialization similar to `for x in 0..5` loop syntax.
+```
+let a = [0..5..2]   # [0, 2, 4]
+```
+- indexing vectors with the syntax described above. `let a = some_vec[0..5]`. Could also make a slice type for vecs along with this.
+- release mode which doens't check number safety?
+- separation of variable declaration and definition.
+
+Variable declaration and definition can be separate, although the type must be specified before assignment.
+```
+let a : int;
+a = 10;
+
+let b;
+b = 3
+ERROR: The type of "b" cannot be inferred.
+```
+
+The value must be initialized before use.
+```
+let a: int;
+myfunction(a);
+ERROR: use of uninitialized variable "a".
+```
+- `for x in vec/str` loops
+- `Option<T>` type
+- `struct` methods
+- `tuple` or `pair<T, V>` with unpacking syntax
+- `enum`
+- `Result<T, E>` for errors
