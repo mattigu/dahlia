@@ -43,13 +43,8 @@ let_binding
     = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", expression, ";";
 
 assignment_statement
-    = assignable, ( "="
+    = index_application, ( "="
     | compound_assignment_op ), expression, ";";
-
-(* To fix. This doesn't catch multiple indexes and nested structs *)
-assignable
-    = IDENTIFIER
-    | IDENTIFIER, "[", expression, "]";
 
 compound_assignment_op
     = "+="
@@ -162,40 +157,50 @@ function_call
 function_arguments
     = expression, { ",", expression };
 
-unary_operator
-    = "-"
-    | "!"
-    | "@";
+expression
+    = disjunction, { ( "?"
+    | ":>" ), disjunction };
 
-(* Compound assignment is not here, as it's only allowed in assignment statements *)
-binary_operator
-    = "+"
-    | "-"
-    | "*"
-    | "/"
-    | "%"
-    | "!="
-    | "=="
-    | "<"
+disjunction
+    = conjunction, { "or", conjunction };
+
+conjunction
+    = relation_term, { "and", relation_term };
+
+relation_operator
+    = ">="
     | ">"
     | "<="
-    | ">="
-    | "and"
-    | "or"
-    | "?"
-    | ":>"
-    | "><"
-    | "in";
+    | "<"
+    | "=="
+    | "!=";
 
-(* Whole thing needs change *)
-(* expression
+relation_term
+    = in_application, { relation_operator, in_application };
+
+in_application
+    = intersection_application, { "in", intersection_application };
+
+intersection_application
+    = additive_term, { "><", additive_term };
+
+additive_term
+    = multiplicative_term, { ( "+"
+    | "-" ), multiplicative_term };
+
+multiplicative_term
+    = unary_application, { ( "*"
+    | "/" ), unary_application };
+
+unary_application
+    = [ "-"
+    | "!"
+    | "@" ], index_application;
+
+index_application
+    = term, { "[", expression, "]" };
+
+term
     = literal
     | IDENTIFIER
-    | function_call
-    | unary_operator, expression
-    | expression, binary_operator, expression
-    | if_expression
-    | expression, "[", expression, "]"
-    | "(", expression, ")"; *)
-expression
-    = ;
+    | function_call;
