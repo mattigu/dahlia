@@ -29,14 +29,14 @@ fn main() {
 
 ```
 $ dal example.dal
-Hello from file!
+Hello from file.
 ```
 
 ### Running from a stream
 
 ```
 $ echo 'fn main() { println("Hello from stream."); }' | dal
-Hello from stream!
+Hello from stream.
 ```
 
 ## Language features
@@ -48,8 +48,6 @@ Hello from stream!
 - [`str`](#str) - a sequence of ASCII characters
 - [`struct`](#struct) - a user defined type that groups named fields together
 - [`vector`](#vec) `vec<T>` - a homogeneous collection where `T` is the element type. See [Collections](#collections)
-
-`int`, `float`, `bool` are always copied when passed into function or a `struct`. All other types are passed by reference.
 
 #### int
 `int` is a 64-bit signed integer type with a range of `-2^63` to `2^63 - 1`. Overflow and underflow produce a [runtime error](#integer-underflow-and-overflow).
@@ -224,10 +222,10 @@ let d : float = "1.12"; # 1.12
 
 If the type of the expression is not convertible to the type of the variable, an error is raised.
 ```
-let a : int = SomeStruct {};    # ERROR: SomeStruct is not convertible to int
+let a : int = [1, 2, 3];    # ERROR: vector "[1, 2, 3]" is not convertible to int
 ```
 
-Variables are immutable by default unless specified otherwise with the `mut` keyword.
+Variables are immutable and non reassignable by default unless specified otherwise with the `mut` keyword.
 
 ```
 let a = 1;
@@ -238,28 +236,28 @@ let mut a = 1
 a = 3;
 ```
 
-When assigning from another variable, non-primitive values are referenced, while primitive values are copied.
+When assigning from another variable, `int`, `float` and `bool` are copied. All other types are referenced.
 
 ```
 let a = 3;
 let b = a;  # copy
 
-let c = SomeStruct{};
+let c = [1, 2, 3]
 let d = c;  # immutable reference
 ```
 
 This requires that a mutable binding cannot reference an immutable object.
 ```
 let a = 3;
-let mut b = a;  # copy
+let mut b = a;      # copy
 
-let c = SomeStruct{};
-let mut d = c;  # error
+let c = [1, 2, 3]
+let mut d = c;      # error
 
-let mut c = SomeStruct{};
+let mut c = [1, 2, 3]
 let d = c;                  # immutable reference
 
-let mut e = SomeStruct{};
+let mut e = [1, 2, 3]
 let mut f = e;              # mutable reference
 ```
 
@@ -316,9 +314,9 @@ fn add(mut a : int, b : int) -> int {
 }
 ```
 
-All arguments are passed by reference except for primitives (`int`, `float`, `bool`), which are copied. The same rules apply for return types.
+All arguments are passed by reference. Return types (`int`, `float`, `bool`) are copied, while everything else is referenced.
 ```
-fn test(mut a : SomeStruct, b : SomeStruct) -> int {
+fn test(mut a : vec<int>, b : vec<int>) -> int {
     # a is a mutable reference
     # b is an immutable reference
 }
@@ -535,6 +533,7 @@ Values are considered falsy if they are:
 - `""` (empty string)
 - Empty collection
 - false
+
 Everything else is truthy.
 
 ```
@@ -562,7 +561,8 @@ Strings can be compared using `<`, `>`, `<=`, `>=`. The comparison is lexicograp
 "abc" < "abcd"  # true - "abc" is a prefix, shorter string is less
 "abc" == "abc"  # true - identical
 "b" > "abc"     # true - 'b' (98) > 'a' (97), first character decides
-"ABC" < "abc"   # true - uppercase letters have lower ASCII values
+"Z" < "abc"     # true - uppercase letters have lower ASCII values
+"" < "a"        # true
 ```
 
 #### Integer underflow and overflow
@@ -665,7 +665,7 @@ ERROR: "3" is not of type "int"
 
 Elements can be indexed with the `[index]` operator.
 ```
-let nums : vec<int> = [1, 2, 3, 4, 5,];
+let nums = [1, 2, 3, 4, 5,];
 
 let a = nums[1];    # 2
 let b = nums[10];
@@ -675,22 +675,27 @@ ERROR: index out of bounds - index 10 is out of range for vec<int> "b" of length
 let a = nums[0];        # copy
 let mut b = nums[1];    # copy
 
-
-let vec_of_structs = [...];
-let a = vec_of_structs[0];      # immutable reference
-let mut b = vec_of_structs[0];  # illegal
+let letters = ["a", "b", "c"];
+let a = letters[0];         # immutable reference
+let mut b = letters[1];     # illegal - letters is not mut
 ```
+
 The `@` operator returns the number of elements in the vector.
 ```
+let nums = [1, 2, 3, 4 , 5]
 let size = @nums;   # 5
 ```
 
+
+Elements can be appended with the `+` and `+=` operator.
+Appending follows existing reference semantics. `int`, `float`, `bool` are appended as copies, others referenced.
+
 ```
-# Elements can be appended with the `+` and `+=` operator.
 let mut a = [1, 2];
 a += 3;             # [1, 2, 3]
 
-let b = a + 3;      # independent vector [1, 2, 3]
+let b = a + 4;      # independent vector [1, 2, 3, 4]
+
 
 # Types must explicitly match when appending.
 let a = [1, 2] + "3";
@@ -773,10 +778,8 @@ WARNING: expression "1 + 1" is not assigned to anything.
 ```
 
 ```
-struct SomeStruct { a : int }
-let a = SomeStruct{ a : 1 };
-if a { ... }
-WARNING: expression "a" always evaluates to true.
+if 1 { ... }
+WARNING: expression "1" always evaluates to true.
 ```
 
 ```
