@@ -1,17 +1,11 @@
-(* Lexer rules are ALL CAPS *)
-(* Parser rules are lowercase *)
+(*
+    Lexer rules are ALL CAPS
+    Parser rules are lowercase
+
+    structs are not included in this grammar for now.
+*)
 program
-    = { function_definition
-    | COMMENT
-    | struct_definition };
-
-NEWLINE
-    = "\n"
-    | "\r\n"
-    | "\r";
-
-COMMENT
-    = "#", { ? any character except NEWLINE ? }, NEWLINE;
+    = { function_definition };
 
 function_definition
     = "fn", IDENTIFIER, "(", [ function_params ], ")", [ "->", type ], block;
@@ -21,15 +15,6 @@ function_params
 
 function_param
     = [ "mut" ], IDENTIFIER, ":", type;
-
-struct_definition
-    = "struct", IDENTIFIER, "{", struct_fields, "}";
-
-struct_fields
-    = struct_field, { ",", struct_field }, [ "," ];
-
-struct_field
-    = IDENTIFIER, ":", type;
 
 type
     = "int"
@@ -61,10 +46,10 @@ assignment_statement
     = assignable, ( "="
     | compound_assignment_op ), expression, ";";
 
+(* To fix. This doesn't catch multiple indexes and nested structs *)
 assignable
     = IDENTIFIER
-    | IDENTIFIER, "[", expression, "]"
-    | IDENTIFIER, ".", IDENTIFIER;
+    | IDENTIFIER, "[", expression, "]";
 
 compound_assignment_op
     = "+="
@@ -99,7 +84,6 @@ break_statement
 continue_statement
     = "continue", ";";
 
-(* Change if swap to unicode *)
 (* Keywords are excluded from identifiers *)
 IDENTIFIER
     = LETTER, { LETTER
@@ -178,16 +162,6 @@ function_call
 function_arguments
     = expression, { ",", expression };
 
-struct_construction
-    = IDENTIFIER, "{", [ struct_arguments ], "}";
-
-struct_arguments
-    = struct_argument, { ",", struct_argument }, [ "," ];
-
-struct_argument
-    = IDENTIFIER, ":", expression
-    | IDENTIFIER;
-
 unary_operator
     = "-"
     | "!"
@@ -213,34 +187,15 @@ binary_operator
     | "><"
     | "in";
 
-expression
+(* Whole thing needs change *)
+(* expression
     = literal
     | IDENTIFIER
     | function_call
-    | struct_construction
     | unary_operator, expression
     | expression, binary_operator, expression
     | if_expression
     | expression, "[", expression, "]"
-    | expression, ".", IDENTIFIER
-    | "(", expression, ")";
-
-(* Technically not used right now *)
-KEYWORD
-    = "let"
-    | "mut"
-    | "fn"
-    | "if"
-    | "else"
-    | "while"
-    | "for"
-    | "in"
-    | "break"
-    | "continue"
-    | "return"
-    | "struct"
-    | "true"
-    | "false"
-    | "and"
-    | "or"
-    | "not";
+    | "(", expression, ")"; *)
+expression
+    = ;
