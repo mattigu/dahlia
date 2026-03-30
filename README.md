@@ -73,11 +73,24 @@ println("\x1B[31mRed text\x1B[0m");
 >>> Red text    # Displayed in red.
 ```
 
+Invalid escape sequences result in an error.
+```
+let a = "abc\"
+ERROR: Invalid escape sequence in "abc\".
+```
+
 Strings are indexable.
 ```
 let a = "123";
 let b = a[0];   # 1 (copy)
 ```
+Individual characters can be modified.
+```
+let mut a = "123";
+a[1] = "8";         # "183"
+```
+When indexing out of bound. This is the same indexing a vector out of bounds.
+
 
 The `@` operator returns the size of the string.
 ```
@@ -85,6 +98,8 @@ let a = "123";
 let size = @a;  # 3
 ```
 #### struct
+!!! Structs might not be implemented, but this is roughly how they would work.
+
 `struct` is a user defined type that groups named fields together.
 Structures can only be defined in the top level scope.
 ```
@@ -254,10 +269,10 @@ let mut b = a;      # copy
 let c = [1, 2, 3]
 let mut d = c;      # error
 
-let mut c = [1, 2, 3]
+let mut c = [1, 2, 3];
 let d = c;                  # immutable reference
 
-let mut e = [1, 2, 3]
+let mut e = [1, 2, 3];
 let mut f = e;              # mutable reference
 ```
 
@@ -483,40 +498,60 @@ for i in 0..(1 + 2) { println(i); }
 
 
 #### Coercion rules for arithmetic operators.
-All combinations not mentioned below are not allowed. Order never matters.
+Order of operands never affects the result type.
 
-Any operation between float and int, promotes the int to a float
 
+__`+` operator__
+
+`int` get promoted to float when needed. `str` always concatenates with string of the second operand.
+| Operant A | Operant B | Result | Notes |
+|---|---|---|---|
+| int | int | int | |
+| float | float | float | |
+| int | float | float | int promoted to float |
+| bool | bool | int | both promoted to int |
+| bool | int | int | bool promoted to int |
+| bool | float | float | bool promoted to int, then float |
+| str | str | str | concatenation |
+| str | int | str | int stringified and appended |
+| str | float | str | float stringified and appended |
+| str | bool | str | concatenates "true" or "false" |
+| vec | vec | vec | concatenation |
+| vec | T | vec | element appended, must match element type |
+
+
+__` - * / %` operators__
+
+`int` get promoted to float when needed, `bool` is either promoted to `str` or `int`. Operations including `str`, convert the other operand to float (except `int` * `str`).
+| Operant A | Operant B | Result | Notes |
+|---|---|---|---|
+| int | int | int | `/` does integer division|
+| float | float | float | |
+| int | float | float | int promoted to float |
+| bool | bool | int | both promoted to int |
+| bool | int | int | bool promoted to int |
+| bool | float | float | bool promoted to int, then float |
+| str | int | str | `*` only: string repeated int times |
+| str | int | float | `- / %` only: str parsed as float, int promoted to float |
+| str | float | float | str parsed as float |
+| str | bool | float | str parsed as float, bool promoted to int |
+| str | str | float | both parsed as float |
+| vec | any | ERROR | |
+
+
+Common operation examples.
 ```
-float + int = float
-float - int = float
-float / int = float
-float * int = float
-float % int = float
-
-let a = 5 / 2.0     # 2.5
-let a = 5.0 / 2     # 2.5
-```
-
-Any operation with string, promotes the other operand to a string
-```
-string + int    = string
-string + float  = string
-string * int    = string
-
-# Examples
-
 1.5 + 1;        # 2.5
 "abc" + 1.51;   # "abc1.51"
 "abc" + 1;      # "abc1"
 "135" * 2;      # "135135"
-
-3.4 * "a";
-ERROR: Operator "*" is not allowed for float and str.
+```
+If the conversion is not possible an error is thrown.
+```
+ERROR: cannot evaluate (3.4 * "a") - str "a" is not parseable as float.
 ```
 
-
-Other interactions
+Other interactions.
 ```
 # int / int is always integer division.
 5 / 2   # 2
@@ -554,6 +589,15 @@ else if truthy { println(2); }
 
 #### Comparison operators
 
+`int` and `float` comparisons promote the integer to `float`. Because of how floats are built though, the condition will rarely ever be true after any arithmetic operations.
+```
+1 == 1.0    # true
+
+2 == 1.0 + 1.0          # false
+2 == int(1.0 + 1.0)     # true
+```
+
+
 Strings can be compared using `<`, `>`, `<=`, `>=`. The comparison is lexicographical characters are compared one by one from left to right by their ASCII value. The first differing character determines the result.
 
 ```
@@ -563,6 +607,53 @@ Strings can be compared using `<`, `>`, `<=`, `>=`. The comparison is lexicograp
 "b" > "abc"     # true - 'b' (98) > 'a' (97), first character decides
 "Z" < "abc"     # true - uppercase letters have lower ASCII values
 "" < "a"        # true
+```
+`vec` comparison works the same way.
+```
+[1, 2] < [2, 100];  # true
+```
+The types stored must be comparable.
+```
+[1, 2] < [["3"]];
+ERROR: cannot compare vec<int> with vec<vec<str>>.
+```
+
+Cross type comparisons are described in the tables below. The general rules are:
+- `== and !=` nevers throws, while `< > <= >=` can throw if comparison is impossible
+- `== and !=` for `str` and anything other than `str` is always false
+- `< > <= >=` tries to parse all strings as floats.
+
+__`== and !=` operators__
+
+| Operands | Result | Notes |
+|---|---|---|
+| int, float | bool | int promoted to float |
+| bool, int | bool | bool promoted to int |
+| bool, float | bool | bool promoted to int, then float |
+| str, str | bool | exact character match |
+| str, non-str | bool | always false |
+| vec, vec | bool | element-wise, incompatible element types always false |
+| incompatible types | bool | always `false`, never throws |
+
+__`< > <= >=` operators__
+
+| Operands | Result | Notes |
+|---|---|---|
+| int, float | bool | int promoted to float |
+| bool, int | bool | bool promoted to int |
+| bool, float | bool | bool promoted to int, then float |
+| str, str | bool | lexicographical |
+| str, int | bool | str parsed as float, int promoted to float |
+| str, float | bool | str parsed as float |
+| str, bool | bool | str parsed as float, bool promoted to int |
+| vec, vec | bool | lexicographical, element types must match |
+| incompatible types | ERROR | |
+
+All other combinations throw.
+If the type is not convertible also throw.
+```
+"abc" > 4;
+ERROR: cannot evaluate ("abc" > 4) - str "abc" is not parseable as float
 ```
 
 #### Integer underflow and overflow
@@ -578,6 +669,7 @@ let a = -9223372036854775808;   # INT64_MIN
 let b = a - 1;
 ERROR: Integer underflow in expression (-9223372036854775808 - 1)
 ```
+Creating a variable with a value too big or too low to also throws an error.
 
 #### Invalid float states
 Floats can reach states like `NaN`, `-Inf`, `Inf`. A runtime error is thrown when that happens.
@@ -625,7 +717,7 @@ ERROR: Float underflow in expression (5e-324 / 10.0)
 | 6 | `in` | Left |
 | 7 | `==` `!=` `<` `>` `<=` `>=` | Left |
 | 8 | `and` | Left |
-| 9 | `not` | Left |
+| 9 | `or` | Left |
 | 10 | `?` `:>` | Left |
 
 
@@ -679,7 +771,14 @@ let letters = ["a", "b", "c"];
 let a = letters[0];         # immutable reference
 let mut b = letters[1];     # illegal - letters is not mut
 ```
+Indexing can be used to modify the element at a given index.
+```
+let mut nums = [1, 2, 3];
+nums[1] = -1;
+nums[2] = "10";     # Converted to vector type
 
+# nums is now [1, -1, 10]
+```
 The `@` operator returns the number of elements in the vector.
 ```
 let nums = [1, 2, 3, 4 , 5]
@@ -688,6 +787,7 @@ let size = @nums;   # 5
 
 
 Elements can be appended with the `+` and `+=` operator.
+`+` always creates a new vector.
 Appending follows existing reference semantics. `int`, `float`, `bool` are appended as copies, others referenced.
 
 ```
@@ -695,9 +795,13 @@ let mut a = [1, 2];
 a += 3;             # [1, 2, 3]
 
 let b = a + 4;      # independent vector [1, 2, 3, 4]
-
-
-# Types must explicitly match when appending.
+```
+Elements can also be inserted at the start when creating a vector with the `+` operator.
+```
+let a = 1 + [2, 3, 4]   # [1, 2, 3, 4]
+```
+Types must explicitly match when appending.
+```
 let a = [1, 2] + "3";
 ERROR: Can't append "3" to vec<int>
 ```
