@@ -40,13 +40,10 @@ statement
     | function_call, ";";
 
 let_binding
-    = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", ( if_expression
-    | expression ), ";";
+    = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", ( if_expression | expression ), ";";
 
 assignment_statement
-    = lvalue, ( "="
-    | compound_assignment_op ), ( if_expression
-    | expression ), ";";
+    = lvalue, ( "=" | compound_assignment_op ), ( if_expression | expression ), ";";
 
 if_expression
     = "if", expression, "{", expression, "}", "else", "{", expression, "}";
@@ -89,16 +86,13 @@ continue_statement
 
 (* Keywords are excluded from identifiers *)
 IDENTIFIER
-    = LETTER, { LETTER
-    | DIGIT
-    | "_" };
+    = LETTER, { LETTER | DIGIT | "_" };
 
 LETTER
     = ? [a-zA-Z] ?;
 
 STRING
-    = '"', { STRING_CHAR
-    | ESCAPE_SEQUENCE }, '"';
+    = '"', { STRING_CHAR | ESCAPE_SEQUENCE }, '"';
 
 (* Change if swap to unicode *)
 STRING_CHAR
@@ -117,15 +111,11 @@ HEX_DIGIT
     | ? [a-fA-F] ?;
 
 INTEGER
-    = DIGIT_NON_ZERO, { DIGIT
-    | ( "_", DIGIT ) }
+    = DIGIT_NON_ZERO, { DIGIT | ( "_", DIGIT ) }
     | "0";
 
 FLOAT
-    = ( DIGIT_NON_ZERO, { DIGIT
-    | ( "_", DIGIT ) }
-    | "0" ), ".", DIGIT, { DIGIT
-    | ( "_", DIGIT ) };
+    = ( DIGIT_NON_ZERO, { DIGIT | ( "_", DIGIT ) } | "0" ), ".", DIGIT, { DIGIT | ( "_", DIGIT ) };
 
 BOOL
     = "true"
@@ -166,8 +156,7 @@ function_arguments
     = [ expression, { ",", expression } ];
 
 expression
-    = disjunction, { ( "?"
-    | ":>" ), disjunction };
+    = disjunction, { ( "?" | ":>" ), disjunction };
 
 disjunction
     = conjunction, { "or", conjunction };
@@ -193,17 +182,13 @@ intersection_application
     = additive_term, { "><", additive_term };
 
 additive_term
-    = multiplicative_term, { ( "+"
-    | "-" ), multiplicative_term };
+    = multiplicative_term, { ( "+" | "-" ), multiplicative_term };
 
 multiplicative_term
-    = unary_application, { ( "*"
-    | "/" ), unary_application };
+    = unary_application, { ( "*" | "/" ), unary_application };
 
 unary_application
-    = [ "-"
-    | "!"
-    | "@" ], index_application;
+    = [ "-" | "!" | "@" ], index_application;
 
 index_application
     = term, { "[", expression, "]" };

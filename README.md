@@ -49,6 +49,7 @@ Hello from stream.
 - [`struct`](#struct) - a user defined type that groups named fields together
 - [`vector`](#vec) -`vec<T>` a homogeneous collection where `T` is the element type
 
+
 #### int
 `int` is a 64-bit signed integer type with a range of `-2^63` to `2^63 - 1`. Overflow and underflow produce a [runtime error](#integer-underflow-and-overflow).
 
@@ -84,13 +85,17 @@ Strings are indexable.
 let a = "123";
 let b = a[0];   # 1 (copy)
 ```
+If the index is out of bounds, the result is an error.
+```
+let a = "123";
+let b = a[10];
+ERROR: index out of bounds - index 10 is out of range for string "b" of length 3
+```
 Individual characters can be modified.
 ```
 let mut a = "123";
 a[1] = "8";         # "183"
 ```
-When indexing out of bound. This is the same indexing a vector out of bounds.
-
 
 The `@` operator returns the size of the string.
 ```
@@ -144,7 +149,7 @@ ERROR: struct "Point" is already defined.
 ```
 
 #### Numeric literals
-`int` and `float` support "_" separators for readability
+`int` and `float` support "_" separators for readability.
 ```
 # Valid
 int a = 100_200          # 100200
@@ -186,8 +191,8 @@ str(1.23);      # "1,23"
 int(2.71);      # 2         Floating point numbers are truncated towards 0.
 int("617");     # 617
 
-float("1.23");  # "1.23"
-float(1);       # "1.0"
+float("1.23");  # 1.23
+float(1);       # 1.0
 ```
 If the conversion is impossible an error is raised.
 ```
@@ -224,8 +229,7 @@ let b = a;              # float
 let c : int = a;        # int
 ```
 
-Variables are weakly(loosely) typed. Numbers and strings are easily convertible both ways.
-When a target type is known then `let a : type = expression` is equivalent to `let a = type(expression)`
+Variables are weakly(loosely) typed. Numbers and strings are easily convertible both ways. `let a : type = expression` is equivalent to `let a = type(expression)`
 
 ```
 let a : str = 123;      # "123"
@@ -337,7 +341,10 @@ fn test(mut a : vec<int>, b : vec<int>) -> int {
 }
 ```
 
-The arguments will be converted to match the functions signature if possible.
+The arguments will be converted to match the functions signature if possible. However the conversion returns a copy, so the changes might not be reflected in the original.
+
+IDEA: Make the conversions only legal for non mut?
+
 ```
 fn add(a : int) { ... }
 
@@ -375,7 +382,7 @@ fn foo() {
     foo();
 }
 foo();
-ERROR: maximum call depth of 1000 exceeded
+ERROR: maximum call depth of 1000 exceeded.
 ```
 
 Functions with a void type can't be used in expressions.
@@ -401,7 +408,7 @@ if condition {
 ```
 The `else if` and `else` block are optional. Any type can be used as a condition. See [bool coercion](#logic-operators-and-bool-coercion)
 
-It's also possible to do if/else expressions.
+It's also possible to do `if/else` expressions.
 
 ```
 # Type is mandatory, the result will attempt to get coerced into that type.
@@ -534,7 +541,7 @@ __`+` operator__
 
 __` - * / %` operators__
 
-`int` get promoted to float when needed, `bool` is either promoted to `str` or `int`. Operations including `str`, convert the other operand to float (except `int` * `str`).
+`int` get promoted to float when needed, `bool` is either promoted to `str` or `int`. Operations including `str`, convert it to `float` (except `int` * `str`).
 | Operant A | Operant B | Result | Notes |
 |---|---|---|---|
 | int | int | int | `/` does integer division|
@@ -826,17 +833,20 @@ ERROR: Can't concatenate vectors vec<int>[1, 2] with vec<str>["3"] of non matchi
 ```
 
 When appending or concatenating, the types of vectors decide the correct operation. Order of operands only affects the side on which the operation happens.
+- if the types of vectors match -> concatenate
+- if one of the vectors' contained type, matches the type of the other vector - > append
+
 ```
 [1, 2, 3] + 0               # [1, 2, 3, 0] - append, int matches element type
 [1, 2, 3] + "0"             # [1, 2, 3, 0] - append, str converted to int
 [1, 2, 3] + "abc"           # ERROR: cannot append str "abc" to vec<int>
+
 [1, 2, 3] + [4]             # [1, 2, 3, 4] - concatenation
 [[1, 2], [3, 4]] + [5, 6]       # [[1, 2], [3, 4], [5, 6]] - append, vec<int> matches element type
 [[1, 2], [3, 4]] + [[5, 6]]     # [[1, 2], [3, 4], [5, 6]] - concatenation
 
 [1, 2] + []                     # [1, 2]
 [[1, 2]] + []                   # [[1, 2], []]
-
 ```
 The `in` operator can be used, to check if an element is contained in the vector.
 ```
@@ -845,7 +855,7 @@ let t = 1 in nums;      # true
 let f = -1 in nums;     # false
 ```
 
-Vectors can be filtered by a predicate with the `?` operator. The ? operator returns a new vector containing only the elements that satisfy the predicate.
+Vectors can be filtered by a predicate with the `?` operator. The `?` operator returns a new vector containing only the elements that satisfy the predicate.
 
 ```
 fn odd(n : int) -> bool { return n % 2; }
@@ -864,6 +874,7 @@ If the predicate signature for `:>` or `?` doesn't match the vector's element ty
 ```
 fn min(n : vec<int>) -> int { ... }
 
+let nums = [1, 2, 3]
 let a = nums :> min;
 ERROR: predicate "min" and "nums" do not match.
 ```
@@ -883,8 +894,6 @@ The error is logged in the following format.
 `ERROR in {{file_path} at line { line } column { column }: {message}`
 
 An additional hint can be provided if the cause of the error easy to detect.
-
-Example
 
 ```
 ERROR in ./example.dal at line 10, column 43
