@@ -45,9 +45,9 @@ Hello from stream.
 - [`int`](#int) - 64-bit signed integer
 - [`float`](#float) - IEEE 754 64-bit float
 - [`bool`](#bool) - true or false
-- [`str`](#str) - a sequence of ASCII characters
+- [`str`](#str) - a sequence of ASCII characters.
 - [`struct`](#struct) - a user defined type that groups named fields together
-- [`vector`](#vec) `vec<T>` - a homogeneous collection where `T` is the element type. See [Collections](#collections)
+- [`vector`](#vec) -`vec<T>` a homogeneous collection where `T` is the element type
 
 #### int
 `int` is a 64-bit signed integer type with a range of `-2^63` to `2^63 - 1`. Overflow and underflow produce a [runtime error](#integer-underflow-and-overflow).
@@ -376,6 +376,17 @@ fn foo() {
 }
 foo();
 ERROR: maximum call depth of 1000 exceeded
+```
+
+Functions with a void type can't be used in expressions.
+```
+fn void_fun() {}
+
+let a = void_fun();
+ERROR: cannot assign result of void function "void_fun".
+
+void_fun() < 4;
+ERROR: function "void_fun" has no return value and can't be used in expressions.
 ```
 ### if/else
 
