@@ -39,11 +39,16 @@ statement
     | function_call, ";";
 
 let_binding
-    = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", expression, ";";
+    = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", ( if_expression
+    | expression ), ";";
 
 assignment_statement
     = lvalue, ( "="
-    | compound_assignment_op ), expression, ";";
+    | compound_assignment_op ), ( if_expression
+    | expression ), ";";
+
+if_expression
+    = "if", expression, "{", expression, "}", "else", "{", expression, "}";
 
 lvalue
     = IDENTIFIER, { "[", expression, "]" };

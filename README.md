@@ -399,6 +399,7 @@ let a : int = if condition { 5 } else { "10" }; # else is mandatory
 let a = if ...
 ERROR: if expression requires a specified type.
 ```
+If expressions are non recursive, and only work when assigning, or creating a new binding.
 
 ### Loops
 
