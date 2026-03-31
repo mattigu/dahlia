@@ -800,21 +800,32 @@ Elements can also be inserted at the start when creating a vector with the `+` o
 ```
 let a = 1 + [2, 3, 4]   # [1, 2, 3, 4]
 ```
-Types must explicitly match when appending.
+Appending a non vector, will attempt to convert the appended element to match the vector,
 ```
 let a = [1, 2] + "3";
-ERROR: Can't append "3" to vec<int>
 ```
 
-Vectors can be concatenated with the `+` and `+=` operator.
+Vectors can be concatenated with the `+` and `+=` operator. Types of vectors must explictly match.
 ```
 let a = [1, 2] + [3, 4];    # [1, 2, 3, 4]
 
-# Same as when appending, types must explicitly match.
 let a = [1, 2] + ["3"]
 ERROR: Can't concatenate vectors vec<int>[1, 2] with vec<str>["3"] of non matching types.
 ```
 
+When appending or concatenating, the types of vectors decide the correct operation. Order of operands only affects the side on which the operation happens.
+```
+[1, 2, 3] + 0               # [1, 2, 3, 0] - append, int matches element type
+[1, 2, 3] + "0"             # [1, 2, 3, 0] - append, str converted to int
+[1, 2, 3] + "abc"           # ERROR: cannot append str "abc" to vec<int>
+[1, 2, 3] + [4]             # [1, 2, 3, 4] - concatenation
+[[1, 2], [3, 4]] + [5, 6]       # [[1, 2], [3, 4], [5, 6]] - append, vec<int> matches element type
+[[1, 2], [3, 4]] + [[5, 6]]     # [[1, 2], [3, 4], [5, 6]] - concatenation
+
+[1, 2] + []                     # [1, 2]
+[[1, 2]] + []                   # [[1, 2], []]
+
+```
 The `in` operator can be used, to check if an element is contained in the vector.
 ```
 let nums = [1, 2, 3];
@@ -874,12 +885,6 @@ Warnings might be reported when code that is likely to be a mistake is detected.
 
 The warning is logged in the following format.
 `WARNING in { file_path } at line { line } column { column }: { message }`
-
-Examples:
-```
-1 + 1;
-WARNING: expression "1 + 1" is not assigned to anything.
-```
 
 ```
 if 1 { ... }
