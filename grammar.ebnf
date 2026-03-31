@@ -8,14 +8,15 @@ program
     = { function_definition };
 
 function_definition
-    = "fn", IDENTIFIER, "(", [ function_params ], ")", [ "->", type ], block;
+    = "fn", IDENTIFIER, "(", function_params, ")", [ "->", type ], block;
 
 function_params
-    = function_param, { ",", function_param };
+    = [ function_param, { ",", function_param } ];
 
 function_param
     = [ "mut" ], IDENTIFIER, ":", type;
 
+(* Maybe [type] instead of vec<type>? *)
 type
     = "int"
     | "float"
@@ -153,16 +154,16 @@ literal
     | vec_literal;
 
 vec_literal
-    = "[", [ vec_elements ], "]";
+    = "[", vec_elements, "]";
 
 vec_elements
-    = expression, { ",", expression }, [ "," ];
+    = [ expression, { ",", expression }, [ "," ] ];
 
 function_call
-    = IDENTIFIER, "(", [ function_arguments ], ")";
+    = IDENTIFIER, "(", function_arguments, ")";
 
 function_arguments
-    = expression, { ",", expression };
+    = [ expression, { ",", expression } ];
 
 expression
     = disjunction, { ( "?"
