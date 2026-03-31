@@ -21,8 +21,7 @@ type
     | "float"
     | "bool"
     | "str"
-    | "vec", "<", type, ">"
-    | IDENTIFIER;
+    | "vec", "<", type, ">";
 
 block
     = "{", { statement }, "}";
@@ -37,14 +36,17 @@ statement
     | break_statement
     | continue_statement
     | block
-    | expression, ";";
+    | function_call, ";";
 
 let_binding
     = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", expression, ";";
 
 assignment_statement
-    = index_application, ( "="
+    = lvalue, ( "="
     | compound_assignment_op ), expression, ";";
+
+lvalue
+    = IDENTIFIER, { "[", expression, "]" };
 
 compound_assignment_op
     = "+="
@@ -202,5 +204,8 @@ index_application
 
 term
     = literal
-    | IDENTIFIER
-    | function_call;
+    | identifier_or_call
+    | "(", expression, ")";
+
+identifier_or_call
+    = IDENTIFIER, [ "(", function_arguments, ")" ];
