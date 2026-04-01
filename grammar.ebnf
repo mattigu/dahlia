@@ -111,11 +111,11 @@ HEX_DIGIT
     | ? [a-fA-F] ?;
 
 INTEGER
-    = DIGIT_NON_ZERO, { DIGIT | ( "_", DIGIT ) }
+    = DIGIT_NON_ZERO, { [ "_" ],  DIGIT }
     | "0";
 
 FLOAT
-    = ( DIGIT_NON_ZERO, { DIGIT | ( "_", DIGIT ) } | "0" ), ".", DIGIT, { DIGIT | ( "_", DIGIT ) };
+    = ( DIGIT_NON_ZERO, {  [ "_" ], DIGIT  } | "0" ), ".", DIGIT, { [ "_" ], DIGIT  };
 
 BOOL
     = "true"
