@@ -675,41 +675,6 @@ If the type is not convertible also throw.
 ERROR: cannot evaluate ("abc" > 4) - str "abc" is not parseable as float
 ```
 
-#### Integer underflow and overflow
-Integers can overflow and underflow. A runtime error is thrown when that happens.
-```
-# Integer overflow
-let a = 9223372036854775807;    # INT64_MAX
-let b = a + 1;
-ERROR: Integer overflow in expression (9223372036854775807 + 1)
-
-# Integer underflow
-let a = -9223372036854775808;   # INT64_MIN
-let b = a - 1;
-ERROR: Integer underflow in expression (-9223372036854775808 - 1)
-```
-Creating a variable with a value too big or too low to also throws an error.
-
-#### Invalid float states
-Floats can reach states like `NaN`, `-Inf`, `Inf`. A runtime error is thrown when that happens.
-
-```
-# Note that 2e308 syntax is not supported and is only here to show the number.
-
-# Float overflow
-let a = 2e308;
-let b = a * 10.0;
-ERROR: Float overflow in expression (1.8e308 * 10.0)
-
-# Float invalid operation (same applies for int division by 0)
-let a = 0.0 / 0.0;
-ERROR: Invalid float operation (0.0 / 0.0) - result is NaN
-
-# Float underflow
-let a = 5e-323;
-let b = a / 100.0;
-ERROR: Float underflow in expression (5e-324 / 10.0)
-```
 
 #### Vector operator
 | `vec<T>` Operator | Description |
@@ -754,6 +719,42 @@ Comparison is done by comparing values.
 #### Logic operators
 
 `and`, `or` and `!` work on any type and always produce a `bool`. Each operand is converted to a bool. The rules were already described in more detail in the if/else section.
+
+#### Integer underflow and overflow
+Integers can overflow and underflow. A runtime error is thrown when that happens.
+```
+# Integer overflow
+let a = 9223372036854775807;    # INT64_MAX
+let b = a + 1;
+ERROR: Integer overflow in expression (9223372036854775807 + 1)
+
+# Integer underflow
+let a = -9223372036854775808;   # INT64_MIN
+let b = a - 1;
+ERROR: Integer underflow in expression (-9223372036854775808 - 1)
+```
+Creating a variable with a value too big or too low to also throws an error.
+
+#### Invalid float states
+Floats can reach states like `NaN`, `-Inf`, `Inf`. A runtime error is thrown when that happens.
+
+```
+# Note that 2e308 syntax is not supported and is only here to show the number.
+
+# Float overflow
+let a = 2e308;
+let b = a * 10.0;
+ERROR: Float overflow in expression (1.8e308 * 10.0)
+
+# Float invalid operation (same applies for int division by 0)
+let a = 0.0 / 0.0;
+ERROR: Invalid float operation (0.0 / 0.0) - result is NaN
+
+# Float underflow
+let a = 5e-323;
+let b = a / 100.0;
+ERROR: Float underflow in expression (5e-324 / 10.0)
+```
 
 ### Collections
 
