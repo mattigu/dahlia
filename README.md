@@ -918,6 +918,37 @@ let a = 5;
 WARNING: variable "a" is declared but never used.
 ```
 
+## Code examples
+### Insertion sort
+
+```
+fn insertionSort(mut arr : vec<int>) {
+    for mut i in 1..(@arr) {
+        let x = arr[i];
+
+        while i > 0 and arr[i-1] > x {
+            arr[i] = arr[i-1];
+            i -= 1;
+        }
+        arr[i] = x;
+    }
+}
+
+fn main() {
+    let mut nums = [3, 1 , -4, 10];
+    insertionSort(nums);
+    for i in 0..(@nums) {
+        println(nums[i]);
+    }
+}
+
+# Result
+>>> -4
+>>> 1
+>>> 3
+>>> 10
+```
+
 ### Possible features
 - Importing other files
 - Vector initialization similar to `for x in 0..5` loop syntax.
