@@ -71,7 +71,7 @@ range
     = range_bound, "..", [ "=" ], range_bound, [ "..", range_bound ];
 
 range_bound
-    = IDENTIFIER
+    = identifier_or_call
     | literal
     | "(", expression, ")";
 
