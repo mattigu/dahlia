@@ -1,6 +1,7 @@
 
 add_library(dahlia_lib STATIC
-    src/test.cpp
+    src/CharReader.cpp
+    src/Position.cpp
 )
 
 target_include_directories(dahlia_lib

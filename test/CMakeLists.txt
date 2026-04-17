@@ -8,7 +8,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(doctest)
 
 add_executable(dahlia_test
-    test.cpp
+    main.cpp
+    CharReader.cpp
 )
 
 target_link_libraries(dahlia_test
