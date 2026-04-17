@@ -11,7 +11,7 @@ char CharReader::current() const noexcept { return current_; }
 
 Position CharReader::position() const noexcept { return position_; }
 
-char CharReader::next() noexcept {
+char CharReader::next() {
     if (current_ == ETX) {
         return ETX;
     }
@@ -30,6 +30,10 @@ char CharReader::next() noexcept {
 
     } else if (input_.eof()) {
         current_ = ETX;
+    } else if (input_.fail()) {
+        throw std::runtime_error(
+            std::format("Failed to read next character at {}:{} (stream error)",
+                        position_.line, position_.column));
     }
     // There is also input_.fail() to check.
 

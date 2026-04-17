@@ -1,6 +1,7 @@
 #include "src/CharReader.h"
 
 #include <sstream>
+#include <stdexcept>
 
 #include "doctest.h"
 #include "src/Position.h"
@@ -98,4 +99,14 @@ TEST_CASE("CharReader ETX position") {
     reader.next();
 
     CHECK(etx_pos == reader.position());
+}
+
+TEST_CASE("CharReader throws exception on failbit") {
+    std::istringstream input("abc");
+
+    input.setstate(std::ios::failbit);
+
+    CharReader reader(input);
+
+    CHECK_THROWS_AS(reader.next(), std::runtime_error);
 }

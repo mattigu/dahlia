@@ -12,7 +12,7 @@ class CharReader {
 public:
     CharReader(std::istream& input);
 
-    char next() noexcept;
+    char next();
     char current() const noexcept;
 
     Position position() const noexcept;
