@@ -31,6 +31,14 @@ TEST_CASE("CharReader reads correctly from a stream") {
     CHECK(reader.next() == ETX);
 }
 
+TEST_CASE("CharReader empty input") {
+    std::istringstream input("");
+    CharReader reader(input);
+
+    CHECK(reader.current() == STX);
+    CHECK(reader.next() == ETX);
+}
+
 TEST_CASE("CharReader initial position") {
     std::istringstream input("12");
     CharReader reader(input);
