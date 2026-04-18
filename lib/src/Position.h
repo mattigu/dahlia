@@ -6,7 +6,17 @@ struct Position {
     int column;
     int offset;
 
-    // For testing/debugging
     bool operator==(Position const&) const = default;
-    friend std::ostream& operator<<(std::ostream& oss, Position const& pos);
 };
+
+template <>
+struct std::formatter<Position> : std::formatter<std::string> {
+    auto format(Position const& pos, std::format_context& ctx) const {
+        return std::formatter<std::string>::format(
+            std::format("{{line={}, column={}, offset={}}}", pos.line,
+                        pos.column, pos.offset),
+            ctx);
+    }
+};
+
+std::ostream& operator<<(std::ostream& oss, Position const& pos);
