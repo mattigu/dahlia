@@ -60,7 +60,7 @@ Hello from stream.
 `bool` can be either `true` or `false`.
 
 #### str
-`str` is a string of ascii characters. `\` can be used to escape special characters: `\`, `"`, `\r`, `\n`, `\t`.
+`str` is a string of ascii characters. `\` can be used to escape special characters: `\`, `"`, `\n`, `\t`.
 
 ```
 let a = "123\" \\abc";
