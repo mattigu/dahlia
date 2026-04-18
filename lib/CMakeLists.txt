@@ -10,6 +10,8 @@ FetchContent_MakeAvailable(magic_enum)
 add_library(dahlia_lib STATIC
     src/CharReader.cpp
     src/Position.cpp
+    src/Lexer.cpp
+    src/Token.cpp
 )
 
 target_link_libraries(dahlia_lib

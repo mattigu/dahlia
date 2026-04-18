@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(doctest)
 add_executable(dahlia_test
     main.cpp
     CharReader.cpp
+    Lexer.cpp
 )
 
 target_link_libraries(dahlia_test
