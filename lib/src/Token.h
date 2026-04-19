@@ -10,14 +10,15 @@ enum class TokenKind : std::uint8_t {
     // Arithmetic
     Plus,
     Minus,
-    Star,
+    Asterisk,
     Slash,
     Percent,
+    Equal,
 
     // Compound assignment
     PlusEqual,
     MinusEqual,
-    StarEqual,
+    AsteriskEqual,
     SlashEqual,
     PercentEqual,
 
@@ -26,8 +27,8 @@ enum class TokenKind : std::uint8_t {
     GreaterEqual,
     Less,
     LessEqual,
-    Equal,
-    NotEqual,
+    EqualEqual,
+    ExclamationEqual,
 
     // Boolean arithmetic
     Exclamation,
