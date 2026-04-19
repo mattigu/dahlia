@@ -100,29 +100,49 @@ struct Token {
     bool operator==(Token const&) const = default;
 };
 
-template <>
-struct std::formatter<Token> : std::formatter<std::string> {
-    auto format(Token const& token, std::format_context& ctx) const {
-        std::string value_str;
-        std::visit(
-            [&value_str](auto const& val) {
-                using T = std::decay_t<decltype(val)>;
-                if constexpr (std::is_same_v<T, std::monostate>) {
-                    value_str = "none";
-                } else if constexpr (std::is_same_v<T, std::string>) {
-                    value_str = val;
-                } else {
-                    value_str = std::to_string(val);
-                }
-            },
-            token.value);
 
-        return std::formatter<std::string>::format(
-            std::format("{{\n  kind={},\n  pos={},\n  value={}\n}}",
-                        magic_enum::enum_name(token.kind), token.pos,
-                        value_str),
-            ctx);
+template <>
+struct std::formatter<TokenKind> : std::formatter<std::string_view> {
+    auto format(TokenKind kind, std::format_context& ctx) const {
+        return std::formatter<std::string_view>::format(
+            magic_enum::enum_name(kind), ctx);
     }
 };
 
-std::ostream& operator<<(std::ostream& oss, Token const& pos);
+template <>
+struct std::formatter<TokenValue> : std::formatter<std::string> {
+    auto format(TokenValue const& value, std::format_context& ctx) const {
+        std::string str = std::visit(
+            [](auto const& val) -> std::string {
+                using T = std::decay_t<decltype(val)>;
+                if constexpr (std::is_same_v<T, std::monostate>) {
+                    return "none";
+                } else if constexpr (std::is_same_v<T, std::string>) {
+                    return std::format("\"{}\"", val);
+                } else {
+                    return std::to_string(val);
+                }
+            },
+            value);
+        return std::formatter<std::string>::format(str, ctx);
+    }
+};
+
+template <>
+struct std::formatter<Token> : std::formatter<std::string> {
+    auto format(Token const& token, std::format_context& ctx) const {
+        return std::formatter<std::string>::format(
+            std::format("{{\n  kind={},\n  pos={},\n  value={}\n}}",
+                token.kind,
+                token.pos,
+                token.value),
+            ctx
+        );
+    }
+};
+
+std::ostream& operator<<(std::ostream& oss, Token const& token);
+std::ostream& operator<<(std::ostream& oss, TokenKind const& kind);
+std::ostream& operator<<(std::ostream& oss, TokenValue const& value);
+
+
