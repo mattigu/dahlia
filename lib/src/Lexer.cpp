@@ -11,9 +11,9 @@ static std::unordered_map<char, TokenKind> const SINGLE_CHAR_TOKENS = {
     {'(', TokenKind::ParenOpen},   {')', TokenKind::ParenClose},
     {'[', TokenKind::BracketOpen}, {']', TokenKind::BracketClose},
     {'{', TokenKind::BraceOpen},   {'}', TokenKind::BraceClose},
-    {':', TokenKind::Colon},       {';', TokenKind::Semicolon},
-    {',', TokenKind::Comma},       {'@', TokenKind::At},
-    {'?', TokenKind::Question},    {ETX, TokenKind::ETX}};
+    {';', TokenKind::Semicolon},   {',', TokenKind::Comma},
+    {'@', TokenKind::At},          {'?', TokenKind::Question},
+    {ETX, TokenKind::ETX}};
 
 Lexer::Lexer(std::istream& src, std::ostream& diagnostics) noexcept
     : src_{src}, current_{.kind = TokenKind::STX, .pos = src_.position()} {}
@@ -42,6 +42,10 @@ std::optional<Token> Lexer::tryBuildToken() {
 
     auto result = tryBuildSingleCharToken()
                       .or_else([this]() { return tryBuildComment(); })
+                      .or_else([this]() {
+                          return tryBuildOperator().transform(
+                              [](TokenKind kind) { return Token{kind}; });
+                      })
                       .or_else([this]() { return tryBuildString(); });
     if (result.has_value()) {
         result->pos = token_pos;
@@ -73,6 +77,72 @@ std::optional<Token> Lexer::tryBuildComment() {
 
     return Token{.kind = TokenKind::Comment, .value = comment};
 };
+
+std::optional<TokenKind> Lexer::tryBuildOperator() {
+    switch (src_.current()) {
+        case '+':
+            return extendOperator(TokenKind::Plus, '=', TokenKind::PlusEqual);
+        case '-':
+            return extendOperator(TokenKind::Minus, '=', TokenKind::MinusEqual);
+        case '*':
+            return extendOperator(TokenKind::Asterisk, '=',
+                                  TokenKind::AsteriskEqual);
+        case '/':
+            return extendOperator(TokenKind::Slash, '=', TokenKind::SlashEqual);
+        case '%':
+            return extendOperator(TokenKind::Percent, '=',
+                                  TokenKind::PercentEqual);
+        case '=':
+            return extendOperator(TokenKind::Equal, '=', TokenKind::EqualEqual);
+        case '!':
+            return extendOperator(TokenKind::Exclamation, '=',
+                                  TokenKind::ExclamationEqual);
+        case '<':
+            return extendOperator(TokenKind::Less, '=', TokenKind::LessEqual);
+
+        case '.':
+            if (src_.next() == '.') {
+                if (src_.next() == '=') {
+                    src_.next();
+                    return TokenKind::DotDotEq;
+                }
+                return TokenKind::DotDot;
+            }
+            // Log error
+            return std::nullopt;
+
+        case ':':
+            if (src_.next() == '>') {
+                src_.next();
+                return TokenKind::ColonGreater;
+            }
+            return TokenKind::Colon;
+        case '>': {
+            auto const curr = src_.next();
+            if (curr == '<') {
+                src_.next();
+                return TokenKind::GreaterLess;
+            }
+            if (curr == '=') {
+                src_.next();
+                return TokenKind::GreaterEqual;
+            }
+            return TokenKind::Greater;
+        }
+        default:
+            return std::nullopt;
+    }
+};
+
+TokenKind Lexer::extendOperator(TokenKind kind, char extend_char,
+                                TokenKind extended_kind) {
+    if (src_.next() == extend_char) {
+        src_.next();
+        return extended_kind;
+    }
+    return kind;
+};
+
 std::optional<Token> Lexer::tryBuildString() {
     if (src_.current() != '"') {
         return std::nullopt;

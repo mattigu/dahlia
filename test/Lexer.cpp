@@ -88,3 +88,42 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(token.kind == TokenKind::StrLiteral);
     CHECK(token.value == TokenValue("Hello"));
 }
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple operators") {
+    init("+ - * / % = ! < > :");
+    CHECK(next().kind == TokenKind::Plus);
+    CHECK(next().kind == TokenKind::Minus);
+    CHECK(next().kind == TokenKind::Asterisk);
+    CHECK(next().kind == TokenKind::Slash);
+    CHECK(next().kind == TokenKind::Percent);
+    CHECK(next().kind == TokenKind::Equal);
+    CHECK(next().kind == TokenKind::Exclamation);
+    CHECK(next().kind == TokenKind::Less);
+    CHECK(next().kind == TokenKind::Greater);
+    CHECK(next().kind == TokenKind::Colon);
+    CHECK(next().kind == TokenKind::ETX);
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer tokenizes compound assignment operators") {
+    init("+= -= *= /= %= == != <= >=");
+    CHECK(next().kind == TokenKind::PlusEqual);
+    CHECK(next().kind == TokenKind::MinusEqual);
+    CHECK(next().kind == TokenKind::AsteriskEqual);
+    CHECK(next().kind == TokenKind::SlashEqual);
+    CHECK(next().kind == TokenKind::PercentEqual);
+    CHECK(next().kind == TokenKind::EqualEqual);
+    CHECK(next().kind == TokenKind::ExclamationEqual);
+    CHECK(next().kind == TokenKind::LessEqual);
+    CHECK(next().kind == TokenKind::GreaterEqual);
+    CHECK(next().kind == TokenKind::ETX);
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes special operators") {
+    init(".. ..= :> ><");
+    CHECK(next().kind == TokenKind::DotDot);
+    CHECK(next().kind == TokenKind::DotDotEq);
+    CHECK(next().kind == TokenKind::ColonGreater);
+    CHECK(next().kind == TokenKind::GreaterLess);
+    CHECK(next().kind == TokenKind::ETX);
+}

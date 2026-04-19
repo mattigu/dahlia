@@ -21,8 +21,14 @@ private:
     Token current_;
 
     std::optional<Token> tryBuildToken();
+
     std::optional<Token> tryBuildSingleCharToken();
+
     std::optional<Token> tryBuildComment();
+
+    std::optional<TokenKind> tryBuildOperator();
+    TokenKind extendOperator(TokenKind kind, char extend_char,
+                                           TokenKind extended_kind);
 
     std::optional<Token> tryBuildString();
     std::optional<char> tryBuildEscapeSequence();
