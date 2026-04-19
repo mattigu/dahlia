@@ -7,6 +7,19 @@
 #include "src/Position.h"
 #include "src/Token.h"
 
+struct LexerFixture {
+    void init(std::string const& src) {
+        stream.emplace(src);
+        lexer.emplace(*stream);
+    }
+
+    Token next() { return lexer->next(); }
+    Token current() { return lexer->current(); }
+
+    std::optional<std::istringstream> stream;
+    std::optional<Lexer> lexer;
+};
+
 TEST_CASE("Lexer first token is STX") {
     std::istringstream input("1");
     Lexer lexer(input);
@@ -16,77 +29,62 @@ TEST_CASE("Lexer first token is STX") {
 TEST_CASE("Lexer last token is ETX") {
     std::istringstream input("");
     Lexer lexer(input);
-
     CHECK(lexer.next().kind == TokenKind::ETX);
 }
 
 TEST_CASE("Lexer next() when depleted") {
     std::istringstream input("");
     Lexer lexer(input);
-
     auto const end_token =
         Token{.kind = TokenKind::ETX,
               .pos = Position{.line = 1, .column = 1, .offset = 0}};
-
     REQUIRE(lexer.next() == end_token);
     REQUIRE(lexer.next() == end_token);
     REQUIRE(lexer.next() == end_token);
 }
 
-TEST_CASE("Lexer tokenizes single char tokens") {
-    std::istringstream input("()[]{}:;,@?");
-    Lexer lexer(input);
-
-    CHECK(lexer.next().kind == TokenKind::ParenOpen);
-    CHECK(lexer.next().kind == TokenKind::ParenClose);
-    CHECK(lexer.next().kind == TokenKind::BracketOpen);
-    CHECK(lexer.next().kind == TokenKind::BracketClose);
-    CHECK(lexer.next().kind == TokenKind::BraceOpen);
-    CHECK(lexer.next().kind == TokenKind::BraceClose);
-    CHECK(lexer.next().kind == TokenKind::Colon);
-    CHECK(lexer.next().kind == TokenKind::Semicolon);
-    CHECK(lexer.next().kind == TokenKind::Comma);
-    CHECK(lexer.next().kind == TokenKind::At);
-    CHECK(lexer.next().kind == TokenKind::Question);
-    CHECK(lexer.next().kind == TokenKind::ETX);
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes single char tokens") {
+    init("()[]{};,@?");
+    CHECK(next().kind == TokenKind::ParenOpen);
+    CHECK(next().kind == TokenKind::ParenClose);
+    CHECK(next().kind == TokenKind::BracketOpen);
+    CHECK(next().kind == TokenKind::BracketClose);
+    CHECK(next().kind == TokenKind::BraceOpen);
+    CHECK(next().kind == TokenKind::BraceClose);
+    CHECK(next().kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::Comma);
+    CHECK(next().kind == TokenKind::At);
+    CHECK(next().kind == TokenKind::Question);
+    CHECK(next().kind == TokenKind::ETX);
 }
 
-TEST_CASE("Lexer token positions(single char)") {
-    std::istringstream input("()\n[");
-    Lexer lexer(input);
-
-    REQUIRE(lexer.next().pos == Position{.line = 1, .column = 1, .offset = 0});
-    REQUIRE(lexer.next().pos == Position{.line = 1, .column = 2, .offset = 1});
-    REQUIRE(lexer.next().pos == Position{.line = 2, .column = 1, .offset = 3});
-    REQUIRE(lexer.next().pos == Position{.line = 2, .column = 2, .offset = 4});
+TEST_CASE_FIXTURE(LexerFixture, "Lexer token positions single char") {
+    init("()\n[");
+    REQUIRE(next().pos == Position{.line = 1, .column = 1, .offset = 0});
+    REQUIRE(next().pos == Position{.line = 1, .column = 2, .offset = 1});
+    REQUIRE(next().pos == Position{.line = 2, .column = 1, .offset = 3});
+    REQUIRE(next().pos == Position{.line = 2, .column = 2, .offset = 4});
 }
 
-TEST_CASE("Lexer tokenizes simple strings") {
-    std::istringstream input(R"("hello")");
-    Lexer lexer(input);
-
-    lexer.next();
-
-    CHECK(lexer.current().kind == TokenKind::StrLiteral);
-    CHECK(lexer.current().value == TokenValue("hello"));
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
+    init(R"("hello")");
+    auto token = next();
+    CHECK(token.kind == TokenKind::StrLiteral);
+    CHECK(token.value == TokenValue("hello"));
 }
 
-TEST_CASE("Lexer tokenizes strings with non hex escape sequences") {
-    std::istringstream input(R"(" 1 \t 2 \n 3 \" 4 \\ 5 ")");
-    Lexer lexer(input);
-
-    lexer.next();
-
-    CHECK(lexer.current().kind == TokenKind::StrLiteral);
-    CHECK(lexer.current().value == TokenValue(" 1 \t 2 \n 3 \" 4 \\ 5 "));
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer tokenizes strings with escape sequences") {
+    init(R"(" 1 \t 2 \n 3 \" 4 \\ 5 ")");
+    auto token = next();
+    CHECK(token.kind == TokenKind::StrLiteral);
+    CHECK(token.value == TokenValue(" 1 \t 2 \n 3 \" 4 \\ 5 "));
 }
 
-TEST_CASE("Lexer tokenizes strings with hex escape sequences ") {
-    std::istringstream input(R"("\x48\x65\x6C\x6C\x6F")");
-    Lexer lexer(input);
-
-    lexer.next();
-    
-    CHECK(lexer.current().kind == TokenKind::StrLiteral);
-    CHECK(lexer.current().value == TokenValue("Hello"));
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer tokenizes strings with hex escape sequences") {
+    init(R"("\x48\x65\x6C\x6C\x6F")");
+    auto token = next();
+    CHECK(token.kind == TokenKind::StrLiteral);
+    CHECK(token.value == TokenValue("Hello"));
 }
