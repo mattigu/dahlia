@@ -24,6 +24,10 @@ private:
     std::optional<Token> tryBuildSingleCharToken();
     std::optional<Token> tryBuildComment();
 
+    std::optional<Token> tryBuildString();
+    std::optional<char> tryBuildEscapeSequence();
+    std::optional<char> tryBuildHexEscape();
+
     void skipWhile(std::function<bool(char)> const& predicate);
     std::string buildTextWhile(std::function<bool(char)> const& predicate);
 };

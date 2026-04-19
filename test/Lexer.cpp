@@ -1,6 +1,7 @@
 #include "src/Lexer.h"
 
 #include <sstream>
+#include <string>
 
 #include "doctest.h"
 #include "src/Position.h"
@@ -58,4 +59,34 @@ TEST_CASE("Lexer token positions(single char)") {
     REQUIRE(lexer.next().pos == Position{.line = 1, .column = 2, .offset = 1});
     REQUIRE(lexer.next().pos == Position{.line = 2, .column = 1, .offset = 3});
     REQUIRE(lexer.next().pos == Position{.line = 2, .column = 2, .offset = 4});
+}
+
+TEST_CASE("Lexer tokenizes simple strings") {
+    std::istringstream input(R"("hello")");
+    Lexer lexer(input);
+
+    lexer.next();
+
+    CHECK(lexer.current().kind == TokenKind::StrLiteral);
+    CHECK(lexer.current().value == TokenValue("hello"));
+}
+
+TEST_CASE("Lexer tokenizes strings with non hex escape sequences") {
+    std::istringstream input(R"(" 1 \t 2 \n 3 \" 4 \\ 5 ")");
+    Lexer lexer(input);
+
+    lexer.next();
+
+    CHECK(lexer.current().kind == TokenKind::StrLiteral);
+    CHECK(lexer.current().value == TokenValue(" 1 \t 2 \n 3 \" 4 \\ 5 "));
+}
+
+TEST_CASE("Lexer tokenizes strings with hex escape sequences ") {
+    std::istringstream input(R"("\x48\x65\x6C\x6C\x6F")");
+    Lexer lexer(input);
+
+    lexer.next();
+    
+    CHECK(lexer.current().kind == TokenKind::StrLiteral);
+    CHECK(lexer.current().value == TokenValue("Hello"));
 }

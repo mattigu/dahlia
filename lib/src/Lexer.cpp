@@ -1,5 +1,6 @@
 #include "Lexer.h"
 
+#include <cctype>
 #include <optional>
 
 #include "CharReader.h"
@@ -39,8 +40,9 @@ std::optional<Token> Lexer::tryBuildToken() {
 
     auto const token_pos = src_.position();
 
-    auto result = tryBuildSingleCharToken().or_else(
-        [this]() { return tryBuildComment(); });
+    auto result = tryBuildSingleCharToken()
+                      .or_else([this]() { return tryBuildComment(); })
+                      .or_else([this]() { return tryBuildString(); });
     if (result.has_value()) {
         result->pos = token_pos;
         return result;
@@ -71,6 +73,81 @@ std::optional<Token> Lexer::tryBuildComment() {
 
     return Token{.kind = TokenKind::Comment, .value = comment};
 };
+std::optional<Token> Lexer::tryBuildString() {
+    if (src_.current() != '"') {
+        return std::nullopt;
+    }
+    src_.next();
+    std::string text;
+    auto const string_end = [](char chr) {
+        return chr == '"' || chr == NEWLINE || chr == ETX;
+    };
+
+    while (!string_end(src_.current())) {
+        text += buildTextWhile(
+            [&](char chr) { return chr != '\\' && !string_end(chr); });
+
+        if (auto const escape = tryBuildEscapeSequence()) {
+            text += escape.value();
+        }
+    }
+    if (src_.current() == '"') {
+        return Token{.kind = TokenKind::StrLiteral, .value = text};
+    }
+    // TODO! Handle unterminated string
+};
+
+std::optional<char> Lexer::tryBuildEscapeSequence() {
+    if (src_.current() != '\\') {
+        return std::nullopt;
+    }
+    src_.next();
+
+    char value = 0;
+
+    switch (src_.current()) {
+        case '"':
+            value = '"';
+            break;
+        case '\\':
+            value = '\\';
+            break;
+        case 'n':
+            value = '\n';
+            break;
+        case 't':
+            value = '\t';
+            break;
+        // TODO! In error cases the lexer should consume until end of string or
+        // line
+        case 'x':
+            return tryBuildHexEscape();
+        default:
+            return std::nullopt;
+            // Log unrecognized escape sequence
+    }
+    src_.next();
+    return value;
+}
+std::optional<char> Lexer::tryBuildHexEscape() {
+    if (src_.current() != 'x') {
+        return std::nullopt;
+    }
+
+    char const high = src_.next();
+    if (std::isxdigit(high) != 1) {
+        // Handle error
+    }
+    char const low = src_.next();
+    if (std::isxdigit(low) != 1) {
+        // Handle error
+    }
+    src_.next();
+
+    auto constexpr base16 = 16;
+    return static_cast<char>(
+        std::stoi(std::string{high, low}, nullptr, base16));
+}
 
 void Lexer::skipWhile(std::function<bool(char)> const& predicate) {
     while (src_.current() != ETX && predicate(src_.current())) {
