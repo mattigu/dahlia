@@ -56,7 +56,7 @@ std::optional<Token> Lexer::tryBuildToken() {
             .or_else([this]() { return tryBuildComment(); })
             .or_else([this]() {
                 return tryBuildOperator().transform(
-                    [](TokenKind kind) { return Token{kind}; });
+                    [](TokenKind kind) { return Token{.kind=kind}; });
             })
             .or_else([this]() { return tryBuildString(); })
             .or_else([this]() { return tryBuildIdentifierOrKeyword(); });

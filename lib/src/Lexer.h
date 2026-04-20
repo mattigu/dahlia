@@ -13,7 +13,7 @@ public:
     Lexer(std::istream& src, std::ostream& diagnostics = std::cerr) noexcept;
 
     Token next();
-    Token current() const noexcept;
+    [[nodiscard]] Token current() const noexcept;
 
 private:
     CharReader src_;
@@ -28,7 +28,7 @@ private:
 
     std::optional<TokenKind> tryBuildOperator();
     TokenKind extendOperator(TokenKind kind, char extend_char,
-                                           TokenKind extended_kind);
+                             TokenKind extended_kind);
 
     std::optional<Token> tryBuildIdentifierOrKeyword();
 

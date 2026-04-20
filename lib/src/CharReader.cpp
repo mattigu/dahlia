@@ -35,7 +35,6 @@ char CharReader::next() {
             std::format("Failed to read next character at {}:{} (stream error)",
                         position_.line, position_.column));
     }
-    // There is also input_.fail() to check.
 
     return current_;
 }

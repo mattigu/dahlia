@@ -101,7 +101,6 @@ struct Token {
     bool operator==(Token const&) const = default;
 };
 
-
 template <>
 struct std::formatter<TokenKind> : std::formatter<std::string_view> {
     auto format(TokenKind kind, std::format_context& ctx) const {
@@ -133,17 +132,11 @@ template <>
 struct std::formatter<Token> : std::formatter<std::string> {
     auto format(Token const& token, std::format_context& ctx) const {
         return std::formatter<std::string>::format(
-            std::format("{{\n  kind={},\n  pos={},\n  value={}\n}}",
-                token.kind,
-                token.pos,
-                token.value),
-            ctx
-        );
+            std::format("{{\n  kind={},\n  pos={},\n  value={}\n}}", token.kind,
+                        token.pos, token.value),
+            ctx);
     }
 };
-
 std::ostream& operator<<(std::ostream& oss, Token const& token);
 std::ostream& operator<<(std::ostream& oss, TokenKind const& kind);
 std::ostream& operator<<(std::ostream& oss, TokenValue const& value);
-
-

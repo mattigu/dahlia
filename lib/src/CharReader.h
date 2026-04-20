@@ -13,9 +13,9 @@ public:
     CharReader(std::istream& input);
 
     char next();
-    char current() const noexcept;
+    [[nodiscard]] char current() const noexcept;
 
-    Position position() const noexcept;
+    [[nodiscard]] Position position() const noexcept;
 
 private:
     std::istream& input_;  // NOLINT
