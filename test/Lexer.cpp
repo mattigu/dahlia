@@ -66,9 +66,20 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer token positions single char") {
     REQUIRE(next().pos == Position{.line = 2, .column = 2, .offset = 4});
 }
 
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes comments") {
+    init("# Hello \n# World");
+    auto token = next();
+    CHECK(token.kind == TokenKind::Comment);
+    CHECK(token.value == TokenValue(" Hello "));
+
+    token = next();
+    CHECK(token.kind == TokenKind::Comment);
+    CHECK(token.value == TokenValue(" World"));
+}
+
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
     init(R"("hello")");
-    auto token = next();
+    auto const token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
     CHECK(token.value == TokenValue("hello"));
 }
