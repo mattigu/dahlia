@@ -86,10 +86,10 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
 
 TEST_CASE_FIXTURE(LexerFixture,
                   "Lexer tokenizes strings with escape sequences") {
-    init(R"(" 1 \t 2 \n 3 \" 4 \\ 5 ")");
+    init(R"(" 1 \t 2 \n 3 \" 4 \\ 5 \r 6 ")");
     auto token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
-    CHECK(token.value == TokenValue(" 1 \t 2 \n 3 \" 4 \\ 5 "));
+    CHECK(token.value == TokenValue(" 1 \t 2 \n 3 \" 4 \\ 5 \r 6 "));
 }
 
 TEST_CASE_FIXTURE(LexerFixture,

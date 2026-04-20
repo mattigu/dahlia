@@ -103,6 +103,7 @@ ESCAPE_SEQUENCE
     | "\\"
     | "n"
     | "t"
+    | "r"
     | "x", HEX_DIGIT, HEX_DIGIT );
 
 HEX_DIGIT
