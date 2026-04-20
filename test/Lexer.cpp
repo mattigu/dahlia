@@ -138,3 +138,82 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes special operators") {
     CHECK(next().kind == TokenKind::GreaterLess);
     CHECK(next().kind == TokenKind::ETX);
 }
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes keywords") {
+    init(
+        "let mut fn if else for while in return true false int float bool str "
+        "vec");
+
+    CHECK(next().kind == TokenKind::Let);
+    CHECK(next().kind == TokenKind::Mut);
+    CHECK(next().kind == TokenKind::Fn);
+    CHECK(next().kind == TokenKind::If);
+    CHECK(next().kind == TokenKind::Else);
+    CHECK(next().kind == TokenKind::For);
+    CHECK(next().kind == TokenKind::While);
+    CHECK(next().kind == TokenKind::In);
+    CHECK(next().kind == TokenKind::Return);
+    CHECK(next().kind == TokenKind::True);
+    CHECK(next().kind == TokenKind::False);
+    CHECK(next().kind == TokenKind::Int);
+    CHECK(next().kind == TokenKind::Float);
+    CHECK(next().kind == TokenKind::Bool);
+    CHECK(next().kind == TokenKind::Str);
+    CHECK(next().kind == TokenKind::Vec);
+    CHECK(next().kind == TokenKind::ETX);
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes valid identifiers") {
+    init("x FOO bar123 camelCase snake_case a1b2c3");
+
+    auto token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("x"));
+
+    token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("FOO"));
+
+    token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("bar123"));
+
+    token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("camelCase"));
+
+    token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("snake_case"));
+
+    token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("a1b2c3"));
+
+    CHECK(next().kind == TokenKind::ETX);
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer distinguishes keywords from identifiers") {
+    init("let letter if ifelse for fortune");
+
+    CHECK(next().kind == TokenKind::Let);
+
+    auto token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("letter"));
+
+    CHECK(next().kind == TokenKind::If);
+
+    token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("ifelse"));
+
+    CHECK(next().kind == TokenKind::For);
+
+    token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue("fortune"));
+
+    CHECK(next().kind == TokenKind::ETX);
+}

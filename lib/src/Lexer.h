@@ -30,6 +30,8 @@ private:
     TokenKind extendOperator(TokenKind kind, char extend_char,
                                            TokenKind extended_kind);
 
+    std::optional<Token> tryBuildIdentifierOrKeyword();
+
     std::optional<Token> tryBuildString();
     std::optional<char> tryBuildEscapeSequence();
     std::optional<char> tryBuildHexEscape();

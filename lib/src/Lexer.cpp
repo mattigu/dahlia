@@ -15,6 +15,17 @@ static std::unordered_map<char, TokenKind> const SINGLE_CHAR_TOKENS = {
     {'@', TokenKind::At},          {'?', TokenKind::Question},
     {ETX, TokenKind::ETX}};
 
+static std::unordered_map<std::string, TokenKind> const KEYWORDS = {
+    {"let", TokenKind::Let},       {"mut", TokenKind::Mut},
+    {"fn", TokenKind::Fn},         {"if", TokenKind::If},
+    {"else", TokenKind::Else},     {"for", TokenKind::For},
+    {"while", TokenKind::While},   {"in", TokenKind::In},
+    {"return", TokenKind::Return}, {"true", TokenKind::True},
+    {"false", TokenKind::False},   {"int", TokenKind::Int},
+    {"float", TokenKind::Float},   {"bool", TokenKind::Bool},
+    {"str", TokenKind::Str},       {"vec", TokenKind::Vec},
+};
+
 Lexer::Lexer(std::istream& src, std::ostream& diagnostics) noexcept
     : src_{src}, current_{.kind = TokenKind::STX, .pos = src_.position()} {}
 
@@ -40,18 +51,20 @@ std::optional<Token> Lexer::tryBuildToken() {
 
     auto const token_pos = src_.position();
 
-    auto result = tryBuildSingleCharToken()
-                      .or_else([this]() { return tryBuildComment(); })
-                      .or_else([this]() {
-                          return tryBuildOperator().transform(
-                              [](TokenKind kind) { return Token{kind}; });
-                      })
-                      .or_else([this]() { return tryBuildString(); });
+    auto result =
+        tryBuildSingleCharToken()
+            .or_else([this]() { return tryBuildComment(); })
+            .or_else([this]() {
+                return tryBuildOperator().transform(
+                    [](TokenKind kind) { return Token{kind}; });
+            })
+            .or_else([this]() { return tryBuildString(); })
+            .or_else([this]() { return tryBuildIdentifierOrKeyword(); });
+
     if (result.has_value()) {
         result->pos = token_pos;
         return result;
     }
-
     // Log error
 
     return std::nullopt;
@@ -218,6 +231,21 @@ std::optional<char> Lexer::tryBuildHexEscape() {
     return static_cast<char>(
         std::stoi(std::string{high, low}, nullptr, base16));
 }
+
+std::optional<Token> Lexer::tryBuildIdentifierOrKeyword() {
+    if (std::isalpha(src_.current()) == 0) {
+        return std::nullopt;
+    }
+
+    std::string const word = buildTextWhile(
+        [](char chr) { return std::isalnum(chr) || chr == '_'; });
+
+    auto const keyword = KEYWORDS.find(word);
+    if (keyword != KEYWORDS.end()) {
+        return Token{.kind = keyword->second};
+    }
+    return Token{.kind = TokenKind::Identifier, .value = word};
+};
 
 void Lexer::skipWhile(std::function<bool(char)> const& predicate) {
     while (src_.current() != ETX && predicate(src_.current())) {
