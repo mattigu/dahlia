@@ -6,6 +6,8 @@
 #include <optional>
 
 #include "CharReader.h"
+#include "Diagnostics.hpp"
+#include "LexerDiagnostics.h"
 #include "Token.h"
 
 class Lexer {
@@ -15,10 +17,15 @@ public:
     Token next();
     [[nodiscard]] Token current() const noexcept;
 
+    [[nodiscard]] Diagnostics<LexerDiagnosticKind> const& diagnostics()
+        const noexcept;
+
 private:
     CharReader src_;
 
     Token current_;
+
+    Diagnostics<LexerDiagnosticKind> diagnostics_;
 
     std::optional<Token> tryBuildToken();
 

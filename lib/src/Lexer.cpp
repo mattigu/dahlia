@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "CharReader.h"
+#include "LexerDiagnostics.h"
 #include "Position.h"
 #include "Token.h"
 
@@ -31,6 +32,11 @@ Lexer::Lexer(std::istream& src, std::ostream& diagnostics) noexcept
 
 Token Lexer::current() const noexcept { return current_; }
 
+[[nodiscard]] Diagnostics<LexerDiagnosticKind> const& Lexer::diagnostics()
+    const noexcept {
+    return diagnostics_;
+};
+
 Token Lexer::next() {
     while (true) {
         auto const token = tryBuildToken();
@@ -56,7 +62,7 @@ std::optional<Token> Lexer::tryBuildToken() {
             .or_else([this]() { return tryBuildComment(); })
             .or_else([this]() {
                 return tryBuildOperator().transform(
-                    [](TokenKind kind) { return Token{.kind=kind}; });
+                    [](TokenKind kind) { return Token{.kind = kind}; });
             })
             .or_else([this]() { return tryBuildString(); })
             .or_else([this]() { return tryBuildIdentifierOrKeyword(); });
@@ -166,6 +172,8 @@ std::optional<Token> Lexer::tryBuildString() {
         return chr == '"' || chr == NEWLINE || chr == ETX;
     };
 
+    auto const start_pos = src_.position();
+
     while (!string_end(src_.current())) {
         text += buildTextWhile(
             [&](char chr) { return chr != '\\' && !string_end(chr); });
@@ -175,9 +183,11 @@ std::optional<Token> Lexer::tryBuildString() {
         }
     }
     if (src_.current() == '"') {
+        src_.next();
         return Token{.kind = TokenKind::StrLiteral, .value = text};
     }
-    // TODO! Handle unterminated string
+    diagnostics_.push({.kind = UnterminatedString{}, .pos = start_pos});
+    return Token{.kind = TokenKind::StrLiteral, .value = text};
 };
 
 std::optional<char> Lexer::tryBuildEscapeSequence() {
@@ -204,13 +214,13 @@ std::optional<char> Lexer::tryBuildEscapeSequence() {
         case 't':
             value = '\t';
             break;
-        // TODO! In error cases the lexer should consume until end of string or
-        // line
         case 'x':
             return tryBuildHexEscape();
         default:
+            diagnostics_.push(
+                {.kind = InvalidEscapeSequence{.chr = src_.current()},
+                 .pos = src_.position()});
             return std::nullopt;
-            // Log unrecognized escape sequence
     }
     src_.next();
     return value;
@@ -221,12 +231,16 @@ std::optional<char> Lexer::tryBuildHexEscape() {
     }
 
     char const high = src_.next();
-    if (std::isxdigit(high) != 1) {
-        // Handle error
+    if (std::isxdigit(high) == 0) {
+        diagnostics_.push(
+            {.kind = InvalidHexEscape{.chr = high}, .pos = src_.position()});
+        return std::nullopt;
     }
     char const low = src_.next();
-    if (std::isxdigit(low) != 1) {
-        // Handle error
+    if (std::isxdigit(low) == 0) {
+        diagnostics_.push(
+            {.kind = InvalidHexEscape{.chr = low}, .pos = src_.position()});
+        return std::nullopt;
     }
     src_.next();
 

@@ -4,6 +4,7 @@
 #include <string>
 
 #include "doctest.h"
+#include "src/LexerDiagnostics.h"
 #include "src/Position.h"
 #include "src/Token.h"
 
@@ -15,6 +16,7 @@ struct LexerFixture {
 
     Token next() { return lexer->next(); }
     Token current() { return lexer->current(); }
+    auto const& diagnostics() { return lexer->diagnostics(); }
 
     std::optional<std::istringstream> stream;
     std::optional<Lexer> lexer;
@@ -84,20 +86,60 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
     CHECK(token.value == TokenValue("hello"));
 }
 
+TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
+    init(R"("hello
+        ;")");
+
+    auto const token = next();
+    CHECK(diagnostics().last().kind ==
+          LexerDiagnosticKind{UnterminatedString{}});
+
+    CHECK(diagnostics().last().pos ==
+          Position{.line = 1, .column = 2, .offset = 1});
+
+    CHECK(next().kind == TokenKind::Semicolon);
+}
+
 TEST_CASE_FIXTURE(LexerFixture,
                   "Lexer tokenizes strings with escape sequences") {
     init(R"(" 1 \t 2 \n 3 \" 4 \\ 5 \r 6 ")");
-    auto token = next();
+    auto const token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
     CHECK(token.value == TokenValue(" 1 \t 2 \n 3 \" 4 \\ 5 \r 6 "));
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer recognizes and reports invalid escape sequences") {
+    init(R"("ab\c" ;)");
+    auto const token = next();
+    CHECK(token.kind == TokenKind::StrLiteral);
+    CHECK(diagnostics().last().kind ==
+          LexerDiagnosticKind{InvalidEscapeSequence{.chr = 'c'}});
+    CHECK(diagnostics().last().pos ==
+          Position{.line = 1, .column = 5, .offset = 4});
+
+    CHECK(next().kind == TokenKind::Semicolon);
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
                   "Lexer tokenizes strings with hex escape sequences") {
     init(R"("\x48\x65\x6C\x6C\x6F")");
-    auto token = next();
+    auto const token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
     CHECK(token.value == TokenValue("Hello"));
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer recognizes and reports invalid hex escape sequences") {
+    init(R"("\xLc" ;)");
+    auto const token = next();
+    CHECK(token.kind == TokenKind::StrLiteral);
+    CHECK(diagnostics().last().kind ==
+          LexerDiagnosticKind{InvalidHexEscape{.chr = 'L'}});
+    CHECK(diagnostics().last().pos ==
+          Position{.line = 1, .column = 4, .offset = 3});
+
+    CHECK(next().kind == TokenKind::Semicolon);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple operators") {

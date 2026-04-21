@@ -7,6 +7,8 @@ template <typename Kind>
 struct Diagnostic {
     Kind kind;
     Position pos;
+
+    bool operator==(Diagnostic const&) const = default;
 };
 
 template <typename Kind>
