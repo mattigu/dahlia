@@ -11,8 +11,13 @@ struct InvalidEscapeSequence {
 struct InvalidHexEscape {
     char chr;
     bool operator==(InvalidHexEscape const&) const = default;
+};
 
+struct UnexpectedChar {
+    char chr;
+    bool operator==(UnexpectedChar const&) const = default;
 };
 
 using LexerDiagnosticKind =
-    std::variant<UnterminatedString, InvalidEscapeSequence, InvalidHexEscape>;
+    std::variant<UnterminatedString, InvalidEscapeSequence, InvalidHexEscape,
+                 UnexpectedChar>;

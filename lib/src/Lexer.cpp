@@ -71,7 +71,9 @@ std::optional<Token> Lexer::tryBuildToken() {
         result->pos = token_pos;
         return result;
     }
-    // Log error
+    diagnostics_.push({.kind = UnexpectedChar{.chr = src_.current()},
+                       .pos = src_.position()});
+    src_.next();
 
     return std::nullopt;
 };
@@ -127,7 +129,6 @@ std::optional<TokenKind> Lexer::tryBuildOperator() {
                 }
                 return TokenKind::DotDot;
             }
-            // Log error
             return std::nullopt;
 
         case ':':

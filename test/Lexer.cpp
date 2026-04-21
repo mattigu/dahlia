@@ -45,6 +45,18 @@ TEST_CASE("Lexer next() when depleted") {
     REQUIRE(lexer.next() == end_token);
 }
 
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer reports and skips unexpected characters") {
+    init("let^;");
+    CHECK(next().kind == TokenKind::Let);
+    next();
+    CHECK(diagnostics().last().kind ==
+          LexerDiagnosticKind{UnexpectedChar{.chr = '^'}});
+    CHECK(diagnostics().last().pos == Position{.line=1, .column=4,.offset=3});
+
+    CHECK(current().kind == TokenKind::Semicolon);
+}
+
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes single char tokens") {
     init("()[]{};,@?");
     CHECK(next().kind == TokenKind::ParenOpen);
