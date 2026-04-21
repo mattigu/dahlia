@@ -18,6 +18,12 @@ struct UnexpectedChar {
     bool operator==(UnexpectedChar const&) const = default;
 };
 
+struct ExpectedChar {
+    char expected;
+    char got;
+    bool operator==(ExpectedChar const&) const = default;
+};
+
 using LexerDiagnosticKind =
     std::variant<UnterminatedString, InvalidEscapeSequence, InvalidHexEscape,
-                 UnexpectedChar>;
+                 UnexpectedChar, ExpectedChar>;

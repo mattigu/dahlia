@@ -129,7 +129,10 @@ std::optional<TokenKind> Lexer::tryBuildOperator() {
                 }
                 return TokenKind::DotDot;
             }
-            return std::nullopt;
+            diagnostics_.push({.kind = LexerDiagnosticKind{ExpectedChar{
+                                   .expected = '.', .got = src_.current()}},
+                               .pos = src_.position()});
+            return TokenKind::DotDot;
 
         case ':':
             if (src_.next() == '>') {

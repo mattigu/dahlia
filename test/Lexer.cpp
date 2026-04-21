@@ -52,7 +52,8 @@ TEST_CASE_FIXTURE(LexerFixture,
     next();
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{UnexpectedChar{.chr = '^'}});
-    CHECK(diagnostics().last().pos == Position{.line=1, .column=4,.offset=3});
+    CHECK(diagnostics().last().pos ==
+          Position{.line = 1, .column = 4, .offset = 3});
 
     CHECK(current().kind == TokenKind::Semicolon);
 }
@@ -190,6 +191,24 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes special operators") {
     CHECK(next().kind == TokenKind::DotDotEq);
     CHECK(next().kind == TokenKind::ColonGreater);
     CHECK(next().kind == TokenKind::GreaterLess);
+    CHECK(next().kind == TokenKind::ETX);
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer reports 'Expected' error for ..") {
+    init("for x in a.b");
+
+    CHECK(next().kind == TokenKind::For);
+    CHECK(next().kind == TokenKind::Identifier);
+    CHECK(next().kind == TokenKind::In);
+    CHECK(next().kind == TokenKind::Identifier);
+    CHECK(diagnostics().empty() == true);
+    CHECK(next().kind == TokenKind::DotDot);
+    CHECK(diagnostics().last().kind ==
+          LexerDiagnosticKind{ExpectedChar{.expected = '.', .got = 'b'}});
+    CHECK(diagnostics().last().pos ==
+          Position{.line = 1, .column = 12, .offset = 11});
+
+    CHECK(next().kind == TokenKind::Identifier);
     CHECK(next().kind == TokenKind::ETX);
 }
 
