@@ -42,6 +42,9 @@ private:
 
     Diagnostics<LexerDiagnosticKind> diagnostics_;
 
+    void pushDiag(LexerDiagnosticKind const& kind);
+    void pushDiag(LexerDiagnosticKind const& kind, Position const& pos);
+
     std::optional<Token> tryBuildToken();
 
     std::optional<Token> tryBuildSingleCharToken();
@@ -68,6 +71,6 @@ private:
                                              Position const& pos);
 
     void skipWhile(std::function<bool(char)> const& predicate);
-    std::pair<std::string, bool> buildTextWhile(std::size_t max_size,
-                               std::function<bool(char)> const& predicate);
+    std::pair<std::string, bool> buildTextWhile(
+        std::size_t max_size, std::function<bool(char)> const& predicate);
 };

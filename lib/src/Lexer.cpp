@@ -52,6 +52,14 @@ Token Lexer::next() {
     return current_;
 }
 
+void Lexer::pushDiag(LexerDiagnosticKind const& kind) {
+    diagnostics_.push({.kind = kind, .pos = src_.position()});
+}
+
+void Lexer::pushDiag(LexerDiagnosticKind const& kind, Position const& pos) {
+    diagnostics_.push({.kind = kind, .pos = pos});
+}
+
 std::optional<Token> Lexer::tryBuildToken() {
     skipWhile([](char chr) { return std::isspace(chr) || chr == STX; });
 
@@ -76,8 +84,7 @@ std::optional<Token> Lexer::tryBuildToken() {
         result->pos = token_pos;
         return result;
     }
-    diagnostics_.push({.kind = UnexpectedChar{.chr = src_.current()},
-                       .pos = src_.position()});
+    pushDiag(UnexpectedChar{.chr = src_.current()});
     src_.next();
 
     return std::nullopt;
@@ -105,7 +112,7 @@ std::optional<Token> Lexer::tryBuildComment() {
 
     if (too_long) {
         skipWhile(comment_char);
-        diagnostics_.push({.kind = CommentTooLong{}, .pos = start_pos});
+        pushDiag(CommentTooLong{}, start_pos);
         return Token{.kind = TokenKind::Comment};
     }
 
@@ -142,9 +149,7 @@ std::optional<TokenKind> Lexer::tryBuildOperator() {
                 }
                 return TokenKind::DotDot;
             }
-            diagnostics_.push(
-                {.kind = {ExpectedChar{.expected = '.', .got = src_.current()}},
-                 .pos = src_.position()});
+            pushDiag(ExpectedChar{.expected = '.', .got = src_.current()});
             return TokenKind::DotDot;
 
         case ':':
@@ -205,7 +210,7 @@ std::optional<Token> Lexer::tryBuildString() {
 
     if (string.length() == options_.max_string_len) {
         skipWhile([&](char chr) { return !string_end(chr); });
-        diagnostics_.push({.kind = StringTooLong{}, .pos = start_pos});
+        pushDiag(StringTooLong{}, start_pos);
         if (src_.current() == '"') {
             src_.next();
         }
@@ -216,7 +221,7 @@ std::optional<Token> Lexer::tryBuildString() {
         src_.next();
         return Token{.kind = TokenKind::StrLiteral, .value = string};
     }
-    diagnostics_.push({.kind = UnterminatedString{}, .pos = start_pos});
+    pushDiag(UnterminatedString{}, start_pos);
     return Token{.kind = TokenKind::StrLiteral, .value = string};
 }
 
@@ -245,9 +250,7 @@ std::optional<char> Lexer::tryBuildEscapeSequence() {
         case 'x':
             return tryBuildHexEscape();
         default:
-            diagnostics_.push(
-                {.kind = InvalidEscapeSequence{.chr = src_.current()},
-                 .pos = src_.position()});
+            pushDiag(InvalidEscapeSequence{.chr = src_.current()});
             return std::nullopt;
     }
 }
@@ -258,14 +261,12 @@ std::optional<char> Lexer::tryBuildHexEscape() {
 
     char const high = src_.next();
     if (std::isxdigit(high) == 0) {
-        diagnostics_.push(
-            {.kind = InvalidHexEscape{.chr = high}, .pos = src_.position()});
+        pushDiag(InvalidHexEscape{.chr = high});
         return std::nullopt;
     }
     char const low = src_.next();
     if (std::isxdigit(low) == 0) {
-        diagnostics_.push(
-            {.kind = InvalidHexEscape{.chr = low}, .pos = src_.position()});
+        pushDiag(InvalidHexEscape{.chr = low});
         return std::nullopt;
     }
     src_.next();
@@ -298,8 +299,7 @@ std::optional<Token> Lexer::tryBuildNumber() {
 
         if (fraction_part->empty() ||
             (int_part->size() > 1 && (*int_part)[0] == '0')) {
-            diagnostics_.push(
-                {.kind = InvalidNumericLiteral{}, .pos = start_pos});
+            pushDiag(InvalidNumericLiteral{}, start_pos);
             return Token{.kind = TokenKind::FloatLiteral};
         }
 
@@ -318,7 +318,7 @@ std::optional<Token> Lexer::tryBuildNumber() {
     }
 
     if (int_part->size() > 1 && (*int_part)[0] == '0') {
-        diagnostics_.push({.kind = InvalidNumericLiteral{}, .pos = start_pos});
+        pushDiag(InvalidNumericLiteral{}, start_pos);
         return Token{.kind = TokenKind::IntLiteral};
     }
     auto const int_value = tryBuildIntValue(*int_part, start_pos);
@@ -335,8 +335,7 @@ std::optional<std::string> Lexer::tryBuildDigits() {
     };
 
     if (src_.current() == '_') {
-        diagnostics_.push(
-            {.kind = InvalidNumericSeparator{}, .pos = src_.position()});
+        pushDiag(InvalidNumericSeparator{});
         skipWhile(is_num_char);
         return std::nullopt;
     }
@@ -353,8 +352,7 @@ std::optional<std::string> Lexer::tryBuildDigits() {
         char curr = src_.current();
 
         if (curr == '_' && prev == '_') {
-            diagnostics_.push(
-                {.kind = InvalidNumericSeparator{}, .pos = src_.position()});
+            pushDiag(InvalidNumericSeparator{});
             skipWhile(is_num_char);
             return std::nullopt;
         }
@@ -369,7 +367,7 @@ std::optional<std::string> Lexer::tryBuildDigits() {
     }
 
     if (prev == '_') {
-        diagnostics_.push({.kind = InvalidNumericSeparator{}, .pos = prev_pos});
+        pushDiag(InvalidNumericSeparator{}, prev_pos);
         return std::nullopt;
     }
 
@@ -384,7 +382,7 @@ std::optional<std::int64_t> Lexer::tryBuildIntValue(std::string_view integer,
         auto const digit = chr - '0';
 
         if (value > (options_.int_range - digit) / 10) {
-            diagnostics_.push({.kind = IntegerOverflow{}, .pos = pos});
+            pushDiag(IntegerOverflow{}, pos);
             return std::nullopt;
         }
 
@@ -410,7 +408,7 @@ std::optional<double> Lexer::tryBuildFloatValue(
     }
 
     if (!std::isfinite(value)) {
-        diagnostics_.push({.kind = FloatOutOfRange{}, .pos = pos});
+        pushDiag(FloatOutOfRange{}, pos);
         return std::nullopt;
     }
 
@@ -434,7 +432,7 @@ std::optional<Token> Lexer::tryBuildIdentifierOrKeyword() {
 
     if (too_long) {
         skipWhile(key_or_ident_char);
-        diagnostics_.push({.kind = IdentifierTooLong{}, .pos = start_pos});
+        pushDiag(IdentifierTooLong{}, start_pos);
         return Token{.kind = TokenKind::Identifier};
     }
 
