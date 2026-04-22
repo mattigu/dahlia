@@ -250,9 +250,7 @@ std::optional<char> Lexer::tryBuildHexEscape() {
     }
     src_.next();
 
-    auto constexpr base16 = 16;
-    return static_cast<char>(
-        std::stoi(std::string{high, low}, nullptr, base16));
+    return static_cast<char>(std::stoi(std::string{high, low}, nullptr, 16));
 }
 
 std::optional<Token> Lexer::tryBuildNumber() {

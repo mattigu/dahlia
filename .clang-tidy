@@ -4,8 +4,11 @@ Checks: >
   -modernize-use-trailing-return-type,
   performance-*,
   readability-*,
+  -readability-magic-numbers,
   clang-analyzer-*,
   cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+
 
 CheckOptions:
   - { key: readability-identifier-naming.ClassCase, value: CamelCase }
