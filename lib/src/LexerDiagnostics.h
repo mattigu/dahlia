@@ -24,6 +24,23 @@ struct ExpectedChar {
     bool operator==(ExpectedChar const&) const = default;
 };
 
+struct InvalidNumericSeparator {
+    bool operator==(InvalidNumericSeparator const&) const = default;
+};
+
+struct InvalidNumericLiteral {
+    bool operator==(InvalidNumericLiteral const&) const = default;
+};
+
+struct IntegerOverflow {
+    bool operator==(IntegerOverflow const&) const = default;
+};
+
+struct FloatOutOfRange {
+    bool operator==(FloatOutOfRange const&) const = default;
+};
+
 using LexerDiagnosticKind =
     std::variant<UnterminatedString, InvalidEscapeSequence, InvalidHexEscape,
-                 UnexpectedChar, ExpectedChar>;
+                 UnexpectedChar, ExpectedChar, InvalidNumericSeparator,
+                 InvalidNumericLiteral, IntegerOverflow, FloatOutOfRange>;
