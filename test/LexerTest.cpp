@@ -8,9 +8,9 @@
 #include "src/Token.h"
 
 struct LexerFixture {
-    void init(std::string const& src) {
+    void init(std::string const& src, LexerOptions const& options = {}) {
         stream.emplace(src);
-        lexer.emplace(*stream);
+        lexer.emplace(*stream, options);
     }
 
     Token next() { return lexer->next(); }
@@ -113,6 +113,22 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes comments") {
     CHECK(token.value == TokenValue(" World"));
 }
 
+TEST_CASE_FIXTURE(LexerFixture, "Lexer reports comments too long") {
+    init("#1\n#123\n;", {.max_comment_len = 2});
+    auto token = next();
+    CHECK(token.kind == TokenKind::Comment);
+    CHECK(diagnostics().empty());
+
+    token = next();
+    CHECK(token.kind == TokenKind::Comment);
+    CHECK(diagnostics().last().kind == LexerDiagnosticKind{CommentTooLong{}});
+    CHECK(diagnostics().last().pos ==
+          Position{.line = 2, .column = 1, .offset = 3});
+
+    token = next();
+    CHECK(token.kind == TokenKind::Semicolon);
+}
+
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
     init(R"("hello")");
     auto const token = next();
@@ -129,9 +145,28 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
           LexerDiagnosticKind{UnterminatedString{}});
 
     CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 2, .offset = 1});
+          Position{.line = 1, .column = 1, .offset = 0});
 
     CHECK(next().kind == TokenKind::Semicolon);
+}
+TEST_CASE_FIXTURE(LexerFixture, "Lexer reports strings too long") {
+    init(R"("a" "abc" ;)", {.max_string_len = 2});
+    auto token = next();
+    CHECK(token.kind == TokenKind::StrLiteral);
+    CHECK(token.value == TokenValue{"a"});
+
+    CHECK(diagnostics().empty());
+
+    token = next();
+    CHECK(token.kind == TokenKind::StrLiteral);
+    CHECK(diagnostics().last().kind ==
+          LexerDiagnosticKind{StringTooLong{}});
+
+    CHECK(diagnostics().last().pos ==
+          Position{.line = 1, .column = 5, .offset = 4});
+
+    token = next();
+    CHECK(token.kind == TokenKind::Semicolon);
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
@@ -310,6 +345,26 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(token.value == TokenValue("fortune"));
 
     CHECK(next().kind == TokenKind::ETX);
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer reports identifiers too long") {
+    init("a abc ;", {.max_identifier_len = 2});
+    auto token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.value == TokenValue{"a"});
+
+    CHECK(diagnostics().empty());
+
+    token = next();
+    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(diagnostics().last().kind ==
+          LexerDiagnosticKind{IdentifierTooLong{}});
+
+    CHECK(diagnostics().last().pos ==
+          Position{.line = 1, .column = 3, .offset = 2});
+
+    token = next();
+    CHECK(token.kind == TokenKind::Semicolon);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple integers") {

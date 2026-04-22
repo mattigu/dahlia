@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cmath>
+#include <cstddef>
 #include <optional>
 
 #include "CharReader.h"
@@ -28,8 +29,10 @@ static std::unordered_map<std::string, TokenKind> const KEYWORDS = {
     {"str", TokenKind::Str},       {"vec", TokenKind::Vec},
 };
 
-Lexer::Lexer(std::istream& src) noexcept
-    : src_{src}, current_{.kind = TokenKind::STX, .pos = src_.position()} {}
+Lexer::Lexer(std::istream& src, LexerOptions const& options) noexcept
+    : src_{src},
+      current_{.kind = TokenKind::STX, .pos = src_.position()},
+      options_(options) {}
 
 Token Lexer::current() const noexcept { return current_; }
 
@@ -93,10 +96,19 @@ std::optional<Token> Lexer::tryBuildComment() {
     if (src_.current() != '#') {
         return std::nullopt;
     }
+    auto const start_pos = src_.position();
+    auto constexpr comment_char = [](char chr) { return chr != NEWLINE; };
 
     src_.next();
-    std::string const comment =
-        buildTextWhile([](char chr) { return chr != NEWLINE && chr != ETX; });
+    auto const [comment, too_long] =
+        buildTextWhile(options_.max_comment_len, comment_char);
+
+    if (too_long) {
+        skipWhile(comment_char);
+        diagnostics_.push(
+            {.kind = LexerDiagnosticKind{CommentTooLong{}}, .pos = start_pos});
+        return Token{.kind = TokenKind::Comment};
+    }
 
     return Token{.kind = TokenKind::Comment, .value = comment};
 };
@@ -172,28 +184,46 @@ std::optional<Token> Lexer::tryBuildString() {
     if (src_.current() != '"') {
         return std::nullopt;
     }
+    auto const start_pos = src_.position();
+
     src_.next();
-    std::string text;
-    auto const string_end = [](char chr) {
+    auto constexpr string_end = [](char chr) {
         return chr == '"' || chr == NEWLINE || chr == ETX;
     };
 
-    auto const start_pos = src_.position();
-
-    while (!string_end(src_.current())) {
-        text += buildTextWhile(
+    std::string string;
+    while (!string_end(src_.current()) &&
+           string.length() < options_.max_string_len) {
+        auto const [text, too_long] = buildTextWhile(
+            options_.max_string_len - string.size(),
             [&](char chr) { return chr != '\\' && !string_end(chr); });
+        string += text;
+
+        if (too_long) {
+            break;
+        }
 
         if (auto const escape = tryBuildEscapeSequence()) {
-            text += escape.value();
+            string += escape.value();
         }
     }
+
+    if (string.length() == options_.max_string_len) {
+        skipWhile([&](char chr) { return !string_end(chr); });
+        diagnostics_.push(
+            {.kind = LexerDiagnosticKind{StringTooLong{}}, .pos = start_pos});
+        if (src_.current() == '"') {
+            src_.next();
+        }
+        return Token{.kind = TokenKind::StrLiteral};
+    }
+
     if (src_.current() == '"') {
         src_.next();
-        return Token{.kind = TokenKind::StrLiteral, .value = text};
+        return Token{.kind = TokenKind::StrLiteral, .value = string};
     }
     diagnostics_.push({.kind = UnterminatedString{}, .pos = start_pos});
-    return Token{.kind = TokenKind::StrLiteral, .value = text};
+    return Token{.kind = TokenKind::StrLiteral, .value = string};
 };
 
 std::optional<char> Lexer::tryBuildEscapeSequence() {
@@ -367,7 +397,7 @@ std::optional<std::int64_t> Lexer::tryBuildIntValue(std::string_view integer,
     for (char chr : integer) {
         auto const digit = chr - '0';
 
-        if (value > (INT_RANGE - digit) / 10) {
+        if (value > (options_.int_range - digit) / 10) {
             diagnostics_.push(
                 {.kind = LexerDiagnosticKind{IntegerOverflow{}}, .pos = pos});
             return std::nullopt;
@@ -403,18 +433,34 @@ std::optional<double> Lexer::tryBuildFloatValue(
 };
 
 std::optional<Token> Lexer::tryBuildIdentifierOrKeyword() {
+    auto constexpr key_or_ident_char = [](char chr) {
+        return std::isalnum(chr) || chr == '_';
+    };
+
     if (std::isalpha(src_.current()) == 0) {
         return std::nullopt;
     }
+    auto const start_pos = src_.position();
+    std::string ident_or_key{src_.current()};
+    src_.next();
 
-    std::string const word = buildTextWhile(
-        [](char chr) { return std::isalnum(chr) || chr == '_'; });
+    auto const [word, too_long] =
+        buildTextWhile(options_.max_identifier_len - 1, key_or_ident_char);
 
-    auto const keyword = KEYWORDS.find(word);
+    if (too_long) {
+        skipWhile(key_or_ident_char);
+        diagnostics_.push({.kind = LexerDiagnosticKind{IdentifierTooLong{}},
+                           .pos = start_pos});
+        return Token{.kind = TokenKind::Identifier};
+    }
+
+    ident_or_key += word;
+
+    auto const keyword = KEYWORDS.find(ident_or_key);
     if (keyword != KEYWORDS.end()) {
         return Token{.kind = keyword->second};
     }
-    return Token{.kind = TokenKind::Identifier, .value = word};
+    return Token{.kind = TokenKind::Identifier, .value = ident_or_key};
 };
 
 void Lexer::skipWhile(std::function<bool(char)> const& predicate) {
@@ -423,11 +469,15 @@ void Lexer::skipWhile(std::function<bool(char)> const& predicate) {
     }
 }
 
-std::string Lexer::buildTextWhile(std::function<bool(char)> const& predicate) {
+std::pair<std::string, bool> Lexer::buildTextWhile(
+    std::size_t max_size, std::function<bool(char)> const& predicate) {
     std::string text;
-    while (src_.current() != ETX && predicate(src_.current())) {
+
+    while (src_.current() != ETX && predicate(src_.current()) &&
+           text.length() < max_size) {
         text += src_.current();
         src_.next();
     }
-    return text;
+    bool const too_long = text.size() == max_size;
+    return {text, too_long};
 }

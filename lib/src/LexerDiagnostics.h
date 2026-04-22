@@ -40,7 +40,20 @@ struct FloatOutOfRange {
     bool operator==(FloatOutOfRange const&) const = default;
 };
 
+struct CommentTooLong {
+    bool operator==(CommentTooLong const&) const = default;
+};
+
+struct StringTooLong {
+    bool operator==(StringTooLong const&) const = default;
+};
+
+struct IdentifierTooLong {
+    bool operator==(IdentifierTooLong const&) const = default;
+};
+
 using LexerDiagnosticKind =
     std::variant<UnterminatedString, InvalidEscapeSequence, InvalidHexEscape,
                  UnexpectedChar, ExpectedChar, InvalidNumericSeparator,
-                 InvalidNumericLiteral, IntegerOverflow, FloatOutOfRange>;
+                 InvalidNumericLiteral, IntegerOverflow, FloatOutOfRange,
+                 StringTooLong, CommentTooLong, IdentifierTooLong>;
