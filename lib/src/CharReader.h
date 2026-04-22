@@ -17,6 +17,8 @@ public:
 
     [[nodiscard]] Position position() const noexcept;
 
+    [[nodiscard]] char peek() const noexcept;
+
 private:
     std::istream& input_;  // NOLINT
 

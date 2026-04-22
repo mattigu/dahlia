@@ -9,6 +9,14 @@ CharReader::CharReader(std::istream& input)
 
 char CharReader::current() const noexcept { return current_; }
 
+char CharReader::peek() const noexcept {
+    auto const peeked = input_.peek();
+    if (peeked == std::char_traits<char>::eof()) {
+        return ETX;
+    }
+    return static_cast<char>(peeked);
+};
+
 Position CharReader::position() const noexcept { return position_; }
 
 char CharReader::next() {
