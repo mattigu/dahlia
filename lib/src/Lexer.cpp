@@ -28,7 +28,7 @@ static std::unordered_map<std::string, TokenKind> const KEYWORDS = {
     {"str", TokenKind::Str},       {"vec", TokenKind::Vec},
 };
 
-Lexer::Lexer(std::istream& src, std::ostream& diagnostics) noexcept
+Lexer::Lexer(std::istream& src) noexcept
     : src_{src}, current_{.kind = TokenKind::STX, .pos = src_.position()} {}
 
 Token Lexer::current() const noexcept { return current_; }

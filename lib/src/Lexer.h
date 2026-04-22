@@ -15,7 +15,7 @@
 
 class Lexer {
 public:
-    Lexer(std::istream& src, std::ostream& diagnostics = std::cerr) noexcept;
+    Lexer(std::istream& src) noexcept;
 
     Token next();
     [[nodiscard]] Token current() const noexcept;
