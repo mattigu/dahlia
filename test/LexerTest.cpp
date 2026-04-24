@@ -114,7 +114,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes comments") {
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer reports comments too long") {
-    init("#1\n#123\n;", {.max_comment_len = 2});
+    init("#1\n#12\n;", {.max_comment_len = 1});
     auto token = next();
     CHECK(token.kind == TokenKind::Comment);
     CHECK(diagnostics().empty());
@@ -150,7 +150,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
     CHECK(next().kind == TokenKind::Semicolon);
 }
 TEST_CASE_FIXTURE(LexerFixture, "Lexer reports strings too long") {
-    init(R"("a" "abc" ;)", {.max_string_len = 2});
+    init(R"("a" "ab" ;)", {.max_string_len = 1});
     auto token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
     CHECK(token.value == TokenValue{"a"});
@@ -159,8 +159,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports strings too long") {
 
     token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{StringTooLong{}});
+    CHECK(diagnostics().last().kind == LexerDiagnosticKind{StringTooLong{}});
 
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 5, .offset = 4});
@@ -348,7 +347,7 @@ TEST_CASE_FIXTURE(LexerFixture,
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer reports identifiers too long") {
-    init("a abc ;", {.max_identifier_len = 2});
+    init("a ab ;", {.max_identifier_len = 1});
     auto token = next();
     CHECK(token.kind == TokenKind::Identifier);
     CHECK(token.value == TokenValue{"a"});

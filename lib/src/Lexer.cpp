@@ -208,7 +208,8 @@ std::optional<Token> Lexer::tryBuildString() {
         src_.next();
     }
 
-    if (string.length() == options_.max_string_len) {
+    if (string.length() == options_.max_string_len &&
+        !string_end(src_.current())) {
         skipWhile([&](char chr) { return !string_end(chr); });
         pushDiag(StringTooLong{}, start_pos);
         if (src_.current() == '"') {
@@ -460,6 +461,6 @@ std::pair<std::string, bool> Lexer::buildTextWhile(
         text += src_.current();
         src_.next();
     }
-    bool const too_long = text.size() == max_size;
+    bool const too_long = text.size() == max_size && predicate(src_.current());
     return {text, too_long};
 }
