@@ -25,7 +25,7 @@ struct LexerOptions {
 
 class Lexer {
 public:
-    Lexer(std::istream& src, LexerOptions const& options = {}) noexcept;
+    explicit Lexer(std::istream& src, LexerOptions const& options = {}) noexcept;
 
     Token next();
     [[nodiscard]] Token current() const noexcept;
