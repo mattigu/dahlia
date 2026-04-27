@@ -1,33 +1,51 @@
 #include "Lexer.h"
 
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <optional>
+#include <string_view>
 
 #include "CharReader.h"
 #include "LexerDiagnostics.h"
 #include "Position.h"
 #include "Token.h"
 
-static std::unordered_map<char, TokenKind> const SINGLE_CHAR_TOKENS = {
-    {'(', TokenKind::ParenOpen},   {')', TokenKind::ParenClose},
-    {'[', TokenKind::BracketOpen}, {']', TokenKind::BracketClose},
-    {'{', TokenKind::BraceOpen},   {'}', TokenKind::BraceClose},
-    {';', TokenKind::Semicolon},   {',', TokenKind::Comma},
-    {'@', TokenKind::At},          {'?', TokenKind::Question},
-    {ETX, TokenKind::ETX}};
+static constexpr auto SINGLE_CHAR_TOKENS =
+    std::to_array<std::pair<char, TokenKind>>({
+        {'(', TokenKind::ParenOpen},
+        {')', TokenKind::ParenClose},
+        {'[', TokenKind::BracketOpen},
+        {']', TokenKind::BracketClose},
+        {'{', TokenKind::BraceOpen},
+        {'}', TokenKind::BraceClose},
+        {';', TokenKind::Semicolon},
+        {',', TokenKind::Comma},
+        {'@', TokenKind::At},
+        {'?', TokenKind::Question},
+        {ETX, TokenKind::ETX},
+    });
 
-static std::unordered_map<std::string, TokenKind> const KEYWORDS = {
-    {"let", TokenKind::Let},       {"mut", TokenKind::Mut},
-    {"fn", TokenKind::Fn},         {"if", TokenKind::If},
-    {"else", TokenKind::Else},     {"for", TokenKind::For},
-    {"while", TokenKind::While},   {"in", TokenKind::In},
-    {"return", TokenKind::Return}, {"true", TokenKind::True},
-    {"false", TokenKind::False},   {"int", TokenKind::Int},
-    {"float", TokenKind::Float},   {"bool", TokenKind::Bool},
-    {"str", TokenKind::Str},       {"vec", TokenKind::Vec},
-};
+static constexpr auto KEYWORDS =
+    std::to_array<std::pair<std::string_view, TokenKind>>({
+        {"let", TokenKind::Let},
+        {"mut", TokenKind::Mut},
+        {"fn", TokenKind::Fn},
+        {"if", TokenKind::If},
+        {"else", TokenKind::Else},
+        {"for", TokenKind::For},
+        {"while", TokenKind::While},
+        {"in", TokenKind::In},
+        {"return", TokenKind::Return},
+        {"true", TokenKind::True},
+        {"false", TokenKind::False},
+        {"int", TokenKind::Int},
+        {"float", TokenKind::Float},
+        {"bool", TokenKind::Bool},
+        {"str", TokenKind::Str},
+        {"vec", TokenKind::Vec},
+    });
 
 Lexer::Lexer(std::istream& src, LexerOptions const& options) noexcept
     : src_{src},
@@ -91,11 +109,14 @@ std::optional<Token> Lexer::tryBuildToken() {
 }
 
 std::optional<Token> Lexer::tryBuildSingleCharToken() {
-    auto const token = SINGLE_CHAR_TOKENS.find(src_.current());
+    auto const* const token = std::ranges::find(
+        SINGLE_CHAR_TOKENS, src_.current(), &std::pair<char, TokenKind>::first);
+
     if (token != SINGLE_CHAR_TOKENS.cend()) {
         src_.next();
         return Token{.kind = token->second};
     }
+
     return std::nullopt;
 }
 
@@ -439,7 +460,9 @@ std::optional<Token> Lexer::tryBuildIdentifierOrKeyword() {
 
     ident_or_key += word;
 
-    auto const keyword = KEYWORDS.find(ident_or_key);
+    auto const* const keyword = std::ranges::find(
+        KEYWORDS, ident_or_key, &std::pair<std::string_view, TokenKind>::first);
+
     if (keyword != KEYWORDS.end()) {
         return Token{.kind = keyword->second};
     }
