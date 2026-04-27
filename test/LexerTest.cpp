@@ -71,6 +71,9 @@ TEST_CASE_FIXTURE(LexerFixture,
     init("let^;");
     CHECK(next().kind == TokenKind::Let);
     next();
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{UnexpectedChar{.chr = '^'}});
     CHECK(diagnostics().last().pos ==
@@ -121,6 +124,9 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports comments too long") {
 
     token = next();
     CHECK(token.kind == TokenKind::Comment);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind == LexerDiagnosticKind{CommentTooLong{}});
     CHECK(diagnostics().last().pos ==
           Position{.line = 2, .column = 1, .offset = 3});
@@ -141,6 +147,9 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
         ;")");
 
     auto const token = next();
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{UnterminatedString{}});
 
@@ -159,6 +168,9 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports strings too long") {
 
     token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind == LexerDiagnosticKind{StringTooLong{}});
 
     CHECK(diagnostics().last().pos ==
@@ -181,6 +193,9 @@ TEST_CASE_FIXTURE(LexerFixture,
     init(R"("ab\c" ;)");
     auto const token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidEscapeSequence{.chr = 'c'}});
     CHECK(diagnostics().last().pos ==
@@ -202,6 +217,9 @@ TEST_CASE_FIXTURE(LexerFixture,
     init(R"("\xLc" ;)");
     auto const token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidHexEscape{.chr = 'L'}});
     CHECK(diagnostics().last().pos ==
@@ -258,6 +276,9 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports 'Expected' error for ..") {
     CHECK(next().kind == TokenKind::Identifier);
     CHECK(diagnostics().empty() == true);
     CHECK(next().kind == TokenKind::DotDot);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{ExpectedChar{.expected = '.', .got = 'b'}});
     CHECK(diagnostics().last().pos ==
@@ -356,6 +377,9 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports identifiers too long") {
 
     token = next();
     CHECK(token.kind == TokenKind::Identifier);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{IdentifierTooLong{}});
 
@@ -396,6 +420,9 @@ TEST_CASE_FIXTURE(LexerFixture,
 
     next();
     CHECK(current().kind == TokenKind::IntLiteral);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidNumericLiteral{}});
     CHECK(diagnostics().last().pos ==
@@ -407,6 +434,9 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer, leading zeros not allowed on floats") {
 
     next();
     CHECK(current().kind == TokenKind::FloatLiteral);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidNumericLiteral{}});
     CHECK(diagnostics().last().pos ==
@@ -423,6 +453,9 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects integer overflow") {
 
     next();
     CHECK(current().kind == TokenKind::IntLiteral);
+
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind == LexerDiagnosticKind{IntegerOverflow{}});
 }
 
@@ -431,6 +464,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects double separators") {
 
     auto const token = next();
     CHECK(token.kind == TokenKind::IntLiteral);
+
+    REQUIRE(!diagnostics().empty());
 
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidNumericSeparator{}});
@@ -445,6 +480,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects leading separator") {
     auto const token = next();
     CHECK(token.kind == TokenKind::IntLiteral);
 
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidNumericSeparator{}});
 
@@ -457,6 +494,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects trailing separator") {
 
     auto const token = next();
     CHECK(token.kind == TokenKind::IntLiteral);
+
+    REQUIRE(!diagnostics().empty());
 
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidNumericSeparator{}});
@@ -472,6 +511,8 @@ TEST_CASE_FIXTURE(LexerFixture,
     auto const token = next();
     CHECK(token.kind == TokenKind::FloatLiteral);
 
+    REQUIRE(!diagnostics().empty());
+
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidNumericSeparator{}});
 
@@ -485,7 +526,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects floats with no fraction") {
     auto const token = next();
     CHECK(token.kind == TokenKind::FloatLiteral);
 
-    REQUIRE(diagnostics().empty() == false);
+    REQUIRE(!diagnostics().empty());
 
     CHECK(diagnostics().last().kind ==
           LexerDiagnosticKind{InvalidNumericLiteral{}});
@@ -563,6 +604,8 @@ TEST_CASE_FIXTURE(LexerFixture,
 
     CHECK(token.kind == TokenKind::FloatLiteral);
     CHECK(std::holds_alternative<std::monostate>(token.value));
+
+    REQUIRE(!diagnostics().empty());
 
     CHECK(diagnostics().last().kind == LexerDiagnosticKind{FloatOutOfRange{}});
 }
