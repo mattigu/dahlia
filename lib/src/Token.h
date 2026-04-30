@@ -88,6 +88,7 @@ enum class TokenKind : std::uint8_t {
     // Special
     STX,
     ETX,
+    ERROR,
 };
 
 using TokenValue =

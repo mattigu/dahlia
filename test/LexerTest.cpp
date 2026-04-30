@@ -70,7 +70,9 @@ TEST_CASE_FIXTURE(LexerFixture,
                   "Lexer reports and skips unexpected characters") {
     init("let^;");
     CHECK(next().kind == TokenKind::Let);
-    next();
+
+    auto token = next();
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -79,7 +81,8 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 4, .offset = 3});
 
-    CHECK(current().kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes single char tokens") {
@@ -114,13 +117,13 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes comments") {
     token = next();
     CHECK(token.kind == TokenKind::Comment);
     CHECK(token.value == TokenValue(" World"));
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer reports comments too long") {
     init("#1\n#12\n;", {.max_comment_len = 1});
     auto token = next();
     CHECK(token.kind == TokenKind::Comment);
-    CHECK(diagnostics().empty());
 
     token = next();
     CHECK(token.kind == TokenKind::Comment);
@@ -133,6 +136,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports comments too long") {
 
     token = next();
     CHECK(token.kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
@@ -144,9 +148,10 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
     init(R"("hello
-        ;")");
+        ;)");
 
     auto const token = next();
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -157,14 +162,14 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
           Position{.line = 1, .column = 1, .offset = 0});
 
     CHECK(next().kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::ETX);
 }
+
 TEST_CASE_FIXTURE(LexerFixture, "Lexer reports strings too long") {
     init(R"("a" "ab" ;)", {.max_string_len = 1});
     auto token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
     CHECK(token.value == TokenValue{"a"});
-
-    CHECK(diagnostics().empty());
 
     token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
@@ -176,8 +181,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports strings too long") {
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 5, .offset = 4});
 
-    token = next();
-    CHECK(token.kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
@@ -192,7 +197,7 @@ TEST_CASE_FIXTURE(LexerFixture,
                   "Lexer recognizes and reports invalid escape sequences") {
     init(R"("ab\c" ;)");
     auto const token = next();
-    CHECK(token.kind == TokenKind::StrLiteral);
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -202,6 +207,7 @@ TEST_CASE_FIXTURE(LexerFixture,
           Position{.line = 1, .column = 5, .offset = 4});
 
     CHECK(next().kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
@@ -210,13 +216,15 @@ TEST_CASE_FIXTURE(LexerFixture,
     auto const token = next();
     CHECK(token.kind == TokenKind::StrLiteral);
     CHECK(token.value == TokenValue("Hello"));
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
                   "Lexer recognizes and reports invalid hex escape sequences") {
     init(R"("\xLc" ;)");
     auto const token = next();
-    CHECK(token.kind == TokenKind::StrLiteral);
+
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -226,6 +234,7 @@ TEST_CASE_FIXTURE(LexerFixture,
           Position{.line = 1, .column = 4, .offset = 3});
 
     CHECK(next().kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple operators") {
@@ -274,8 +283,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports 'Expected' error for ..") {
     CHECK(next().kind == TokenKind::Identifier);
     CHECK(next().kind == TokenKind::In);
     CHECK(next().kind == TokenKind::Identifier);
-    CHECK(diagnostics().empty() == true);
-    CHECK(next().kind == TokenKind::DotDot);
+
+    CHECK(next().kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -373,10 +382,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports identifiers too long") {
     CHECK(token.kind == TokenKind::Identifier);
     CHECK(token.value == TokenValue{"a"});
 
-    CHECK(diagnostics().empty());
-
     token = next();
-    CHECK(token.kind == TokenKind::Identifier);
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -388,6 +395,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports identifiers too long") {
 
     token = next();
     CHECK(token.kind == TokenKind::Semicolon);
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple integers") {
@@ -404,6 +412,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple integers") {
     next();
     CHECK(current().kind == TokenKind::IntLiteral);
     CHECK(current().value == TokenValue{123456789});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes int of value 0") {
@@ -419,7 +429,7 @@ TEST_CASE_FIXTURE(LexerFixture,
     init("003");
 
     next();
-    CHECK(current().kind == TokenKind::IntLiteral);
+    CHECK(current().kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -427,13 +437,15 @@ TEST_CASE_FIXTURE(LexerFixture,
           LexerDiagnosticKind{InvalidNumericLiteral{}});
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 1, .offset = 0});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer, leading zeros not allowed on floats") {
     init("00.1");
 
     next();
-    CHECK(current().kind == TokenKind::FloatLiteral);
+    CHECK(current().kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -441,6 +453,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer, leading zeros not allowed on floats") {
           LexerDiagnosticKind{InvalidNumericLiteral{}});
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 1, .offset = 0});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer detects integer overflow") {
@@ -452,18 +466,20 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects integer overflow") {
     CHECK(current().value == TokenValue{9223372036854775807});
 
     next();
-    CHECK(current().kind == TokenKind::IntLiteral);
+    CHECK(current().kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
     CHECK(diagnostics().last().kind == LexerDiagnosticKind{IntegerOverflow{}});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer detects double separators") {
     init("1__2");
 
     auto const token = next();
-    CHECK(token.kind == TokenKind::IntLiteral);
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -472,13 +488,15 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects double separators") {
 
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 3, .offset = 2});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer detects leading separator") {
     init("_123");
 
     auto const token = next();
-    CHECK(token.kind == TokenKind::IntLiteral);
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -487,13 +505,15 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects leading separator") {
 
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 1, .offset = 0});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer detects trailing separator") {
     init("123_");
 
     auto const token = next();
-    CHECK(token.kind == TokenKind::IntLiteral);
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -502,6 +522,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects trailing separator") {
 
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 4, .offset = 3});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
@@ -509,7 +531,7 @@ TEST_CASE_FIXTURE(LexerFixture,
     init("1_.2");
 
     auto const token = next();
-    CHECK(token.kind == TokenKind::FloatLiteral);
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -518,13 +540,15 @@ TEST_CASE_FIXTURE(LexerFixture,
 
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 2, .offset = 1});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer detects floats with no fraction") {
     init("1.");
 
     auto const token = next();
-    CHECK(token.kind == TokenKind::FloatLiteral);
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
@@ -533,6 +557,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects floats with no fraction") {
 
     CHECK(diagnostics().last().pos ==
           Position{.line = 1, .column = 1, .offset = 0});
+
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple floats") {
@@ -548,7 +574,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple floats") {
     CHECK(token.kind == TokenKind::FloatLiteral);
     CHECK(token.value == TokenValue{1.0});
 
-    CHECK(diagnostics().empty());
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer parses floats with fractional values") {
@@ -559,7 +585,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer parses floats with fractional values") {
     CHECK(token.kind == TokenKind::FloatLiteral);
     CHECK(std::get<double>(token.value) == doctest::Approx(123.456));
 
-    CHECK(diagnostics().empty());
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
@@ -571,7 +597,7 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(token.kind == TokenKind::FloatLiteral);
     CHECK(std::get<double>(token.value) == doctest::Approx(0.4));
 
-    CHECK(diagnostics().empty());
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer parses floats with large int parts") {
@@ -581,7 +607,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer parses floats with large int parts") {
 
     CHECK(token.kind == TokenKind::FloatLiteral);
 
-    CHECK(diagnostics().empty());
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
@@ -593,7 +619,7 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(token.kind == TokenKind::FloatLiteral);
     CHECK(std::get<double>(token.value) == doctest::Approx(1.0));
 
-    CHECK(diagnostics().empty());
+    CHECK(next().kind == TokenKind::ETX);
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
@@ -602,10 +628,10 @@ TEST_CASE_FIXTURE(LexerFixture,
 
     auto const token = next();
 
-    CHECK(token.kind == TokenKind::FloatLiteral);
-    CHECK(std::holds_alternative<std::monostate>(token.value));
+    CHECK(token.kind == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 
     CHECK(diagnostics().last().kind == LexerDiagnosticKind{FloatOutOfRange{}});
+    CHECK(next().kind == TokenKind::ETX);
 }

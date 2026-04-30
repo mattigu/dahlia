@@ -60,13 +60,7 @@ Token Lexer::current() const noexcept { return current_; }
 }
 
 Token Lexer::next() {
-    while (true) {
-        auto const token = tryBuildToken();
-        if (token.has_value()) {
-            current_ = token.value();
-            break;
-        }
-    }
+    current_ = tryBuildToken();
     return current_;
 }
 
@@ -74,7 +68,7 @@ void Lexer::pushDiag(LexerDiagnosticKind const& kind, Position const& pos) {
     diagnostics_.push({.kind = kind, .pos = pos});
 }
 
-std::optional<Token> Lexer::tryBuildToken() {
+Token Lexer::tryBuildToken() {
     skipWhile([](char chr) { return std::isspace(chr) || chr == STX; });
 
     if (current_.kind == TokenKind::ETX) {
@@ -96,12 +90,12 @@ std::optional<Token> Lexer::tryBuildToken() {
 
     if (result.has_value()) {
         result->pos = token_pos;
-        return result;
+        return *result;
     }
     pushDiag(UnexpectedChar{.chr = src_.current()}, src_.position());
     src_.next();
 
-    return std::nullopt;
+    return {.kind = TokenKind::ERROR, .pos = token_pos};
 }
 
 std::optional<Token> Lexer::tryBuildSingleCharToken() {
@@ -130,7 +124,7 @@ std::optional<Token> Lexer::tryBuildComment() {
     if (too_long) {
         skipWhile(comment_char);
         pushDiag(CommentTooLong{}, start_pos);
-        return Token{.kind = TokenKind::Comment};
+        return Token{.kind = TokenKind::Comment, .value = comment};
     }
 
     return Token{.kind = TokenKind::Comment, .value = comment};
@@ -168,7 +162,7 @@ std::optional<TokenKind> Lexer::tryBuildOperator() {
             }
             pushDiag(ExpectedChar{.expected = '.', .got = src_.current()},
                      src_.position());
-            return TokenKind::DotDot;
+            return TokenKind::ERROR;
 
         case ':':
             if (src_.next() == '>') {
@@ -219,6 +213,12 @@ std::optional<Token> Lexer::tryBuildString() {
         if (src_.current() == '\\') {
             if (auto const escape = tryBuildEscapeSequence()) {
                 string += escape.value();
+            } else {
+                skipWhile([&](char chr) { return !string_end(chr); });
+                if (src_.current() == '"') {
+                    src_.next();
+                }
+                return Token{.kind = TokenKind::ERROR};
             }
             continue;
         }
@@ -233,7 +233,7 @@ std::optional<Token> Lexer::tryBuildString() {
         if (src_.current() == '"') {
             src_.next();
         }
-        return Token{.kind = TokenKind::StrLiteral};
+        return Token{.kind = TokenKind::StrLiteral, .value = string};
     }
 
     if (src_.current() == '"') {
@@ -241,7 +241,7 @@ std::optional<Token> Lexer::tryBuildString() {
         return Token{.kind = TokenKind::StrLiteral, .value = string};
     }
     pushDiag(UnterminatedString{}, start_pos);
-    return Token{.kind = TokenKind::StrLiteral, .value = string};
+    return Token{.kind = TokenKind::ERROR, .value = string};
 }
 
 std::optional<char> Lexer::tryBuildEscapeSequence() {
@@ -295,6 +295,10 @@ std::optional<char> Lexer::tryBuildHexEscape() {
 }
 
 std::optional<Token> Lexer::tryBuildNumber() {
+    auto constexpr is_num_char = [](char chr) {
+        return std::isdigit(chr) != 0 || chr == '_';
+    };
+
     if (std::isdigit(src_.current()) == 0 && src_.current() != '_') {
         return std::nullopt;
     }
@@ -308,19 +312,20 @@ std::optional<Token> Lexer::tryBuildNumber() {
         src_.next();
 
         if (!int_part.has_value()) {
-            return Token{.kind = TokenKind::FloatLiteral};
+            skipWhile(is_num_char);
+            return Token{.kind = TokenKind::ERROR};
         }
 
         auto const fraction_part = tryBuildDigits();
 
         if (!fraction_part.has_value()) {
-            return Token{.kind = TokenKind::FloatLiteral};
+            return Token{.kind = TokenKind::ERROR};
         }
 
         if (fraction_part->empty() ||
             (int_part->size() > 1 && (*int_part)[0] == '0')) {
             pushDiag(InvalidNumericLiteral{}, start_pos);
-            return Token{.kind = TokenKind::FloatLiteral};
+            return Token{.kind = TokenKind::ERROR};
         }
 
         auto const float_value =
@@ -330,23 +335,23 @@ std::optional<Token> Lexer::tryBuildNumber() {
             return Token{.kind = TokenKind::FloatLiteral,
                          .value = *float_value};
         }
-        return Token{.kind = TokenKind::FloatLiteral};
+        return Token{.kind = TokenKind::ERROR};
     }
     // Int
     if (!int_part.has_value()) {
-        return Token{.kind = TokenKind::IntLiteral};
+        return Token{.kind = TokenKind::ERROR};
     }
 
     if (int_part->size() > 1 && (*int_part)[0] == '0') {
         pushDiag(InvalidNumericLiteral{}, start_pos);
-        return Token{.kind = TokenKind::IntLiteral};
+        return Token{.kind = TokenKind::ERROR};
     }
     auto const int_value = tryBuildIntValue(*int_part, start_pos);
 
     if (int_value.has_value()) {
         return Token{.kind = TokenKind::IntLiteral, .value = *int_value};
     }
-    return Token{.kind = TokenKind::IntLiteral};
+    return Token{.kind = TokenKind::ERROR};
 }
 
 std::optional<std::string> Lexer::tryBuildDigits() {
@@ -453,7 +458,7 @@ std::optional<Token> Lexer::tryBuildIdentifierOrKeyword() {
     if (too_long) {
         skipWhile(key_or_ident_char);
         pushDiag(IdentifierTooLong{}, start_pos);
-        return Token{.kind = TokenKind::Identifier};
+        return Token{.kind = TokenKind::ERROR};
     }
 
     ident_or_key += word;

@@ -45,7 +45,7 @@ private:
 
     void pushDiag(LexerDiagnosticKind const& kind, Position const& pos);
 
-    std::optional<Token> tryBuildToken();
+    Token tryBuildToken();
 
     std::optional<Token> tryBuildSingleCharToken();
 
