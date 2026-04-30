@@ -70,10 +70,6 @@ Token Lexer::next() {
     return current_;
 }
 
-void Lexer::pushDiag(LexerDiagnosticKind const& kind) {
-    diagnostics_.push({.kind = kind, .pos = src_.position()});
-}
-
 void Lexer::pushDiag(LexerDiagnosticKind const& kind, Position const& pos) {
     diagnostics_.push({.kind = kind, .pos = pos});
 }
@@ -102,7 +98,7 @@ std::optional<Token> Lexer::tryBuildToken() {
         result->pos = token_pos;
         return result;
     }
-    pushDiag(UnexpectedChar{.chr = src_.current()});
+    pushDiag(UnexpectedChar{.chr = src_.current()}, src_.position());
     src_.next();
 
     return std::nullopt;
@@ -170,7 +166,8 @@ std::optional<TokenKind> Lexer::tryBuildOperator() {
                 }
                 return TokenKind::DotDot;
             }
-            pushDiag(ExpectedChar{.expected = '.', .got = src_.current()});
+            pushDiag(ExpectedChar{.expected = '.', .got = src_.current()},
+                     src_.position());
             return TokenKind::DotDot;
 
         case ':':
@@ -272,7 +269,8 @@ std::optional<char> Lexer::tryBuildEscapeSequence() {
         case 'x':
             return tryBuildHexEscape();
         default:
-            pushDiag(InvalidEscapeSequence{.chr = src_.current()});
+            pushDiag(InvalidEscapeSequence{.chr = src_.current()},
+                     src_.position());
             return std::nullopt;
     }
 }
@@ -283,12 +281,12 @@ std::optional<char> Lexer::tryBuildHexEscape() {
 
     char const high = src_.next();
     if (std::isxdigit(high) == 0) {
-        pushDiag(InvalidHexEscape{.chr = high});
+        pushDiag(InvalidHexEscape{.chr = high}, src_.position());
         return std::nullopt;
     }
     char const low = src_.next();
     if (std::isxdigit(low) == 0) {
-        pushDiag(InvalidHexEscape{.chr = low});
+        pushDiag(InvalidHexEscape{.chr = low}, src_.position());
         return std::nullopt;
     }
     src_.next();
@@ -357,7 +355,7 @@ std::optional<std::string> Lexer::tryBuildDigits() {
     };
 
     if (src_.current() == '_') {
-        pushDiag(InvalidNumericSeparator{});
+        pushDiag(InvalidNumericSeparator{}, src_.position());
         skipWhile(is_num_char);
         return std::nullopt;
     }
@@ -374,7 +372,7 @@ std::optional<std::string> Lexer::tryBuildDigits() {
         char curr = src_.current();
 
         if (curr == '_' && prev == '_') {
-            pushDiag(InvalidNumericSeparator{});
+            pushDiag(InvalidNumericSeparator{}, src_.position());
             skipWhile(is_num_char);
             return std::nullopt;
         }

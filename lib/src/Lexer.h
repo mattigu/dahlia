@@ -25,7 +25,8 @@ struct LexerOptions {
 
 class Lexer {
 public:
-    explicit Lexer(std::istream& src, LexerOptions const& options = {}) noexcept;
+    explicit Lexer(std::istream& src,
+                   LexerOptions const& options = {}) noexcept;
 
     Token next();
     [[nodiscard]] Token current() const noexcept;
@@ -42,7 +43,6 @@ private:
 
     Diagnostics<LexerDiagnosticKind> diagnostics_;
 
-    void pushDiag(LexerDiagnosticKind const& kind);
     void pushDiag(LexerDiagnosticKind const& kind, Position const& pos);
 
     std::optional<Token> tryBuildToken();
