@@ -48,9 +48,7 @@ static constexpr auto KEYWORDS =
     });
 
 Lexer::Lexer(std::istream& src, LexerOptions const& options) noexcept
-    : src_{src},
-      current_{.kind = TokenKind::STX, .pos = src_.position()},
-      options_(options) {}
+    : src_{src}, current_{TokenKind::STX, src_.position()}, options_(options) {}
 
 Token Lexer::current() const noexcept { return current_; }
 
@@ -71,7 +69,7 @@ void Lexer::pushDiag(LexerDiagnosticKind const& kind, Position const& pos) {
 Token Lexer::tryBuildToken() {
     skipWhile([](char chr) { return std::isspace(chr) || chr == STX; });
 
-    if (current_.kind == TokenKind::ETX) {
+    if (current_.kind() == TokenKind::ETX) {
         return current_;
     }
 
@@ -81,30 +79,32 @@ Token Lexer::tryBuildToken() {
         tryBuildSingleCharToken()
             .or_else([this]() { return tryBuildComment(); })
             .or_else([this]() { return tryBuildNumber(); })
-            .or_else([this]() {
+            .or_else([&]() {
                 return tryBuildOperator().transform(
-                    [](TokenKind kind) { return Token{.kind = kind}; });
+                    [&](TokenKind kind) { return Token(kind, token_pos); });
             })
             .or_else([this]() { return tryBuildString(); })
             .or_else([this]() { return tryBuildIdentifierOrKeyword(); });
 
     if (result.has_value()) {
-        result->pos = token_pos;
         return *result;
     }
+
     pushDiag(UnexpectedChar{.chr = src_.current()}, src_.position());
     src_.next();
 
-    return {.kind = TokenKind::ERROR, .pos = token_pos};
+    return {TokenKind::ERROR, token_pos};
 }
 
 std::optional<Token> Lexer::tryBuildSingleCharToken() {
     auto const* const token = std::ranges::find(
         SINGLE_CHAR_TOKENS, src_.current(), &std::pair<char, TokenKind>::first);
 
+    auto const pos = src_.position();
+
     if (token != SINGLE_CHAR_TOKENS.cend()) {
         src_.next();
-        return Token{.kind = token->second};
+        return Token(token->second, pos);
     }
 
     return std::nullopt;
@@ -124,10 +124,10 @@ std::optional<Token> Lexer::tryBuildComment() {
     if (too_long) {
         skipWhile(comment_char);
         pushDiag(CommentTooLong{}, start_pos);
-        return Token{.kind = TokenKind::Comment, .value = comment};
+        return Token(TokenKind::Comment, start_pos, comment);
     }
 
-    return Token{.kind = TokenKind::Comment, .value = comment};
+    return Token(TokenKind::Comment, start_pos, comment);
 }
 
 std::optional<TokenKind> Lexer::tryBuildOperator() {
@@ -218,7 +218,7 @@ std::optional<Token> Lexer::tryBuildString() {
                 if (src_.current() == '"') {
                     src_.next();
                 }
-                return Token{.kind = TokenKind::ERROR};
+                return Token(TokenKind::ERROR, start_pos);
             }
             continue;
         }
@@ -233,15 +233,15 @@ std::optional<Token> Lexer::tryBuildString() {
         if (src_.current() == '"') {
             src_.next();
         }
-        return Token{.kind = TokenKind::StrLiteral, .value = string};
+        return Token(TokenKind::StrLiteral, start_pos, string);
     }
 
     if (src_.current() == '"') {
         src_.next();
-        return Token{.kind = TokenKind::StrLiteral, .value = string};
+        return Token(TokenKind::StrLiteral, start_pos, string);
     }
     pushDiag(UnterminatedString{}, start_pos);
-    return Token{.kind = TokenKind::ERROR, .value = string};
+    return Token(TokenKind::ERROR, start_pos);
 }
 
 std::optional<char> Lexer::tryBuildEscapeSequence() {
@@ -313,45 +313,44 @@ std::optional<Token> Lexer::tryBuildNumber() {
 
         if (!int_part.has_value()) {
             skipWhile(is_num_char);
-            return Token{.kind = TokenKind::ERROR};
+            return Token(TokenKind::ERROR, start_pos);
         }
 
         auto const fraction_part = tryBuildDigits();
 
         if (!fraction_part.has_value()) {
-            return Token{.kind = TokenKind::ERROR};
+            return Token(TokenKind::ERROR, start_pos);
         }
 
         if (fraction_part->empty() ||
             (int_part->size() > 1 && (*int_part)[0] == '0')) {
             pushDiag(InvalidNumericLiteral{}, start_pos);
-            return Token{.kind = TokenKind::ERROR};
+            return Token(TokenKind::ERROR, start_pos);
         }
 
         auto const float_value =
             tryBuildFloatValue(*int_part, *fraction_part, start_pos);
 
         if (float_value.has_value()) {
-            return Token{.kind = TokenKind::FloatLiteral,
-                         .value = *float_value};
+            return Token(TokenKind::FloatLiteral, start_pos, *float_value);
         }
-        return Token{.kind = TokenKind::ERROR};
+        return Token(TokenKind::ERROR, start_pos);
     }
     // Int
     if (!int_part.has_value()) {
-        return Token{.kind = TokenKind::ERROR};
+        return Token(TokenKind::ERROR, start_pos);
     }
 
     if (int_part->size() > 1 && (*int_part)[0] == '0') {
         pushDiag(InvalidNumericLiteral{}, start_pos);
-        return Token{.kind = TokenKind::ERROR};
+        return Token(TokenKind::ERROR, start_pos);
     }
     auto const int_value = tryBuildIntValue(*int_part, start_pos);
 
     if (int_value.has_value()) {
-        return Token{.kind = TokenKind::IntLiteral, .value = *int_value};
+        return Token(TokenKind::IntLiteral, start_pos, *int_value);
     }
-    return Token{.kind = TokenKind::ERROR};
+    return Token(TokenKind::ERROR, start_pos);
 }
 
 std::optional<std::string> Lexer::tryBuildDigits() {
@@ -458,7 +457,7 @@ std::optional<Token> Lexer::tryBuildIdentifierOrKeyword() {
     if (too_long) {
         skipWhile(key_or_ident_char);
         pushDiag(IdentifierTooLong{}, start_pos);
-        return Token{.kind = TokenKind::ERROR};
+        return Token(TokenKind::ERROR, start_pos);
     }
 
     ident_or_key += word;
@@ -467,9 +466,9 @@ std::optional<Token> Lexer::tryBuildIdentifierOrKeyword() {
         KEYWORDS, ident_or_key, &std::pair<std::string_view, TokenKind>::first);
 
     if (keyword != KEYWORDS.end()) {
-        return Token{.kind = keyword->second};
+        return Token(keyword->second, start_pos);
     }
-    return Token{.kind = TokenKind::Identifier, .value = ident_or_key};
+    return Token(TokenKind::Identifier, start_pos, ident_or_key);
 }
 
 void Lexer::skipWhile(std::function<bool(char)> const& predicate) {

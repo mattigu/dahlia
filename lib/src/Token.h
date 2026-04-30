@@ -94,12 +94,20 @@ enum class TokenKind : std::uint8_t {
 using TokenValue =
     std::variant<std::monostate, std::string, std::int64_t, double>;
 
-struct Token {
-    TokenKind kind;
-    Position pos;
-    TokenValue value;
+class Token {
+public:
+    Token(TokenKind kind, Position pos, TokenValue val = std::monostate{});
 
     bool operator==(Token const&) const = default;
+
+    [[nodiscard]] TokenKind kind() const noexcept;
+    [[nodiscard]] Position pos() const noexcept;
+    [[nodiscard]] TokenValue const& value() const noexcept;
+
+private:
+    TokenKind kind_;
+    Position pos_;
+    TokenValue value_;
 };
 
 template <>
@@ -133,8 +141,8 @@ template <>
 struct std::formatter<Token> : std::formatter<std::string> {
     auto format(Token const& token, std::format_context& ctx) const {
         return std::formatter<std::string>::format(
-            std::format("{{\n  kind={},\n  pos={},\n  value={}\n}}", token.kind,
-                        token.pos, token.value),
+            std::format("{{\n  kind={},\n  pos={},\n  value={}\n}}", token.kind(),
+                        token.pos(), token.value()),
             ctx);
     }
 };
