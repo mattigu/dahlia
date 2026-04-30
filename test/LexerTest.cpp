@@ -1,3 +1,4 @@
+#include <array>
 #include <sstream>
 #include <string>
 
@@ -23,6 +24,10 @@ struct LexerFixture {
                                   std::size_t frac_digits = 0,
                                   char digit = '9');
 };
+
+inline std::string subcaseName(char const* src, TokenKind kind) {
+    return std::string(src) + " -> " + toString(kind);
+}
 
 std::string LexerFixture::makeNumber(std::size_t int_digits,
                                      std::size_t frac_digits, char digit) {
@@ -85,20 +90,32 @@ TEST_CASE_FIXTURE(LexerFixture,
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes single char tokens") {
-    init("()[]{};,@?");
-    CHECK(next().kind() == TokenKind::ParenOpen);
-    CHECK(next().kind() == TokenKind::ParenClose);
-    CHECK(next().kind() == TokenKind::BracketOpen);
-    CHECK(next().kind() == TokenKind::BracketClose);
-    CHECK(next().kind() == TokenKind::BraceOpen);
-    CHECK(next().kind() == TokenKind::BraceClose);
-    CHECK(next().kind() == TokenKind::Semicolon);
-    CHECK(next().kind() == TokenKind::Comma);
-    CHECK(next().kind() == TokenKind::At);
-    CHECK(next().kind() == TokenKind::Question);
-    CHECK(next().kind() == TokenKind::ETX);
-}
+    struct Case {
+        char const* src;
+        TokenKind kind;
+    };
 
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "(", .kind = TokenKind::ParenOpen},
+        {.src = ")", .kind = TokenKind::ParenClose},
+        {.src = "[", .kind = TokenKind::BracketOpen},
+        {.src = "]", .kind = TokenKind::BracketClose},
+        {.src = "{", .kind = TokenKind::BraceOpen},
+        {.src = "}", .kind = TokenKind::BraceClose},
+        {.src = ";", .kind = TokenKind::Semicolon},
+        {.src = ",", .kind = TokenKind::Comma},
+        {.src = "@", .kind = TokenKind::At},
+        {.src = "?", .kind = TokenKind::Question},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.kind)) {
+            init(test.src);
+            CHECK(next().kind() == test.kind);
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
+}
 TEST_CASE_FIXTURE(LexerFixture, "Lexer token positions single char") {
     init("()\n[");
     REQUIRE(next().pos() == Position{.line = 1, .column = 1, .offset = 0});
@@ -238,42 +255,81 @@ TEST_CASE_FIXTURE(LexerFixture,
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple operators") {
-    init("+ - * / % = ! < > :");
-    CHECK(next().kind() == TokenKind::Plus);
-    CHECK(next().kind() == TokenKind::Minus);
-    CHECK(next().kind() == TokenKind::Asterisk);
-    CHECK(next().kind() == TokenKind::Slash);
-    CHECK(next().kind() == TokenKind::Percent);
-    CHECK(next().kind() == TokenKind::Equal);
-    CHECK(next().kind() == TokenKind::Exclamation);
-    CHECK(next().kind() == TokenKind::Less);
-    CHECK(next().kind() == TokenKind::Greater);
-    CHECK(next().kind() == TokenKind::Colon);
-    CHECK(next().kind() == TokenKind::ETX);
+    struct Case {
+        char const* src;
+        TokenKind kind;
+    };
+
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "+", .kind = TokenKind::Plus},
+        {.src = "-", .kind = TokenKind::Minus},
+        {.src = "*", .kind = TokenKind::Asterisk},
+        {.src = "/", .kind = TokenKind::Slash},
+        {.src = "%", .kind = TokenKind::Percent},
+        {.src = "=", .kind = TokenKind::Equal},
+        {.src = "!", .kind = TokenKind::Exclamation},
+        {.src = "<", .kind = TokenKind::Less},
+        {.src = ">", .kind = TokenKind::Greater},
+        {.src = ":", .kind = TokenKind::Colon},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.kind)) {
+            init(test.src);
+            CHECK(next().kind() == test.kind);
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
 }
 
 TEST_CASE_FIXTURE(LexerFixture,
                   "Lexer tokenizes compound assignment operators") {
-    init("+= -= *= /= %= == != <= >=");
-    CHECK(next().kind() == TokenKind::PlusEqual);
-    CHECK(next().kind() == TokenKind::MinusEqual);
-    CHECK(next().kind() == TokenKind::AsteriskEqual);
-    CHECK(next().kind() == TokenKind::SlashEqual);
-    CHECK(next().kind() == TokenKind::PercentEqual);
-    CHECK(next().kind() == TokenKind::EqualEqual);
-    CHECK(next().kind() == TokenKind::ExclamationEqual);
-    CHECK(next().kind() == TokenKind::LessEqual);
-    CHECK(next().kind() == TokenKind::GreaterEqual);
-    CHECK(next().kind() == TokenKind::ETX);
+    struct Case {
+        char const* src;
+        TokenKind kind;
+    };
+
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "+=", .kind = TokenKind::PlusEqual},
+        {.src = "-=", .kind = TokenKind::MinusEqual},
+        {.src = "*=", .kind = TokenKind::AsteriskEqual},
+        {.src = "/=", .kind = TokenKind::SlashEqual},
+        {.src = "%=", .kind = TokenKind::PercentEqual},
+        {.src = "==", .kind = TokenKind::EqualEqual},
+        {.src = "!=", .kind = TokenKind::ExclamationEqual},
+        {.src = "<=", .kind = TokenKind::LessEqual},
+        {.src = ">=", .kind = TokenKind::GreaterEqual},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.kind)) {
+            init(test.src);
+            CHECK(next().kind() == test.kind);
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes special operators") {
-    init(".. ..= :> ><");
-    CHECK(next().kind() == TokenKind::DotDot);
-    CHECK(next().kind() == TokenKind::DotDotEq);
-    CHECK(next().kind() == TokenKind::ColonGreater);
-    CHECK(next().kind() == TokenKind::GreaterLess);
-    CHECK(next().kind() == TokenKind::ETX);
+    struct Case {
+        char const* src;
+        TokenKind kind;
+    };
+
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "..", .kind = TokenKind::DotDot},
+        {.src = "..=", .kind = TokenKind::DotDotEq},
+        {.src = ":>", .kind = TokenKind::ColonGreater},
+        {.src = "><", .kind = TokenKind::GreaterLess},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.kind)) {
+            init(test.src);
+            CHECK(next().kind() == test.kind);
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer reports 'Expected' error for ..") {
@@ -298,27 +354,38 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports 'Expected' error for ..") {
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes keywords") {
-    init(
-        "let mut fn if else for while in return true false int float bool str "
-        "vec");
+    struct Case {
+        char const* src;
+        TokenKind expected;
+    };
 
-    CHECK(next().kind() == TokenKind::Let);
-    CHECK(next().kind() == TokenKind::Mut);
-    CHECK(next().kind() == TokenKind::Fn);
-    CHECK(next().kind() == TokenKind::If);
-    CHECK(next().kind() == TokenKind::Else);
-    CHECK(next().kind() == TokenKind::For);
-    CHECK(next().kind() == TokenKind::While);
-    CHECK(next().kind() == TokenKind::In);
-    CHECK(next().kind() == TokenKind::Return);
-    CHECK(next().kind() == TokenKind::True);
-    CHECK(next().kind() == TokenKind::False);
-    CHECK(next().kind() == TokenKind::Int);
-    CHECK(next().kind() == TokenKind::Float);
-    CHECK(next().kind() == TokenKind::Bool);
-    CHECK(next().kind() == TokenKind::Str);
-    CHECK(next().kind() == TokenKind::Vec);
-    CHECK(next().kind() == TokenKind::ETX);
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "let", .expected = TokenKind::Let},
+        {.src = "mut", .expected = TokenKind::Mut},
+        {.src = "fn", .expected = TokenKind::Fn},
+        {.src = "if", .expected = TokenKind::If},
+        {.src = "else", .expected = TokenKind::Else},
+        {.src = "for", .expected = TokenKind::For},
+        {.src = "while", .expected = TokenKind::While},
+        {.src = "in", .expected = TokenKind::In},
+        {.src = "return", .expected = TokenKind::Return},
+        {.src = "true", .expected = TokenKind::True},
+        {.src = "false", .expected = TokenKind::False},
+        {.src = "int", .expected = TokenKind::Int},
+        {.src = "float", .expected = TokenKind::Float},
+        {.src = "bool", .expected = TokenKind::Bool},
+        {.src = "str", .expected = TokenKind::Str},
+        {.src = "vec", .expected = TokenKind::Vec},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.expected)) {
+            init(test.src);
+
+            CHECK(next().kind() == test.expected);
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes valid identifiers") {
