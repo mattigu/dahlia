@@ -1,5 +1,7 @@
 #include "Token.h"
 
+#include "magic_enum/magic_enum.hpp"
+
 inline bool matches(TokenKind kind, TokenValue const& val) {
     switch (kind) {
         case TokenKind::IntLiteral:
@@ -37,4 +39,8 @@ std::ostream& operator<<(std::ostream& oss, TokenKind const& kind) {
 
 std::ostream& operator<<(std::ostream& oss, TokenValue const& value) {
     return oss << std::format("{}", value);
+}
+
+std::string toString(TokenKind kind) {
+    return std::string(magic_enum::enum_name(kind));
 }

@@ -15,7 +15,7 @@ add_library(dahlia_lib STATIC
 )
 
 target_link_libraries(dahlia_lib
-    PUBLIC magic_enum::magic_enum
+    PRIVATE magic_enum::magic_enum
 )
 
 target_include_directories(dahlia_lib

@@ -4,7 +4,6 @@
 #include <variant>
 
 #include "Position.h"
-#include "magic_enum/magic_enum.hpp"
 
 enum class TokenKind : std::uint8_t {
     // Arithmetic
@@ -91,6 +90,8 @@ enum class TokenKind : std::uint8_t {
     ERROR,
 };
 
+std::string toString(TokenKind kind);
+
 using TokenValue =
     std::variant<std::monostate, std::string, std::int64_t, double>;
 
@@ -114,7 +115,7 @@ template <>
 struct std::formatter<TokenKind> : std::formatter<std::string_view> {
     auto format(TokenKind kind, std::format_context& ctx) const {
         return std::formatter<std::string_view>::format(
-            magic_enum::enum_name(kind), ctx);
+            toString(kind), ctx);
     }
 };
 
