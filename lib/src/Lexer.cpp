@@ -442,6 +442,7 @@ void Lexer::appendIntegerDigit(BuiltDigits& result, uint8_t digit) {
 }
 void Lexer::appendFractionDigit(BuiltDigits& result, uint8_t digit,
                                 double scale) {
+    ++result.count;
     auto& value = std::get<double>(result.value);
     value += digit * scale;
 }
