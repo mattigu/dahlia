@@ -23,6 +23,14 @@ struct LexerOptions {
     std::size_t max_identifier_len = 128;
 };
 
+struct BuiltDigits {
+    std::variant<uint64_t, double> value;
+    size_t count;
+    bool overflowed;
+};
+
+enum class DigitMode : std::uint8_t { Integer, Fraction };
+
 class Lexer {
 public:
     explicit Lexer(std::istream& src,
@@ -62,13 +70,11 @@ private:
     std::optional<char> tryBuildHexEscape();
 
     std::optional<Token> tryBuildNumber();
-    std::optional<std::string> tryBuildDigits();
+    std::optional<BuiltDigits> tryBuildDigits(DigitMode mode);
 
-    std::optional<std::int64_t> tryBuildIntValue(std::string_view integer,
-                                                 Position const& pos);
-    std::optional<double> tryBuildFloatValue(std::string_view integer,
-                                             std::string_view fraction,
-                                             Position const& pos);
+    static void appendIntegerDigit(BuiltDigits& result, uint8_t digit);
+    static void appendFractionDigit(BuiltDigits& result, uint8_t digit,
+                                    double scale);
 
     void skipWhile(std::function<bool(char)> const& predicate);
     std::pair<std::string, bool> buildTextWhile(

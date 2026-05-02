@@ -294,66 +294,7 @@ std::optional<char> Lexer::tryBuildHexEscape() {
     return static_cast<char>(std::stoi(std::string{high, low}, nullptr, 16));
 }
 
-std::optional<Token> Lexer::tryBuildNumber() {
-    auto constexpr is_num_char = [](char chr) {
-        return std::isdigit(chr) != 0 || chr == '_';
-    };
-
-    if (std::isdigit(src_.current()) == 0 && src_.current() != '_') {
-        return std::nullopt;
-    }
-
-    auto const start_pos = src_.position();
-
-    auto const int_part = tryBuildDigits();
-
-    // Float
-    if (src_.current() == '.' && src_.peek() != '.') {
-        src_.next();
-
-        if (!int_part.has_value()) {
-            skipWhile(is_num_char);
-            return Token(TokenKind::ERROR, start_pos);
-        }
-
-        auto const fraction_part = tryBuildDigits();
-
-        if (!fraction_part.has_value()) {
-            return Token(TokenKind::ERROR, start_pos);
-        }
-
-        if (fraction_part->empty() ||
-            (int_part->size() > 1 && (*int_part)[0] == '0')) {
-            pushDiag(InvalidNumericLiteral{}, start_pos);
-            return Token(TokenKind::ERROR, start_pos);
-        }
-
-        auto const float_value =
-            tryBuildFloatValue(*int_part, *fraction_part, start_pos);
-
-        if (float_value.has_value()) {
-            return Token(TokenKind::FloatLiteral, start_pos, *float_value);
-        }
-        return Token(TokenKind::ERROR, start_pos);
-    }
-    // Int
-    if (!int_part.has_value()) {
-        return Token(TokenKind::ERROR, start_pos);
-    }
-
-    if (int_part->size() > 1 && (*int_part)[0] == '0') {
-        pushDiag(InvalidNumericLiteral{}, start_pos);
-        return Token(TokenKind::ERROR, start_pos);
-    }
-    auto const int_value = tryBuildIntValue(*int_part, start_pos);
-
-    if (int_value.has_value()) {
-        return Token(TokenKind::IntLiteral, start_pos, *int_value);
-    }
-    return Token(TokenKind::ERROR, start_pos);
-}
-
-std::optional<std::string> Lexer::tryBuildDigits() {
+std::optional<BuiltDigits> Lexer::tryBuildDigits(DigitMode mode) {
     auto constexpr is_num_char = [](char chr) {
         return std::isdigit(chr) != 0 || chr == '_';
     };
@@ -364,13 +305,14 @@ std::optional<std::string> Lexer::tryBuildDigits() {
         return std::nullopt;
     }
 
-    if (!is_num_char(src_.current())) {
-        return std::string{};
-    }
-
-    std::string digits;
+    BuiltDigits result{};
     char prev = 0;
     auto prev_pos = src_.position();
+
+    double frac_scale = 0.1;
+    if (mode == DigitMode::Fraction) {
+        result.value = 0.0;
+    }
 
     while (is_num_char(src_.current())) {
         char curr = src_.current();
@@ -382,7 +324,18 @@ std::optional<std::string> Lexer::tryBuildDigits() {
         }
 
         if (curr != '_') {
-            digits += curr;
+            auto const digit = static_cast<uint8_t>(curr - '0');
+
+            if (mode == DigitMode::Integer) {
+                appendIntegerDigit(result, digit);
+                if (result.overflowed) {
+                    skipWhile(is_num_char);
+                    return result;
+                }
+            } else {
+                appendFractionDigit(result, digit, frac_scale);
+                frac_scale *= 0.1;
+            }
         }
 
         prev = curr;
@@ -392,51 +345,105 @@ std::optional<std::string> Lexer::tryBuildDigits() {
 
     if (prev == '_') {
         pushDiag(InvalidNumericSeparator{}, prev_pos);
+        skipWhile(is_num_char);
         return std::nullopt;
     }
 
-    return digits;
+    return result;
 }
 
-std::optional<std::int64_t> Lexer::tryBuildIntValue(std::string_view integer,
-                                                    Position const& pos) {
-    int64_t value = 0;
+std::optional<Token> Lexer::tryBuildNumber() {
+    auto constexpr is_num_char = [](char chr) {
+        return std::isdigit(chr) != 0 || chr == '_';
+    };
 
-    for (char chr : integer) {
-        auto const digit = chr - '0';
+    auto constexpr as_double = [](auto const& value) {
+        if (auto num = std::get_if<uint64_t>(&value)) {
+            return static_cast<double>(*num);
+        }
+        return std::get<double>(value);
+    };
 
-        if (value > (options_.int_range - digit) / 10) {
-            pushDiag(IntegerOverflow{}, pos);
-            return std::nullopt;
+    if (!is_num_char(src_.current())) {
+        return std::nullopt;
+    }
+
+    auto const start_pos = src_.position();
+    auto const int_part = tryBuildDigits(DigitMode::Integer);
+
+    // Float
+    if (src_.current() == '.' && src_.peek() != '.') {
+        src_.next();
+        if (!int_part.has_value()) {
+            skipWhile(is_num_char);
+            return Token(TokenKind::ERROR, start_pos);
+        }
+        if (int_part->overflowed) {
+            skipWhile(is_num_char);
+            pushDiag(FloatOutOfRange{}, start_pos);
+            return Token(TokenKind::ERROR, start_pos);
         }
 
-        value = (value * 10) + digit;
+        auto const fraction_part = tryBuildDigits(DigitMode::Fraction);
+        if (!fraction_part.has_value()) {
+            return Token(TokenKind::ERROR, start_pos);
+        }
+
+        double value =
+            as_double(int_part->value) + as_double(fraction_part->value);
+
+        if (!std::isfinite(value)) {
+            pushDiag(FloatOutOfRange{}, start_pos);
+            return Token(TokenKind::ERROR, start_pos);
+        }
+        return Token(TokenKind::FloatLiteral, start_pos, value);
     }
-    return value;
+
+    // Int
+    if (!int_part) {
+        return Token(TokenKind::ERROR, start_pos);
+    }
+
+    if (std::holds_alternative<double>(int_part->value)) {
+        pushDiag(IntegerOverflow{}, start_pos);
+        return Token(TokenKind::ERROR, start_pos);
+    }
+
+    uint64_t value = std::get<uint64_t>(int_part->value);
+
+    if (value > static_cast<uint64_t>(options_.int_range)) {
+        pushDiag(IntegerOverflow{}, start_pos);
+        return Token(TokenKind::ERROR, start_pos);
+    }
+
+    return Token(TokenKind::IntLiteral, start_pos, static_cast<int64_t>(value));
 }
 
-std::optional<double> Lexer::tryBuildFloatValue(
-    std::string_view integer,  // NOLINT
-    std::string_view fraction, Position const& pos) {
-    double value = 0.0;
+void Lexer::appendIntegerDigit(BuiltDigits& result, uint8_t digit) {
+    ++result.count;
 
-    for (char chr : integer) {
-        value = (value * 10.0) + (chr - '0');
+    if (auto* value = std::get_if<uint64_t>(&result.value)) {
+        if (*value <= (std::numeric_limits<uint64_t>::max() - digit) / 10) {
+            *value = (*value * 10) + digit;
+            return;
+        }
+
+        result.value = (static_cast<double>(*value) * 10.0) + digit;
+
+        return;
     }
 
-    double place = 0.1;
-
-    for (char chr : fraction) {
-        value += (chr - '0') * place;
-        place *= 0.1;
-    }
+    auto& value = std::get<double>(result.value);
+    value = (value * 10.0) + digit;
 
     if (!std::isfinite(value)) {
-        pushDiag(FloatOutOfRange{}, pos);
-        return std::nullopt;
+        result.overflowed = true;
     }
-
-    return value;
+}
+void Lexer::appendFractionDigit(BuiltDigits& result, uint8_t digit,
+                                double scale) {
+    auto& value = std::get<double>(result.value);
+    value += digit * scale;
 }
 
 std::optional<Token> Lexer::tryBuildIdentifierOrKeyword() {

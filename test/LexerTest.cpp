@@ -489,37 +489,30 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes int of value 0") {
     next();
     CHECK(current().kind() == TokenKind::IntLiteral);
     CHECK(current().value() == TokenValue{0});
-}
-
-TEST_CASE_FIXTURE(LexerFixture,
-                  "Lexer, leading zeros not allowed on integers") {
-    init("003");
-
-    next();
-    CHECK(current().kind() == TokenKind::ERROR);
-
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{InvalidNumericLiteral{}});
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 1, .offset = 0});
 
     CHECK(next().kind() == TokenKind::ETX);
 }
 
-TEST_CASE_FIXTURE(LexerFixture, "Lexer, leading zeros not allowed on floats") {
-    init("00.1");
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer, leading zeros do not affect integer value") {
+    init("003");
 
-    next();
-    CHECK(current().kind() == TokenKind::ERROR);
+    auto const token = next();
 
-    REQUIRE(!diagnostics().empty());
+    CHECK(token.kind() == TokenKind::IntLiteral);
+    CHECK(token.value() == TokenValue{3});
 
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{InvalidNumericLiteral{}});
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 1, .offset = 0});
+    CHECK(next().kind() == TokenKind::ETX);
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer, leading zeros do not affect float value") {
+    init("000.1");
+
+    auto const token = next();
+
+    CHECK(token.kind() == TokenKind::FloatLiteral);
+    CHECK(token.value() == TokenValue{0.1});
 
     CHECK(next().kind() == TokenKind::ETX);
 }
@@ -611,19 +604,13 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(next().kind() == TokenKind::ETX);
 }
 
-TEST_CASE_FIXTURE(LexerFixture, "Lexer detects floats with no fraction") {
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer tokenizes floats with no fraction part") {
     init("1.");
 
     auto const token = next();
-    CHECK(token.kind() == TokenKind::ERROR);
-
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{InvalidNumericLiteral{}});
-
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 1, .offset = 0});
+    CHECK(token.kind() == TokenKind::FloatLiteral);
+    CHECK(token.value() == TokenValue{1.0});
 
     CHECK(next().kind() == TokenKind::ETX);
 }
