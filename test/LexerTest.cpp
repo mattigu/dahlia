@@ -321,6 +321,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes special operators") {
         {.src = "..=", .kind = TokenKind::DotDotEq},
         {.src = ":>", .kind = TokenKind::ColonGreater},
         {.src = "><", .kind = TokenKind::GreaterLess},
+        {.src = "->", .kind = TokenKind::MinusGreater},
     });
 
     for (auto const& test : cases) {

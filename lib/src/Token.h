@@ -72,6 +72,8 @@ enum class TokenKind : std::uint8_t {
     DotDot,    // 0..3
     DotDotEq,  // 0..=3
 
+    MinusGreater,  // ->
+
     Colon,
     Semicolon,
     Comma,
@@ -114,8 +116,7 @@ private:
 template <>
 struct std::formatter<TokenKind> : std::formatter<std::string_view> {
     auto format(TokenKind kind, std::format_context& ctx) const {
-        return std::formatter<std::string_view>::format(
-            toString(kind), ctx);
+        return std::formatter<std::string_view>::format(toString(kind), ctx);
     }
 };
 
@@ -142,8 +143,8 @@ template <>
 struct std::formatter<Token> : std::formatter<std::string> {
     auto format(Token const& token, std::format_context& ctx) const {
         return std::formatter<std::string>::format(
-            std::format("{{\n  kind={},\n  pos={},\n  value={}\n}}", token.kind(),
-                        token.pos(), token.value()),
+            std::format("{{\n  kind={},\n  pos={},\n  value={}\n}}",
+                        token.kind(), token.pos(), token.value()),
             ctx);
     }
 };

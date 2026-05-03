@@ -134,8 +134,6 @@ std::optional<TokenKind> Lexer::tryBuildOperator() {
     switch (src_.current()) {
         case '+':
             return extendOperator(TokenKind::Plus, '=', TokenKind::PlusEqual);
-        case '-':
-            return extendOperator(TokenKind::Minus, '=', TokenKind::MinusEqual);
         case '*':
             return extendOperator(TokenKind::Asterisk, '=',
                                   TokenKind::AsteriskEqual);
@@ -151,7 +149,18 @@ std::optional<TokenKind> Lexer::tryBuildOperator() {
                                   TokenKind::ExclamationEqual);
         case '<':
             return extendOperator(TokenKind::Less, '=', TokenKind::LessEqual);
-
+        case '-': {
+            auto const next_token = src_.next();
+            if (next_token == '>') {
+                src_.next();
+                return TokenKind::MinusGreater;
+            }
+            if (next_token == '=') {
+                src_.next();
+                return TokenKind::MinusEqual;
+            }
+            return TokenKind::Minus;
+        }
         case '.':
             if (src_.next() == '.') {
                 if (src_.next() == '=') {
