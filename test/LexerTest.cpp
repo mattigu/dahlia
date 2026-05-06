@@ -189,7 +189,7 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports strings too long") {
     CHECK(token.value() == TokenValue{"a"});
 
     token = next();
-    CHECK(token.kind() == TokenKind::StrLiteral);
+    CHECK(token.kind() == TokenKind::ERROR);
 
     REQUIRE(!diagnostics().empty());
 

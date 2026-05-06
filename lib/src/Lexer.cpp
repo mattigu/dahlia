@@ -244,7 +244,7 @@ std::optional<Token> Lexer::tryBuildString() {
         if (src_.current() == '"') {
             src_.next();
         }
-        return Token(TokenKind::StrLiteral, start_pos, string);
+        return Token(TokenKind::ERROR, start_pos);
     }
 
     if (src_.current() == '"') {
