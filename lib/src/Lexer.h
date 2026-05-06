@@ -51,7 +51,8 @@ private:
 
     Diagnostics<LexerDiagnosticKind> diagnostics_;
 
-    void pushDiag(LexerDiagnosticKind const& kind, Position const& pos);
+    void pushDiag(LexerDiagnosticKind const& kind, Position const& pos,
+                  Severity severity = Severity::Error);
 
     Token tryBuildToken();
 

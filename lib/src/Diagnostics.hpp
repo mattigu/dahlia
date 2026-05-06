@@ -1,12 +1,21 @@
 #pragma once
+#include <algorithm>
+#include <cstdint>
 #include <vector>
 
 #include "Position.h"
+
+enum class Severity : std::int8_t {
+    Warning,
+    Error,
+    Fatal,
+};
 
 template <typename Kind>
 struct Diagnostic {
     Kind kind;
     Position pos;
+    Severity severity;
 
     bool operator==(Diagnostic const&) const = default;
 };
@@ -23,6 +32,13 @@ public:
     auto const& last() const noexcept { return diagnostics_.back(); }
 
     [[nodiscard]] bool empty() const noexcept { return diagnostics_.empty(); }
+
+    [[nodiscard]] bool hasError() const noexcept {
+        return std::ranges::any_of(diagnostics_,
+                                   [](Diagnostic<Kind> const& diag) {
+                                       return diag.severity >= Severity::Error;
+                                   });
+    }
 
 private:
     std::vector<Diagnostic<Kind>> diagnostics_;

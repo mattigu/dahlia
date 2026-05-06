@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "CharReader.h"
+#include "Diagnostics.hpp"
 #include "LexerDiagnostics.h"
 #include "Position.h"
 #include "Token.h"
@@ -62,8 +63,9 @@ Token Lexer::next() {
     return current_;
 }
 
-void Lexer::pushDiag(LexerDiagnosticKind const& kind, Position const& pos) {
-    diagnostics_.push({.kind = kind, .pos = pos});
+void Lexer::pushDiag(LexerDiagnosticKind const& kind, Position const& pos,
+                     Severity severity) {
+    diagnostics_.push({.kind = kind, .pos = pos, .severity = severity});
 }
 
 Token Lexer::tryBuildToken() {
@@ -123,7 +125,7 @@ std::optional<Token> Lexer::tryBuildComment() {
 
     if (too_long) {
         skipWhile(comment_char);
-        pushDiag(CommentTooLong{}, start_pos);
+        pushDiag(CommentTooLong{}, start_pos, Severity::Warning);
         return Token(TokenKind::Comment, start_pos, comment);
     }
 
