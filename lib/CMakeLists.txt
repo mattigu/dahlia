@@ -12,6 +12,7 @@ add_library(dahlia_lib STATIC
     src/Position.cpp
     src/Lexer.cpp
     src/Token.cpp
+    src/Ast.cpp
 )
 
 target_link_libraries(dahlia_lib
