@@ -97,6 +97,9 @@ std::string toString(TokenKind kind);
 using TokenValue =
     std::variant<std::monostate, std::string, std::int64_t, double>;
 
+template <typename T>
+concept TokenValueType = requires { std::get<T>(std::declval<TokenValue>()); };
+
 class Token {
 public:
     Token(TokenKind kind, Position pos, TokenValue val = std::monostate{});
@@ -106,6 +109,17 @@ public:
     [[nodiscard]] TokenKind kind() const noexcept;
     [[nodiscard]] Position pos() const noexcept;
     [[nodiscard]] TokenValue const& value() const noexcept;
+
+    [[nodiscard]] bool is(TokenKind kind) const noexcept;
+
+    [[nodiscard]] static bool matches(TokenKind kind,
+                                      TokenValue const& val) noexcept;
+
+    template <typename... Kinds>
+        requires(std::same_as<Kinds, TokenKind> && ...)
+    constexpr bool isAnyOf(Kinds... kinds) const noexcept {
+        return (is(kinds) || ...);
+    }
 
 private:
     TokenKind kind_;

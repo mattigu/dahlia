@@ -2,7 +2,12 @@
 
 #include "magic_enum/magic_enum.hpp"
 
-inline bool matches(TokenKind kind, TokenValue const& val) {
+Token::Token(TokenKind kind, Position pos, TokenValue val)
+    : kind_(kind), pos_(pos), value_(std::move(val)) {
+    assert(matches(kind, val) && "TokenKind and TokenValue mismatch");
+}
+
+bool Token::matches(TokenKind kind, TokenValue const& val) noexcept {
     switch (kind) {
         case TokenKind::IntLiteral:
             return std::holds_alternative<std::int64_t>(val);
@@ -20,14 +25,10 @@ inline bool matches(TokenKind kind, TokenValue const& val) {
     }
 }
 
-Token::Token(TokenKind kind, Position pos, TokenValue val)
-    : kind_(kind), pos_(pos), value_(std::move(val)) {
-    assert(matches(kind, val) && "TokenKind and TokenValue mismatch");
-}
-
 TokenKind Token::kind() const noexcept { return kind_; }
 Position Token::pos() const noexcept { return pos_; }
 TokenValue const& Token::value() const noexcept { return value_; }
+bool Token::is(TokenKind kind) const noexcept { return kind_ == kind; };
 
 std::ostream& operator<<(std::ostream& oss, Token const& token) {
     return oss << std::format("{}", token);
