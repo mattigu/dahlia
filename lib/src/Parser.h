@@ -118,6 +118,8 @@ private:
         return consumeValue<std::string>(TokenKind::StrLiteral);
     }
 
+    // function_definition  = "fn", IDENTIFIER, "(", function_params, ")", [
+    // "->", type ], block;
     std::optional<FunctionNode> tryParseFunction() {
         auto const start_pos = current_.pos();
         if (!consume(TokenKind::Fn)) {
@@ -151,6 +153,7 @@ private:
                                      .block = std::move(*block)});
     }
 
+    // function_params = [ function_param, { ",", function_param } ];
     std::vector<ParamNode> tryParseFunctionParams() {
         auto first_param = tryParseFunctionParam();
         if (!first_param) {
@@ -170,6 +173,7 @@ private:
         return params;
     }
 
+    // function_param = [ "mut" ], IDENTIFIER, ":", type;
     std::optional<ParamNode> tryParseFunctionParam() {
         auto const start_pos = current_.pos();
         if (!current_.isAnyOf(TokenKind::Mut, TokenKind::Identifier)) {
@@ -192,6 +196,7 @@ private:
                                           .mut = mut});
     }
 
+    // [ "->", type ]
     std::optional<TypeNode> tryParseFunctionReturnType() {
         if (!consume(TokenKind::MinusGreater)) {
             return std::nullopt;
@@ -204,6 +209,7 @@ private:
         return type;
     }
 
+    // type = "int" | "float" | "bool" | "str" | "[", type, "]";
     std::optional<TypeNode> tryParseType() {
         auto const start_pos = current_.pos();
         if (consume(TokenKind::BracketOpen)) {
@@ -231,6 +237,7 @@ private:
         return std::nullopt;
     }
 
+    // block = "{", { statement }, "}";
     std::optional<BlockNode> tryParseBlock() {
         if (!consume(TokenKind::BraceOpen)) {
             return std::nullopt;
@@ -246,6 +253,9 @@ private:
         return BlockNode(start_pos, Block{.statements = std::move(statements)});
     }
 
+    // statement = let_binding | assignment_statement | if_statement |
+    // while_statement | for_statement | return_statement | break_statement |
+    // continue_statement | block | function_call, ";";
     std::optional<StatementNode> tryParseStatement() { return std::nullopt; }
 };
 
