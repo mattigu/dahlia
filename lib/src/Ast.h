@@ -14,7 +14,7 @@ template <typename T>
 struct Node {
 public:
     template <typename... Args>
-    explicit Node(Position pos, Args&&... args)
+    Node(Position pos, Args&&... args)
         : pos_{pos}, value_(std::forward<Args>(args)...) {}
 
     [[nodiscard]] Position pos() const noexcept { return pos_; }
@@ -25,7 +25,7 @@ public:
     T const* operator->() const { return &value_; }
     T* operator->() { return &value_; }
 
-    bool operator==(Node const& other) const { return value_ == other.value_; }
+    bool operator==(Node const& other) const = default;
 
 private:
     T value_;
@@ -84,6 +84,8 @@ using StatementNode = Node<StatementKind>;
 
 struct Block {
     std::vector<StatementNode> statements;
+
+    bool operator==(Block const& other) const = default;
 };
 using BlockNode = Node<Block>;
 
@@ -91,8 +93,9 @@ struct Param {
     TypeNode type;
     std::string identifier;
     bool mut;
-};
 
+    bool operator==(Param const& other) const = default;
+};
 using ParamNode = Node<Param>;
 
 struct Function {
@@ -101,6 +104,8 @@ struct Function {
     std::vector<ParamNode> params;
     std::optional<TypeNode> return_type;
     BlockNode block;
+
+    bool operator==(Function const& other) const = default;
 };
 using FunctionNode = Node<Function>;
 
@@ -112,27 +117,19 @@ using ProgramNode = Node<Program>;
 
 // Formatters only below
 
+std::string toString(PrimitiveType type);
+
+template <typename T>
+struct std::formatter<Node<T>> : std::formatter<std::string_view> {
+    auto format(Node<T> const& node, std::format_context& ctx) const {
+        return std::format_to(ctx.out(), "{{{}  @ {}}}", *node, node.pos());
+    }
+};
+
 template <>
 struct std::formatter<PrimitiveType> : std::formatter<std::string_view> {
     auto format(PrimitiveType type, std::format_context& ctx) const {
-        std::string_view name = "?";
-
-        switch (type) {
-            case PrimitiveType::Int:
-                name = "int";
-                break;
-            case PrimitiveType::Float:
-                name = "float";
-                break;
-            case PrimitiveType::Bool:
-                name = "bool";
-                break;
-            case PrimitiveType::Str:
-                name = "str";
-                break;
-        }
-
-        return std::formatter<std::string_view>::format(name, ctx);
+        return std::formatter<std::string_view>::format(toString(type), ctx);
     }
 };
 
@@ -149,5 +146,20 @@ struct std::formatter<Type> : std::formatter<std::string_view> {
     }
 };
 
+template <>
+struct std::formatter<Param> : std::formatter<std::string_view> {
+    static auto format(Param const& param, std::format_context& ctx) {
+        return std::format_to(ctx.out(), "{{{}{}: {}}}",
+                              param.mut ? "mut " : "", param.identifier,
+                              param.type);
+    }
+};
+
 std::ostream& operator<<(std::ostream& oss, Type const& type);
 std::ostream& operator<<(std::ostream& oss, PrimitiveType type);
+std::ostream& operator<<(std::ostream& oss, Param const& param);
+
+template <typename T>
+std::ostream& operator<<(std::ostream& oss, Node<T> const& node) {
+    return oss << std::format("{}", node);
+}
