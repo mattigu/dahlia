@@ -16,13 +16,12 @@ function_params
 function_param
     = [ "mut" ], IDENTIFIER, ":", type;
 
-(* Maybe [type] instead of vec<type>? *)
 type
     = "int"
     | "float"
     | "bool"
     | "str"
-    | "vec", "<", type, ">";
+    | "[", type, "]";
 
 block
     = "{", { statement }, "}";
@@ -31,8 +30,8 @@ statement
     = let_binding
     | assignment_statement
     | if_statement
-    | while_statement
-    | for_statement
+    | while_loop
+    | for_loop
     | return_statement
     | break_statement
     | continue_statement
@@ -61,10 +60,10 @@ compound_assignment_op
 if_statement
     = "if", expression, block, { "else", "if", expression, block }, [ "else", block ];
 
-while_statement
+while_loop
     = "while", expression, block;
 
-for_statement
+for_loop
     = "for", [ "mut" ], IDENTIFIER, "in", range, block;
 
 range
