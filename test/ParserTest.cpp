@@ -7,6 +7,7 @@
 
 #include "doctest.h"
 #include "src/Parser.h"
+#include "src/ParserDiagnostic.h"
 #include "src/Position.h"
 #include "src/Token.h"
 
@@ -85,12 +86,12 @@ public:
         tokens.emplace_back(TokenKind::BraceOpen);
         tokens.emplace_back(TokenKind::BraceClose);
         tokens.emplace_back(TokenKind::ETX);
-        auto all_pos = init(std::move(tokens));
+        auto const all_pos = init(std::move(tokens));
         auto program = parse();
         REQUIRE(program.has_value());
         auto& prog = **program;
-        REQUIRE(!prog.functions.empty());
-        auto& ret = prog.functions[0]->return_type;
+        REQUIRE(prog.functions.contains("f"));
+        auto& ret = prog.functions.at("f")->return_type;
         REQUIRE(ret.has_value());
         return {std::move(*ret), all_pos.subspan(offset)};
     }
@@ -122,28 +123,56 @@ private:
 };
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty function") {
-    auto const pos = init({
-        {TokenKind::Fn},
-        {TokenKind::Identifier, std::string{"main"}},
-        {TokenKind::ParenOpen},
-        {TokenKind::ParenClose},
-        {TokenKind::BraceOpen},
-        {TokenKind::BraceClose},
-        {TokenKind::ETX},
-    });
+    auto const pos = initValidated(
+        "fn main() {}", {
+                            {TokenKind::Fn},
+                            {TokenKind::Identifier, std::string{"main"}},
+                            {TokenKind::ParenOpen},
+                            {TokenKind::ParenClose},
+                            {TokenKind::BraceOpen},
+                            {TokenKind::BraceClose},
+                            {TokenKind::ETX},
+                        });
 
     auto const program = parse();
 
     REQUIRE(program.has_value());
-    REQUIRE(program.value()->functions.size() == 1);
+    REQUIRE(program.value()->functions.contains("main"));
 
-    auto const& function_node = program.value()->functions.back();
+    auto const& function_node = program.value()->functions.at("main");
 
-    CHECK(function_node->identifier == "main");
-    CHECK(function_node->params.empty());
-    CHECK(!function_node->return_type.has_value());
-    CHECK(function_node->block->statements.empty());
-    CHECK(function_node.pos() == Position{.line = 1, .column = 1, .offset = 0});
+    CHECK(function_node ==
+          FunctionNode(pos[0], Function{.identifier = "main",
+                                        .params = {},
+                                        .block = BlockNode(pos[4], Block{})}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser detects redefined functions") {
+    auto const pos =
+        initValidated("fn main() {} fn main() {}",
+                      {{TokenKind::Fn},
+                       {TokenKind::Identifier, std::string{"main"}},
+                       {TokenKind::ParenOpen},
+                       {TokenKind::ParenClose},
+                       {TokenKind::BraceOpen},
+                       {TokenKind::BraceClose},
+                       {TokenKind::Fn},
+                       {TokenKind::Identifier, std::string{"main"}},
+                       {TokenKind::ParenOpen},
+                       {TokenKind::ParenClose},
+                       {TokenKind::BraceOpen},
+                       {TokenKind::BraceClose},
+                       {TokenKind::ETX}});
+
+    auto const program = parse();
+
+    REQUIRE(!program.has_value());
+    REQUIRE(!diagnostics().empty());
+
+    REQUIRE(diagnostics().last().kind ==
+            ParserDiagnosticKind{FunctionRedefined{.identifier = "main",
+                                                   .original_pos = pos[0]}});
+    REQUIRE(diagnostics().last().pos == pos[6]);
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses function parameters") {
@@ -170,9 +199,9 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses function parameters") {
     auto const program = parse();
 
     REQUIRE(program.has_value());
-    REQUIRE(program.value()->functions.size() == 1);
+    REQUIRE(program.value()->functions.contains("main"));
 
-    auto const& function_node = program.value()->functions.back();
+    auto const& function_node = program.value()->functions.at("main");
     REQUIRE(function_node->params.size() == 2);
 
     auto const& param_a = function_node->params[0];
@@ -204,9 +233,10 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses return type") {
     auto const program = parse();
 
     REQUIRE(program.has_value());
-    REQUIRE(program.value()->functions.size() == 1);
+    REQUIRE(program.value()->functions.contains("main"));
 
-    auto const& return_type = program.value()->functions.back()->return_type;
+    auto const& return_type =
+        program.value()->functions.at("main")->return_type;
 
     CHECK(return_type == TypeNode(pos[5], PrimitiveType::Int));
 }

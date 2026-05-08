@@ -34,10 +34,11 @@ public:
     [[nodiscard]] bool empty() const noexcept { return diagnostics_.empty(); }
 
     [[nodiscard]] bool hasError() const noexcept {
-        return std::ranges::any_of(diagnostics_,
-                                   [](Diagnostic<Kind> const& diag) {
-                                       return diag.severity >= Severity::Error;
-                                   });
+        return std::ranges::any_of(
+            diagnostics_, [](Diagnostic<Kind> const& diag) {
+                return diag.severity == Severity::Error ||
+                       diag.severity == Severity::Fatal;
+            });
     }
 
 private:

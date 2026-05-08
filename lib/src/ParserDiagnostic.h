@@ -2,6 +2,7 @@
 #include <variant>
 
 #include "Token.h"
+#include "src/Position.h"
 
 struct ExpectedToken {
     TokenKind expected;
@@ -14,4 +15,12 @@ struct ExpectedType {
     bool operator==(ExpectedType const&) const = default;
 };
 
-using ParserDiagnosticKind = std::variant<ExpectedToken, ExpectedType>;
+struct FunctionRedefined {
+    std::string identifier;
+    Position original_pos;
+
+    bool operator==(FunctionRedefined const&) const = default;
+};
+
+using ParserDiagnosticKind =
+    std::variant<ExpectedToken, ExpectedType, FunctionRedefined>;

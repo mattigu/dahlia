@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 
 #include "Ast.h"
 #include "Diagnostics.hpp"
@@ -20,11 +21,19 @@ public:
         }
 
         auto const start_pos = current_.pos();
-        std::vector<FunctionNode> functions;
+        std::unordered_map<std::string, FunctionNode> functions;
 
         try {
             while (auto fun = tryParseFunction()) {
-                functions.push_back(std::move(*fun));
+                auto const new_pos = fun->pos();
+                auto const [iter, inserted] =
+                    functions.try_emplace((*fun)->identifier, std::move(*fun));
+                if (!inserted) {
+                    pushDiag(
+                        FunctionRedefined{.identifier = iter->first,
+                                          .original_pos = iter->second.pos()},
+                        new_pos);
+                }
             }
         } catch (ParserDiagnosticKind const&) {
             return std::nullopt;
@@ -64,8 +73,8 @@ private:
     }
 
     void pushDiag(ParserDiagnosticKind const& kind, Position const& pos,
-                  Severity severity = Severity::Warning) {
-        diagnostics_.push({.kind = kind, .pos = pos});
+                  Severity severity = Severity::Error) {
+        diagnostics_.push({.kind = kind, .pos = pos, .severity = severity});
     }
 
     void throwDiag(ParserDiagnosticKind const& kind, Position const& pos,
@@ -137,7 +146,14 @@ private:
         auto params = tryParseFunctionParams();
         expect(TokenKind::ParenClose);
 
-        auto return_type = tryParseFunctionReturnType();
+        std::optional<TypeNode> return_type;
+        if (consume(TokenKind::MinusGreater)) {
+            return_type = tryParseType();
+            if (!return_type) {
+                throwDiag(ExpectedType{}, current_.pos());
+            }
+        }
+
         auto block = tryParseBlock();
 
         if (!block) {
@@ -196,19 +212,6 @@ private:
                                           .mut = mut});
     }
 
-    // [ "->", type ]
-    std::optional<TypeNode> tryParseFunctionReturnType() {
-        if (!consume(TokenKind::MinusGreater)) {
-            return std::nullopt;
-        }
-
-        auto type = tryParseType();
-        if (!type) {
-            throwDiag(ExpectedType{}, current_.pos());
-        }
-        return type;
-    }
-
     // type = "int" | "float" | "bool" | "str" | "[", type, "]";
     std::optional<TypeNode> tryParseType() {
         auto const start_pos = current_.pos();
@@ -239,10 +242,11 @@ private:
 
     // block = "{", { statement }, "}";
     std::optional<BlockNode> tryParseBlock() {
+        auto const start_pos = current_.pos();
+
         if (!consume(TokenKind::BraceOpen)) {
             return std::nullopt;
         }
-        auto const start_pos = current_.pos();
 
         std::vector<StatementNode> statements;
         while (auto statement = tryParseStatement()) {
@@ -257,6 +261,8 @@ private:
     // while_statement | for_statement | return_statement | break_statement |
     // continue_statement | block | function_call, ";";
     std::optional<StatementNode> tryParseStatement() { return std::nullopt; }
+
+    // std::optional<LetBinding> tryParseLetBinding() {}
 };
 
 using Parser = ParserTemplate<Lexer>;
