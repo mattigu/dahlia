@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -78,8 +79,17 @@ private:
     std::variant<PrimitiveType, VecType> value_;
 };
 
-struct IfStatement {};
-using StatementKind = std::variant<IfStatement>;
+struct BreakStmt {
+    bool operator==(BreakStmt const& other) const = default;
+};
+struct ContinueStmt {
+    bool operator==(ContinueStmt const& other) const = default;
+};
+struct ForLoop {
+    bool operator==(ForLoop const& other) const = default;
+};
+
+using StatementKind = std::variant<BreakStmt, ContinueStmt>;
 using StatementNode = Node<StatementKind>;
 
 struct Block {
@@ -110,7 +120,7 @@ struct Function {
 using FunctionNode = Node<Function>;
 
 struct Program {
-    std::vector<FunctionNode> functions;
+    std::unordered_map<std::string, FunctionNode> functions;
 };
 
 using ProgramNode = Node<Program>;
@@ -120,9 +130,13 @@ using ProgramNode = Node<Program>;
 std::string toString(PrimitiveType type);
 
 template <typename T>
-struct std::formatter<Node<T>> : std::formatter<std::string_view> {
+struct std::formatter<Node<T>> : std::formatter<std::string> {
     auto format(Node<T> const& node, std::format_context& ctx) const {
-        return std::format_to(ctx.out(), "{{{}  @ {}}}", *node, node.pos());
+        if constexpr (std::formattable<T, char>) {
+            return std::format_to(ctx.out(), "{{{} @ {}}}", *node, node.pos());
+        } else {
+            return std::format_to(ctx.out(), "{{Node @ {}}}", node.pos());
+        }
     }
 };
 
