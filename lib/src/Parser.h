@@ -1,7 +1,9 @@
 #pragma once
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "Ast.h"
 #include "Diagnostics.hpp"
@@ -308,8 +310,50 @@ private:
                           .value = std::move(*expr)};
     }
 
-    std::optional<ExprNode> tryParseExpression() {
-        return tryParseLiteral();
+    std::optional<ExprNode> tryParseExpression() { return tryParseTerm(); }
+
+    std::optional<ExprNode> tryParseTerm() {
+        return tryParseLiteral().or_else(
+            [this]() { return tryParseIdentifierOrCall(); });
+    }
+
+    // identifier_or_call = IDENTIFIER, [ "(", function_arguments, ")" ];
+    std::optional<ExprNode> tryParseIdentifierOrCall() {
+        auto const start_pos = current_.pos();
+        auto const identifier = consumeIdentifier();
+        if (!identifier) {
+            return std::nullopt;
+        }
+        if (!consume(TokenKind::ParenOpen)) {
+            return ExprNode(start_pos, Identifier{std::move(*identifier)});
+        }
+        auto args = tryParseFunctionArgs();
+
+        expect(TokenKind::ParenClose);
+        return ExprNode(start_pos,
+                        FunctionCall{.identifier = std::move(*identifier),
+                                     .args = std::move(args)});
+    }
+
+    // function_arguments = [ expression, { ",", expression } ];
+    std::vector<ExprNode> tryParseFunctionArgs() {
+        auto const start_pos = current_.pos();
+        auto const first_expr = tryParseExpression();
+
+        if (!first_expr) {
+            return {};
+        }
+
+        std::vector<ExprNode> args{std::move(*first_expr)};
+
+        while (consume(TokenKind::Comma)) {
+            auto const expr = tryParseExpression();
+            if (!expr) {
+                break;
+            }
+            args.push_back(std::move(*expr));
+        }
+        return args;
     }
 
     // literal = INTEGER | FLOAT | STRING | BOOL | vec_literal;

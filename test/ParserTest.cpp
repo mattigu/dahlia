@@ -7,6 +7,8 @@
 #include <vector>
 
 #include "doctest.h"
+#include "src/Ast.h"
+#include "src/CharReader.h"
 #include "src/Parser.h"
 #include "src/ParserDiagnostic.h"
 #include "src/Position.h"
@@ -488,4 +490,35 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses let statement with type") {
                          .mut = true,
                          .type = TypeNode(pos[4], Type(PrimitiveType::Int)),
                          .value = ExprNode(pos[6], IntLiteral{.value = 1})}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses identifier in expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"}});
+
+    CHECK(expr == ExprNode(pos[0], Identifier{.identifier = "a"}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses function call in expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
+                                              {TokenKind::ParenOpen},
+                                              {TokenKind::ParenClose}});
+
+    CHECK(expr ==
+          ExprNode(pos[0], FunctionCall{.identifier = "a", .args = {}}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses function call with params in expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
+                                              {TokenKind::ParenOpen},
+                                              {TokenKind::Identifier, "param1"},
+                                              {TokenKind::Comma},
+                                              {TokenKind::Identifier, "param2"},
+                                              {TokenKind::ParenClose}});
+    CHECK(expr ==
+          ExprNode(
+              pos[0],
+              FunctionCall{.identifier = "a",
+                           .args = {ExprNode(pos[2], Identifier{"param1"}),
+                                    ExprNode(pos[4], Identifier{"param2"})}}));
 }

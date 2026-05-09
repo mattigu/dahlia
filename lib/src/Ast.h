@@ -1,3 +1,4 @@
+#pragma once
 #include <cassert>
 #include <cstdint>
 #include <format>
@@ -98,17 +99,31 @@ struct StringLiteral {
     std::string value;
     bool operator==(StringLiteral const& other) const = default;
 };
+struct Identifier {
+    std::string identifier;
+    bool operator==(Identifier const& other) const = default;
+};
 
 struct VecLiteral;
+struct FunctionCall;
 using Expr = std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
-                          VecLiteral>;
+                          VecLiteral, Identifier, FunctionCall>;
 using ExprNode = Node<Expr>;
+
+struct FunctionCall {
+    std::string identifier;
+    std::vector<ExprNode> args;
+
+    bool operator==(FunctionCall const& other) const;
+};
 
 struct VecLiteral {
     std::vector<ExprNode> elements;
-    bool operator==(VecLiteral const& other) const = default;
+    bool operator==(VecLiteral const& other) const;
 };
 
+inline bool VecLiteral::operator==(VecLiteral const& other) const = default;
+inline bool FunctionCall::operator==(FunctionCall const& other) const = default;
 
 struct BreakStmt {
     bool operator==(BreakStmt const& other) const = default;
@@ -124,6 +139,7 @@ struct LetBinding {
     bool mut;
     std::optional<TypeNode> type;
     ExprNode value;
+
     bool operator==(LetBinding const& other) const = default;
 };
 
