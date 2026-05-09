@@ -79,6 +79,37 @@ private:
     std::variant<PrimitiveType, VecType> value_;
 };
 
+struct IntLiteral {
+    std::int64_t value;
+    bool operator==(IntLiteral const& other) const = default;
+};
+
+struct FloatLiteral {
+    double value;
+    bool operator==(FloatLiteral const& other) const = default;
+};
+
+struct BoolLiteral {
+    bool value;
+    bool operator==(BoolLiteral const& other) const = default;
+};
+
+struct StringLiteral {
+    std::string value;
+    bool operator==(StringLiteral const& other) const = default;
+};
+
+struct VecLiteral;
+using Expr = std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
+                          VecLiteral>;
+using ExprNode = Node<Expr>;
+
+struct VecLiteral {
+    std::vector<ExprNode> elements;
+    bool operator==(VecLiteral const& other) const = default;
+};
+
+
 struct BreakStmt {
     bool operator==(BreakStmt const& other) const = default;
 };
@@ -88,8 +119,15 @@ struct ContinueStmt {
 struct ForLoop {
     bool operator==(ForLoop const& other) const = default;
 };
+struct LetBinding {
+    std::string identifier;
+    bool mut;
+    std::optional<TypeNode> type;
+    ExprNode value;
+    bool operator==(LetBinding const& other) const = default;
+};
 
-using StatementKind = std::variant<BreakStmt, ContinueStmt>;
+using StatementKind = std::variant<BreakStmt, ContinueStmt, LetBinding>;
 using StatementNode = Node<StatementKind>;
 
 struct Block {

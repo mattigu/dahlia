@@ -1,4 +1,5 @@
 
+#include <optional>
 #include <ranges>
 #include <sstream>
 #include <utility>
@@ -96,6 +97,78 @@ public:
         return {std::move(*ret), all_pos.subspan(offset)};
     }
 
+    std::pair<std::vector<StatementNode>, std::span<Position const>>
+    parseStatement(std::vector<MockToken> stmt_tokens) {
+        std::vector<MockToken> tokens;
+
+        tokens.emplace_back(TokenKind::Fn);
+        tokens.emplace_back(TokenKind::Identifier, std::string{"f"});
+        tokens.emplace_back(TokenKind::ParenOpen);
+        tokens.emplace_back(TokenKind::ParenClose);
+        tokens.emplace_back(TokenKind::BraceOpen);
+
+        auto const offset = tokens.size();
+        tokens.append_range(stmt_tokens);
+
+        tokens.emplace_back(TokenKind::BraceClose);
+        tokens.emplace_back(TokenKind::ETX);
+
+        auto const all_pos = init(std::move(tokens));
+
+        auto program = parse();
+        REQUIRE(program.has_value());
+
+        auto& prog = **program;
+        REQUIRE(prog.functions.contains("f"));
+
+        auto& func = prog.functions.at("f");
+        REQUIRE(!func->block->statements.empty());
+
+        return {std::move(func->block->statements), all_pos.subspan(offset)};
+    }
+
+    std::pair<ExprNode, std::span<Position const>> parseExpression(
+        std::vector<MockToken> expr_tokens) {
+        std::vector<MockToken> tokens;
+
+        tokens.emplace_back(TokenKind::Fn);
+        tokens.emplace_back(TokenKind::Identifier, std::string{"f"});
+        tokens.emplace_back(TokenKind::ParenOpen);
+        tokens.emplace_back(TokenKind::ParenClose);
+        tokens.emplace_back(TokenKind::BraceOpen);
+
+        tokens.emplace_back(TokenKind::Let);
+        tokens.emplace_back(TokenKind::Identifier, std::string{"x"});
+        tokens.emplace_back(TokenKind::Equal);
+
+        auto const offset = tokens.size();
+
+        tokens.append_range(expr_tokens);
+
+        tokens.emplace_back(TokenKind::Semicolon);
+        tokens.emplace_back(TokenKind::BraceClose);
+        tokens.emplace_back(TokenKind::ETX);
+
+        auto const all_pos = init(std::move(tokens));
+
+        auto program = parse();
+        REQUIRE(program.has_value());
+
+        auto& prog = **program;
+        REQUIRE(prog.functions.contains("f"));
+
+        auto& func = prog.functions.at("f");
+
+        REQUIRE(!func->block->statements.empty());
+
+        auto const& stmt = func->block->statements.front();
+        REQUIRE(std::holds_alternative<LetBinding>(*stmt));
+
+        auto const& let = std::get<LetBinding>(*stmt);
+
+        return {let.value, all_pos.subspan(offset)};
+    }
+
     static constexpr void assertTokensMatch(
         std::string const& src, std::vector<MockToken> const& tokens) {
         std::istringstream stream{src};
@@ -123,16 +196,16 @@ private:
 };
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty function") {
-    auto const pos = initValidated(
-        "fn main() {}", {
-                            {TokenKind::Fn},
-                            {TokenKind::Identifier, std::string{"main"}},
-                            {TokenKind::ParenOpen},
-                            {TokenKind::ParenClose},
-                            {TokenKind::BraceOpen},
-                            {TokenKind::BraceClose},
-                            {TokenKind::ETX},
-                        });
+    auto const pos =
+        initValidated("fn main() {}", {
+                                          {TokenKind::Fn},
+                                          {TokenKind::Identifier, "main"},
+                                          {TokenKind::ParenOpen},
+                                          {TokenKind::ParenClose},
+                                          {TokenKind::BraceOpen},
+                                          {TokenKind::BraceClose},
+                                          {TokenKind::ETX},
+                                      });
 
     auto const program = parse();
 
@@ -148,21 +221,20 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty function") {
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser detects redefined functions") {
-    auto const pos =
-        initValidated("fn main() {} fn main() {}",
-                      {{TokenKind::Fn},
-                       {TokenKind::Identifier, std::string{"main"}},
-                       {TokenKind::ParenOpen},
-                       {TokenKind::ParenClose},
-                       {TokenKind::BraceOpen},
-                       {TokenKind::BraceClose},
-                       {TokenKind::Fn},
-                       {TokenKind::Identifier, std::string{"main"}},
-                       {TokenKind::ParenOpen},
-                       {TokenKind::ParenClose},
-                       {TokenKind::BraceOpen},
-                       {TokenKind::BraceClose},
-                       {TokenKind::ETX}});
+    auto const pos = initValidated("fn main() {} fn main() {}",
+                                   {{TokenKind::Fn},
+                                    {TokenKind::Identifier, "main"},
+                                    {TokenKind::ParenOpen},
+                                    {TokenKind::ParenClose},
+                                    {TokenKind::BraceOpen},
+                                    {TokenKind::BraceClose},
+                                    {TokenKind::Fn},
+                                    {TokenKind::Identifier, "main"},
+                                    {TokenKind::ParenOpen},
+                                    {TokenKind::ParenClose},
+                                    {TokenKind::BraceOpen},
+                                    {TokenKind::BraceClose},
+                                    {TokenKind::ETX}});
 
     auto const program = parse();
 
@@ -219,16 +291,16 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses function parameters") {
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses return type") {
-    auto const pos = initValidated(
-        "fn main() -> int {}", {{TokenKind::Fn},
-                                {TokenKind::Identifier, std::string{"main"}},
-                                {TokenKind::ParenOpen},
-                                {TokenKind::ParenClose},
-                                {TokenKind::MinusGreater},
-                                {TokenKind::Int},
-                                {TokenKind::BraceOpen},
-                                {TokenKind::BraceClose},
-                                {TokenKind::ETX}});
+    auto const pos =
+        initValidated("fn main() -> int {}", {{TokenKind::Fn},
+                                              {TokenKind::Identifier, "main"},
+                                              {TokenKind::ParenOpen},
+                                              {TokenKind::ParenClose},
+                                              {TokenKind::MinusGreater},
+                                              {TokenKind::Int},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose},
+                                              {TokenKind::ETX}});
 
     auto const program = parse();
 
@@ -274,4 +346,134 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses vectors containing vectors") {
                                         {TokenKind::BracketClose},
                                         {TokenKind::BracketClose}});
     CHECK(type == TypeNode(pos[0], Type::vec(Type::vec(PrimitiveType::Int))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses int literal") {
+    auto const [int_val, pos] = parseExpression({{TokenKind::IntLiteral, 1}});
+    CHECK(int_val == ExprNode(pos[0], IntLiteral{.value = 1}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses string literal") {
+    auto const [str_val, pos] = parseExpression({{TokenKind::StrLiteral, "a"}});
+    CHECK(str_val == ExprNode(pos[0], StringLiteral{.value = "a"}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses float literal") {
+    auto const [float_val, pos] =
+        parseExpression({{TokenKind::FloatLiteral, 1.5}});
+    CHECK(float_val == ExprNode(pos[0], FloatLiteral{.value = 1.5}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses bool false literal") {
+    auto const [bool_val, pos] = parseExpression({{TokenKind::False}});
+    CHECK(bool_val == ExprNode(pos[0], BoolLiteral{.value = false}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses bool true literal") {
+    auto const [bool_val, pos] = parseExpression({{TokenKind::True}});
+    CHECK(bool_val == ExprNode(pos[0], BoolLiteral{.value = true}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty vec literal") {
+    auto const [bool_val, pos] =
+        parseExpression({{TokenKind::BracketOpen}, {TokenKind::BracketClose}});
+    CHECK(bool_val == ExprNode(pos[0], VecLiteral{.elements = {}}));
+}
+
+// TODO! Test comma in empty vec once error handling finalized.
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses simple vec literal with one element") {
+    auto const [vec_val, pos] = parseExpression({{TokenKind::BracketOpen},
+                                                 {TokenKind::IntLiteral, 1},
+                                                 {TokenKind::BracketClose}});
+
+    CHECK(vec_val == ExprNode(pos[0], VecLiteral{
+                                          .elements = {ExprNode(
+                                              pos[1], IntLiteral{.value = 1})},
+                                      }));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses simple vec with trailing comma") {
+    auto const [vec_val, pos] = parseExpression({{TokenKind::BracketOpen},
+                                                 {TokenKind::IntLiteral, 1},
+                                                 {TokenKind::Comma},
+                                                 {TokenKind::BracketClose}});
+
+    CHECK(vec_val == ExprNode(pos[0], VecLiteral{
+                                          .elements = {ExprNode(
+                                              pos[1], IntLiteral{.value = 1})},
+                                      }));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses simple vec literal with multiple elements") {
+    auto const [vec_val, pos] = parseExpression({{TokenKind::BracketOpen},
+                                                 {TokenKind::IntLiteral, 1},
+                                                 {TokenKind::Comma},
+                                                 {TokenKind::IntLiteral, 2},
+                                                 {TokenKind::BracketClose}});
+    CHECK(
+        vec_val ==
+        ExprNode(pos[0],
+                 VecLiteral{.elements = {
+                                {ExprNode(pos[1], IntLiteral{.value = 1})},
+                                {ExprNode(pos[3], IntLiteral{.value = 2})}}}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses vec literal with nested vecs") {
+    auto const [vec_val, pos] = parseExpression({{TokenKind::BracketOpen},
+                                                 {TokenKind::BracketOpen},
+                                                 {TokenKind::IntLiteral, 1},
+                                                 {TokenKind::BracketClose},
+                                                 {TokenKind::BracketClose}});
+
+    auto const expected = ExprNode(
+        pos[0],
+        VecLiteral{
+            .elements = {ExprNode(
+                pos[1], VecLiteral{.elements = {ExprNode(
+                                       pos[2], IntLiteral{.value = 1})}})}});
+    CHECK(vec_val == expected);
+};
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses let statement without type") {
+    auto const [statements, pos] = parseStatement({{TokenKind::Let},
+                                                   {TokenKind::Mut},
+                                                   {TokenKind::Identifier, "a"},
+                                                   {TokenKind::Equal},
+                                                   {TokenKind::IntLiteral, 1},
+                                                   {TokenKind::Semicolon}});
+
+    REQUIRE(statements.size() == 1);
+    auto const& statement = statements[0];
+    CHECK(statement ==
+          StatementNode(
+              pos[0],
+              LetBinding{.identifier = "a",
+                         .mut = true,
+                         .type = std::nullopt,
+                         .value = ExprNode(pos[4], IntLiteral{.value = 1})}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses let statement with type") {
+    auto const [statements, pos] = parseStatement({{TokenKind::Let},
+                                                   {TokenKind::Mut},
+                                                   {TokenKind::Identifier, "a"},
+                                                   {TokenKind::Colon},
+                                                   {TokenKind::Int},
+                                                   {TokenKind::Equal},
+                                                   {TokenKind::IntLiteral, 1},
+                                                   {TokenKind::Semicolon}});
+
+    REQUIRE(statements.size() == 1);
+    auto const& statement = statements[0];
+    CHECK(statement ==
+          StatementNode(
+              pos[0],
+              LetBinding{.identifier = "a",
+                         .mut = true,
+                         .type = TypeNode(pos[4], Type(PrimitiveType::Int)),
+                         .value = ExprNode(pos[6], IntLiteral{.value = 1})}));
 }

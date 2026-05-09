@@ -257,12 +257,100 @@ private:
         return BlockNode(start_pos, Block{.statements = std::move(statements)});
     }
 
-    // statement = let_binding | assignment_statement | if_statement |
-    // while_statement | for_statement | return_statement | break_statement |
-    // continue_statement | block | function_call, ";";
-    std::optional<StatementNode> tryParseStatement() { return std::nullopt; }
+    // statement = let_binding, ";" | assignment_statement, ";" |
+    // return_statement, ";" | break_statement, ";" | continue_statement, ";" |
+    // function_call, ";" | block | if_statement | while_loop | for_loop;
+    std::optional<StatementNode> tryParseStatement() {
+        auto const start_pos = current_.pos();
 
-    // std::optional<LetBinding> tryParseLetBinding() {}
+        auto let = tryParseLetBinding();
+        if (let) {
+            auto statement = StatementNode(start_pos, std::move(*let));
+            expect(TokenKind::Semicolon);
+            return statement;
+        }
+        return std::nullopt;
+    }
+
+    // If_expression skipped for now
+    // let_binding = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", (
+    // if_expression | expression );
+    std::optional<LetBinding> tryParseLetBinding() {
+        if (!consume(TokenKind::Let)) {
+            return std::nullopt;
+        }
+        bool const mut = consume(TokenKind::Mut);
+
+        auto const identifier = consumeIdentifier();
+        if (!identifier) {
+            throwDiag({ExpectedToken{.expected = TokenKind::Identifier,
+                                     .got = current_.kind()}},
+                      current_.pos());
+        }
+
+        std::optional<TypeNode> type;
+        if (consume(TokenKind::Colon)) {
+            type = tryParseType();
+            if (!type) {
+                throwDiag(ExpectedType{}, current_.pos());
+            }
+        }
+
+        expect(TokenKind::Equal);
+
+        auto const expr = tryParseExpression();
+        if (!expr) {
+            throwDiag(ExpectedExpression{}, current_.pos());
+        }
+        return LetBinding{.identifier = std::move(*identifier),
+                          .mut = mut,
+                          .type = std::move(type),
+                          .value = std::move(*expr)};
+    }
+
+    std::optional<ExprNode> tryParseExpression() {
+        return tryParseLiteral();
+    }
+
+    // literal = INTEGER | FLOAT | STRING | BOOL | vec_literal;
+    std::optional<ExprNode> tryParseLiteral() {
+        auto const start_pos = current_.pos();
+        if (auto const int_val = consumeInteger()) {
+            return ExprNode(start_pos, IntLiteral{.value = *int_val});
+        }
+        if (auto const float_val = consumeFloat()) {
+            return ExprNode(start_pos, FloatLiteral{.value = *float_val});
+        }
+        if (auto const str_val = consumeString()) {
+            return ExprNode(start_pos, StringLiteral{.value = *str_val});
+        }
+        if (consume(TokenKind::True)) {
+            return ExprNode(start_pos, BoolLiteral{.value = true});
+        }
+        if (consume(TokenKind::False)) {
+            return ExprNode(start_pos, BoolLiteral{.value = false});
+        }
+        if (!consume(TokenKind::BracketOpen)) {
+            return std::nullopt;
+        }
+
+        auto const first_elem = tryParseExpression();
+        std::vector<ExprNode> elements;
+
+        if (first_elem) {
+            elements.push_back(std::move(*first_elem));
+        };
+
+        while (consume(TokenKind::Comma) && !elements.empty()) {
+            if (auto elem = tryParseExpression()) {
+                elements.push_back(std::move(*elem));
+            } else {
+                break;
+            }
+        }
+        consume(TokenKind::Comma);
+        expect(TokenKind::BracketClose);
+        return ExprNode(start_pos, VecLiteral{.elements = std::move(elements)});
+    };
 };
-
 using Parser = ParserTemplate<Lexer>;
