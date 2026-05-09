@@ -77,23 +77,33 @@ public:
     std::pair<TypeNode, std::span<Position const>> parseType(
         std::vector<MockToken> type_tokens) {
         std::vector<MockToken> tokens;
-        tokens.emplace_back(TokenKind::Fn);
-        tokens.emplace_back(TokenKind::Identifier, std::string{"f"});
-        tokens.emplace_back(TokenKind::ParenOpen);
-        tokens.emplace_back(TokenKind::ParenClose);
-        tokens.emplace_back(TokenKind::MinusGreater);
+
+        tokens.append_range(
+            std::to_array<MockToken>({{TokenKind::Fn},
+                                      {TokenKind::Identifier, std::string{"f"}},
+                                      {TokenKind::ParenOpen},
+                                      {TokenKind::ParenClose},
+                                      {TokenKind::MinusGreater}}));
+
         auto const offset = tokens.size();
+
         tokens.append_range(type_tokens);
-        tokens.emplace_back(TokenKind::BraceOpen);
-        tokens.emplace_back(TokenKind::BraceClose);
-        tokens.emplace_back(TokenKind::ETX);
+
+        tokens.append_range(std::to_array<MockToken>({{TokenKind::BraceOpen},
+                                                      {TokenKind::BraceClose},
+                                                      {TokenKind::ETX}}));
+
         auto const all_pos = init(std::move(tokens));
+
         auto program = parse();
         REQUIRE(program.has_value());
+
         auto& prog = **program;
         REQUIRE(prog.functions.contains("f"));
+
         auto& ret = prog.functions.at("f")->return_type;
         REQUIRE(ret.has_value());
+
         return {std::move(*ret), all_pos.subspan(offset)};
     }
 
@@ -101,17 +111,19 @@ public:
     parseStatement(std::vector<MockToken> stmt_tokens) {
         std::vector<MockToken> tokens;
 
-        tokens.emplace_back(TokenKind::Fn);
-        tokens.emplace_back(TokenKind::Identifier, std::string{"f"});
-        tokens.emplace_back(TokenKind::ParenOpen);
-        tokens.emplace_back(TokenKind::ParenClose);
-        tokens.emplace_back(TokenKind::BraceOpen);
+        tokens.append_range(
+            std::to_array<MockToken>({{TokenKind::Fn},
+                                      {TokenKind::Identifier, std::string{"f"}},
+                                      {TokenKind::ParenOpen},
+                                      {TokenKind::ParenClose},
+                                      {TokenKind::BraceOpen}}));
 
         auto const offset = tokens.size();
+
         tokens.append_range(stmt_tokens);
 
-        tokens.emplace_back(TokenKind::BraceClose);
-        tokens.emplace_back(TokenKind::ETX);
+        tokens.append_range(std::to_array<MockToken>(
+            {{TokenKind::BraceClose}, {TokenKind::ETX}}));
 
         auto const all_pos = init(std::move(tokens));
 
@@ -131,23 +143,23 @@ public:
         std::vector<MockToken> expr_tokens) {
         std::vector<MockToken> tokens;
 
-        tokens.emplace_back(TokenKind::Fn);
-        tokens.emplace_back(TokenKind::Identifier, std::string{"f"});
-        tokens.emplace_back(TokenKind::ParenOpen);
-        tokens.emplace_back(TokenKind::ParenClose);
-        tokens.emplace_back(TokenKind::BraceOpen);
-
-        tokens.emplace_back(TokenKind::Let);
-        tokens.emplace_back(TokenKind::Identifier, std::string{"x"});
-        tokens.emplace_back(TokenKind::Equal);
+        tokens.append_range(
+            std::to_array<MockToken>({{TokenKind::Fn},
+                                      {TokenKind::Identifier, std::string{"f"}},
+                                      {TokenKind::ParenOpen},
+                                      {TokenKind::ParenClose},
+                                      {TokenKind::BraceOpen},
+                                      {TokenKind::Let},
+                                      {TokenKind::Identifier, std::string{"x"}},
+                                      {TokenKind::Equal}}));
 
         auto const offset = tokens.size();
 
         tokens.append_range(expr_tokens);
 
-        tokens.emplace_back(TokenKind::Semicolon);
-        tokens.emplace_back(TokenKind::BraceClose);
-        tokens.emplace_back(TokenKind::ETX);
+        tokens.append_range(std::to_array<MockToken>({{TokenKind::Semicolon},
+                                                      {TokenKind::BraceClose},
+                                                      {TokenKind::ETX}}));
 
         auto const all_pos = init(std::move(tokens));
 
