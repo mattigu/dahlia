@@ -310,9 +310,38 @@ private:
                           .value = std::move(*expr)};
     }
 
-    std::optional<ExprNode> tryParseExpression() { return tryParseIndexExpr(); }
+    std::optional<ExprNode> tryParseExpression() { return tryParseUnaryExpr(); }
 
-    // index_exp = term, { "[", expression, "]" };
+    // unary_expr = [ "-" | "!" | "@" ], index_expr;
+    std::optional<ExprNode> tryParseUnaryExpr() {
+        auto const start_pos = current_.pos();
+
+        if (consume(TokenKind::Minus)) {
+            auto operand = tryParseIndexExpr();
+            if (!operand) {
+                throwDiag(ExpectedExpression{}, current_.pos());
+            }
+            return ExprNode(start_pos, NegExpr(std::move(*operand)));
+        }
+        if (consume(TokenKind::Exclamation)) {
+            auto operand = tryParseIndexExpr();
+            if (!operand) {
+                throwDiag(ExpectedExpression{}, current_.pos());
+            }
+            return ExprNode(start_pos, NotExpr(std::move(*operand)));
+        }
+        if (consume(TokenKind::At)) {
+            auto operand = tryParseIndexExpr();
+            if (!operand) {
+                throwDiag(ExpectedExpression{}, current_.pos());
+            }
+            return ExprNode(start_pos, LengthExpr(std::move(*operand)));
+        }
+
+        return tryParseIndexExpr();
+    }
+
+    // index_expr = term, { "[", expression, "]" };
     std::optional<ExprNode> tryParseIndexExpr() {
         auto const start_pos = current_.pos();
         auto term = tryParseTerm();

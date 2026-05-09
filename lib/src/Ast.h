@@ -107,14 +107,18 @@ struct Identifier {
 struct VecLiteral;
 struct FunctionCall;
 struct IndexExpr;
+struct NegExpr;
+struct LengthExpr;
+struct NotExpr;
+
 using Expr = std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
-                          VecLiteral, Identifier, FunctionCall, IndexExpr>;
+                          VecLiteral, Identifier, FunctionCall, IndexExpr,
+                          NegExpr, LengthExpr, NotExpr>;
 using ExprNode = Node<Expr>;
 
 struct FunctionCall {
     std::string identifier;
     std::vector<ExprNode> args;
-
     bool operator==(FunctionCall const& other) const;
 };
 
@@ -128,6 +132,48 @@ struct IndexExpr {
     std::unique_ptr<ExprNode> index;
     bool operator==(IndexExpr const& other) const;
 };
+
+struct BinaryBase {
+    std::unique_ptr<ExprNode> left;
+    std::unique_ptr<ExprNode> right;
+
+    BinaryBase(ExprNode left, ExprNode right);
+
+    bool operator==(BinaryBase const& other) const;
+};
+
+struct UnaryBase {
+    std::unique_ptr<ExprNode> operand;
+
+    UnaryBase(ExprNode operand);
+
+    bool operator==(UnaryBase const& other) const;
+};
+
+struct NegExpr : UnaryBase {
+    using UnaryBase::UnaryBase;
+};
+struct NotExpr : UnaryBase {
+    using UnaryBase::UnaryBase;
+};
+struct LengthExpr : UnaryBase {
+    using UnaryBase::UnaryBase;
+};
+
+inline BinaryBase::BinaryBase(ExprNode left, ExprNode right)
+    : left(std::make_unique<ExprNode>(std::move(left))),
+      right(std::make_unique<ExprNode>(std::move(right))) {}
+
+inline bool BinaryBase::operator==(BinaryBase const& other) const {
+    return *left == *other.left && *right == *other.right;
+}
+
+inline UnaryBase::UnaryBase(ExprNode operand)
+    : operand(std::make_unique<ExprNode>(std::move(operand))) {}
+
+inline bool UnaryBase::operator==(UnaryBase const& other) const {
+    return *operand == *other.operand;
+}
 
 inline bool IndexExpr::operator==(IndexExpr const& other) const {
     return *object == *other.object && *index == *other.index;

@@ -580,3 +580,24 @@ TEST_CASE_FIXTURE(
 
     CHECK(expr == ExprNode(pos[2], IntLiteral{1}));
 }
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses negation expression") {
+    auto const [expr, pos] =
+        parseExpression({{TokenKind::Minus}, {TokenKind::IntLiteral, 1}});
+    CHECK(expr ==
+          ExprNode(pos[0], NegExpr(ExprNode(pos[1], IntLiteral{.value = 1}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses negation expression") {
+    auto const [expr, pos] =
+        parseExpression({{TokenKind::At}, {TokenKind::IntLiteral, 1}});
+    CHECK(expr == ExprNode(pos[0], LengthExpr(ExprNode(
+                                       pos[1], IntLiteral{.value = 1}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses negation expression") {
+    auto const [expr, pos] =
+        parseExpression({{TokenKind::Exclamation}, {TokenKind::IntLiteral, 1}});
+    CHECK(expr ==
+          ExprNode(pos[0], NotExpr(ExprNode(pos[1], IntLiteral{.value = 1}))));
+}
