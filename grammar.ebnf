@@ -27,22 +27,22 @@ block
     = "{", { statement }, "}";
 
 statement
-    = let_binding
-    | assignment_statement
+    = let_binding, ";"
+    | assignment_statement, ";"
+    | return_statement, ";"
+    | break_statement, ";"
+    | continue_statement, ";"
+    | function_call, ";"
+    | block
     | if_statement
     | while_loop
-    | for_loop
-    | return_statement
-    | break_statement
-    | continue_statement
-    | block
-    | function_call, ";";
+    | for_loop;
 
 let_binding
-    = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", ( if_expression | expression ), ";";
+    = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", ( if_expression | expression );
 
 assignment_statement
-    = lvalue, ( "=" | compound_assignment_op ), ( if_expression | expression ), ";";
+    = lvalue, ( "=" | compound_assignment_op ), ( if_expression | expression );
 
 if_expression
     = "if", expression, "{", expression, "}", "else", "{", expression, "}";
