@@ -522,3 +522,24 @@ TEST_CASE_FIXTURE(ParserFixture,
                            .args = {ExprNode(pos[2], Identifier{"param1"}),
                                     ExprNode(pos[4], Identifier{"param2"})}}));
 }
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses expression in parenthesis - (expression)") {
+    auto const [expr, pos] = parseExpression({{TokenKind::ParenOpen},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::ParenClose}});
+
+    CHECK(expr == ExprNode(pos[1], IntLiteral{1}));
+}
+
+TEST_CASE_FIXTURE(
+    ParserFixture,
+    "Parser parses expression in multiple parenthesis - (expression)") {
+    auto const [expr, pos] = parseExpression({{TokenKind::ParenOpen},
+                                              {TokenKind::ParenOpen},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::ParenClose},
+                                              {TokenKind::ParenClose}});
+
+    CHECK(expr == ExprNode(pos[2], IntLiteral{1}));
+}

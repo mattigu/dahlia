@@ -37,7 +37,7 @@ public:
                         new_pos);
                 }
             }
-        } catch (ParserDiagnosticKind const&) {
+        } catch (Diagnostic<ParserDiagnosticKind> const&) {
             return std::nullopt;
         }
 
@@ -313,8 +313,9 @@ private:
     std::optional<ExprNode> tryParseExpression() { return tryParseTerm(); }
 
     std::optional<ExprNode> tryParseTerm() {
-        return tryParseLiteral().or_else(
-            [this]() { return tryParseIdentifierOrCall(); });
+        return tryParseLiteral()
+            .or_else([this]() { return tryParseIdentifierOrCall(); })
+            .or_else([this]() { return tryParseGroupedExpression(); });
     }
 
     // identifier_or_call = IDENTIFIER, [ "(", function_arguments, ")" ];
@@ -354,6 +355,21 @@ private:
             args.push_back(std::move(*expr));
         }
         return args;
+    }
+    // Helper for "(", expresion, ")"
+    std::optional<ExprNode> tryParseGroupedExpression() {
+        if (!consume(TokenKind::ParenOpen)) {
+            return std::nullopt;
+        }
+
+        auto const expr = tryParseExpression();
+        if (!expr) {
+            throwDiag(ExpectedExpression{}, current_.pos());
+        }
+
+        expect(TokenKind::ParenClose);
+
+        return *expr;
     }
 
     // literal = INTEGER | FLOAT | STRING | BOOL | vec_literal;
