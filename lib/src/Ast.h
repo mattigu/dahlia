@@ -106,8 +106,9 @@ struct Identifier {
 
 struct VecLiteral;
 struct FunctionCall;
+struct IndexExpr;
 using Expr = std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
-                          VecLiteral, Identifier, FunctionCall>;
+                          VecLiteral, Identifier, FunctionCall, IndexExpr>;
 using ExprNode = Node<Expr>;
 
 struct FunctionCall {
@@ -122,6 +123,15 @@ struct VecLiteral {
     bool operator==(VecLiteral const& other) const;
 };
 
+struct IndexExpr {
+    std::unique_ptr<ExprNode> object;
+    std::unique_ptr<ExprNode> index;
+    bool operator==(IndexExpr const& other) const;
+};
+
+inline bool IndexExpr::operator==(IndexExpr const& other) const {
+    return *object == *other.object && *index == *other.index;
+}
 inline bool VecLiteral::operator==(VecLiteral const& other) const = default;
 inline bool FunctionCall::operator==(FunctionCall const& other) const = default;
 

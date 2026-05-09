@@ -8,7 +8,6 @@
 
 #include "doctest.h"
 #include "src/Ast.h"
-#include "src/CharReader.h"
 #include "src/Parser.h"
 #include "src/ParserDiagnostic.h"
 #include "src/Position.h"
@@ -163,7 +162,7 @@ public:
                                                       {TokenKind::BraceClose},
                                                       {TokenKind::ETX}}));
 
-        auto const all_pos = init(std::move(tokens));
+        init(std::move(tokens));
 
         auto program = parse();
         REQUIRE(program.has_value());
@@ -175,12 +174,13 @@ public:
 
         REQUIRE(!func->block->statements.empty());
 
-        auto const& stmt = func->block->statements.front();
+        auto& stmt = func->block->statements.front();
         REQUIRE(std::holds_alternative<LetBinding>(*stmt));
 
-        auto const& let = std::get<LetBinding>(*stmt);
-
-        return {let.value, all_pos.subspan(offset)};
+        auto& let = std::get<LetBinding>(*stmt);
+        auto value = std::move(let.value);
+        return std::pair<ExprNode, std::span<Position const>>(
+            std::move(value), std::span(positions_).subspan(offset));
     }
 
     static constexpr void assertTokensMatch(
@@ -199,6 +199,14 @@ public:
     template <typename T>
     Node<T> testNode(T value) {
         return Node<T>{Position{}, std::move(value)};
+    }
+
+    template <typename T, typename... Args>
+    std::vector<T> makeVec(Args&&... args) {
+        std::vector<T> vec;
+        vec.reserve(sizeof...(args));
+        (vec.emplace_back(std::forward<Args>(args)), ...);
+        return vec;
     }
 
     std::optional<ProgramNode> parse() { return parser_->parse(); }
@@ -401,24 +409,20 @@ TEST_CASE_FIXTURE(ParserFixture,
     auto const [vec_val, pos] = parseExpression({{TokenKind::BracketOpen},
                                                  {TokenKind::IntLiteral, 1},
                                                  {TokenKind::BracketClose}});
-
-    CHECK(vec_val == ExprNode(pos[0], VecLiteral{
-                                          .elements = {ExprNode(
-                                              pos[1], IntLiteral{.value = 1})},
-                                      }));
+    CHECK(vec_val ==
+          ExprNode(pos[0], VecLiteral{.elements = makeVec<ExprNode>(ExprNode(
+                                          pos[1], IntLiteral{.value = 1}))}));
 }
 
 TEST_CASE_FIXTURE(ParserFixture,
                   "Parser parses simple vec with trailing comma") {
-    auto const [vec_val, pos] = parseExpression({{TokenKind::BracketOpen},
-                                                 {TokenKind::IntLiteral, 1},
-                                                 {TokenKind::Comma},
-                                                 {TokenKind::BracketClose}});
-
-    CHECK(vec_val == ExprNode(pos[0], VecLiteral{
-                                          .elements = {ExprNode(
-                                              pos[1], IntLiteral{.value = 1})},
-                                      }));
+    auto [vec_val, pos] = parseExpression({{TokenKind::BracketOpen},
+                                           {TokenKind::IntLiteral, 1},
+                                           {TokenKind::Comma},
+                                           {TokenKind::BracketClose}});
+    CHECK(vec_val ==
+          ExprNode(pos[0], VecLiteral{.elements = makeVec<ExprNode>(ExprNode(
+                                          pos[1], IntLiteral{.value = 1}))}));
 }
 
 TEST_CASE_FIXTURE(ParserFixture,
@@ -428,12 +432,11 @@ TEST_CASE_FIXTURE(ParserFixture,
                                                  {TokenKind::Comma},
                                                  {TokenKind::IntLiteral, 2},
                                                  {TokenKind::BracketClose}});
-    CHECK(
-        vec_val ==
-        ExprNode(pos[0],
-                 VecLiteral{.elements = {
-                                {ExprNode(pos[1], IntLiteral{.value = 1})},
-                                {ExprNode(pos[3], IntLiteral{.value = 2})}}}));
+    CHECK(vec_val ==
+          ExprNode(pos[0],
+                   VecLiteral{.elements = makeVec<ExprNode>(
+                                  ExprNode(pos[1], IntLiteral{.value = 1}),
+                                  ExprNode(pos[3], IntLiteral{.value = 2}))}));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses vec literal with nested vecs") {
@@ -442,15 +445,15 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses vec literal with nested vecs") {
                                                  {TokenKind::IntLiteral, 1},
                                                  {TokenKind::BracketClose},
                                                  {TokenKind::BracketClose}});
-
-    auto const expected = ExprNode(
-        pos[0],
-        VecLiteral{
-            .elements = {ExprNode(
-                pos[1], VecLiteral{.elements = {ExprNode(
-                                       pos[2], IntLiteral{.value = 1})}})}});
-    CHECK(vec_val == expected);
-};
+    CHECK(
+        vec_val ==
+        ExprNode(pos[0],
+                 VecLiteral{
+                     .elements = makeVec<ExprNode>(ExprNode(
+                         pos[1],
+                         VecLiteral{.elements = makeVec<ExprNode>(ExprNode(
+                                        pos[2], IntLiteral{.value = 1}))}))}));
+}
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses let statement without type") {
     auto const [statements, pos] = parseStatement({{TokenKind::Let},
@@ -492,6 +495,40 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses let statement with type") {
                          .value = ExprNode(pos[6], IntLiteral{.value = 1})}));
 }
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple indexing expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
+                                              {TokenKind::BracketOpen},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::BracketClose}});
+    CHECK(expr ==
+          ExprNode(pos[0], IndexExpr{.object = std::make_unique<ExprNode>(
+                                         pos[0], Identifier{.identifier = "a"}),
+                                     .index = std::make_unique<ExprNode>(
+                                         pos[2], IntLiteral{.value = 1})}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses indexing expression with multiple indexes") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
+                                              {TokenKind::BracketOpen},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::BracketClose},
+                                              {TokenKind::BracketOpen},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::BracketClose}});
+    CHECK(expr ==
+          ExprNode(pos[0],
+                   IndexExpr{
+                       .object = std::make_unique<ExprNode>(
+                           pos[0],
+                           IndexExpr{.object = std::make_unique<ExprNode>(
+                                         pos[0], Identifier{.identifier = "a"}),
+                                     .index = std::make_unique<ExprNode>(
+                                         pos[2], IntLiteral{.value = 1})}),
+                       .index = std::make_unique<ExprNode>(
+                           pos[5], IntLiteral{.value = 2})}));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses identifier in expression") {
     auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"}});
 
@@ -516,11 +553,11 @@ TEST_CASE_FIXTURE(ParserFixture,
                                               {TokenKind::Identifier, "param2"},
                                               {TokenKind::ParenClose}});
     CHECK(expr ==
-          ExprNode(
-              pos[0],
-              FunctionCall{.identifier = "a",
-                           .args = {ExprNode(pos[2], Identifier{"param1"}),
-                                    ExprNode(pos[4], Identifier{"param2"})}}));
+          ExprNode(pos[0],
+                   FunctionCall{.identifier = "a",
+                                .args = makeVec<ExprNode>(
+                                    ExprNode(pos[2], Identifier{"param1"}),
+                                    ExprNode(pos[4], Identifier{"param2"}))}));
 }
 
 TEST_CASE_FIXTURE(ParserFixture,

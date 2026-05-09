@@ -300,7 +300,7 @@ private:
 
         expect(TokenKind::Equal);
 
-        auto const expr = tryParseExpression();
+        auto expr = tryParseExpression();
         if (!expr) {
             throwDiag(ExpectedExpression{}, current_.pos());
         }
@@ -310,8 +310,33 @@ private:
                           .value = std::move(*expr)};
     }
 
-    std::optional<ExprNode> tryParseExpression() { return tryParseTerm(); }
+    std::optional<ExprNode> tryParseExpression() { return tryParseIndexExpr(); }
 
+    // index_exp = term, { "[", expression, "]" };
+    std::optional<ExprNode> tryParseIndexExpr() {
+        auto const start_pos = current_.pos();
+        auto term = tryParseTerm();
+        if (!term) {
+            return std::nullopt;
+        }
+
+        while (consume(TokenKind::BracketOpen)) {
+            auto index = tryParseExpression();
+            if (!index) {
+                throwDiag(ExpectedExpression{}, current_.pos());
+            }
+            expect(TokenKind::BracketClose);
+            auto const pos = term->pos();
+            term = ExprNode(
+                pos,
+                Expr{IndexExpr{
+                    .object = std::make_unique<ExprNode>(std::move(*term)),
+                    .index = std::make_unique<ExprNode>(std::move(*index))}});
+        }
+        return term;
+    }
+
+    // term = literal | identifier_or_call | "(", expression, ")";
     std::optional<ExprNode> tryParseTerm() {
         return tryParseLiteral()
             .or_else([this]() { return tryParseIdentifierOrCall(); })
@@ -339,16 +364,17 @@ private:
     // function_arguments = [ expression, { ",", expression } ];
     std::vector<ExprNode> tryParseFunctionArgs() {
         auto const start_pos = current_.pos();
-        auto const first_expr = tryParseExpression();
+        auto first_expr = tryParseExpression();
 
         if (!first_expr) {
             return {};
         }
 
-        std::vector<ExprNode> args{std::move(*first_expr)};
+        std::vector<ExprNode> args;
+        args.emplace_back(std::move(*first_expr));
 
         while (consume(TokenKind::Comma)) {
-            auto const expr = tryParseExpression();
+            auto expr = tryParseExpression();
             if (!expr) {
                 break;
             }
@@ -362,14 +388,14 @@ private:
             return std::nullopt;
         }
 
-        auto const expr = tryParseExpression();
+        auto expr = tryParseExpression();
         if (!expr) {
             throwDiag(ExpectedExpression{}, current_.pos());
         }
 
         expect(TokenKind::ParenClose);
 
-        return *expr;
+        return std::move(expr);
     }
 
     // literal = INTEGER | FLOAT | STRING | BOOL | vec_literal;
@@ -394,7 +420,7 @@ private:
             return std::nullopt;
         }
 
-        auto const first_elem = tryParseExpression();
+        auto first_elem = tryParseExpression();
         std::vector<ExprNode> elements;
 
         if (first_elem) {
