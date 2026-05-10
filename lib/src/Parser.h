@@ -1,8 +1,10 @@
 #pragma once
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "Ast.h"
@@ -265,11 +267,11 @@ private:
     std::optional<StatementNode> tryParseStatement() {
         auto const start_pos = current_.pos();
 
-        auto let = tryParseLetBinding();
-        if (let) {
-            auto statement = StatementNode(start_pos, std::move(*let));
+        auto stmt = tryParseLetBinding().or_else(
+            [this]() { return tryParseAssignmentStmt(); });
+        if (stmt) {
             expect(TokenKind::Semicolon);
-            return statement;
+            return stmt;
         }
         return std::nullopt;
     }
@@ -277,7 +279,8 @@ private:
     // If_expression skipped for now
     // let_binding = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", (
     // if_expression | expression );
-    std::optional<LetBinding> tryParseLetBinding() {
+    std::optional<StatementNode> tryParseLetBinding() {
+        auto const start_pos = current_.pos();
         if (!consume(TokenKind::Let)) {
             return std::nullopt;
         }
@@ -304,10 +307,87 @@ private:
         if (!expr) {
             throwDiag(ExpectedExpression{}, current_.pos());
         }
-        return LetBinding{.identifier = std::move(*identifier),
-                          .mut = mut,
-                          .type = std::move(type),
-                          .value = std::move(*expr)};
+        return StatementNode(start_pos,
+                             LetBinding{.identifier = std::move(*identifier),
+                                        .mut = mut,
+                                        .type = std::move(type),
+                                        .value = std::move(*expr)});
+    }
+
+    // if expression skipped for now
+    // assignment_statement = lvalue, ("=" | compound_assignment_op),
+    // (if_expression | expression);
+    std::optional<StatementNode> tryParseAssignmentStmt() {
+        auto const start_pos = current_.pos();
+        auto lvalue = tryParseLValue();
+        if (!lvalue) {
+            return std::nullopt;
+        }
+
+        using Constructor = std::function<StatementKind(LValue, ExprNode)>;
+        auto static const ops =
+            std::to_array<std::pair<TokenKind, Constructor>>({
+                {TokenKind::Equal,
+                 [](LValue lval, ExprNode expr) {
+                     return AssignStmt{std::move(lval), std::move(expr)};
+                 }},
+                {TokenKind::PlusEqual,
+                 [](LValue lval, ExprNode expr) {
+                     return AddAssignStmt{std::move(lval), std::move(expr)};
+                 }},
+                {TokenKind::MinusEqual,
+                 [](LValue lval, ExprNode expr) {
+                     return SubAssignStmt{std::move(lval), std::move(expr)};
+                 }},
+                {TokenKind::AsteriskEqual,
+                 [](LValue lval, ExprNode expr) {
+                     return MulAssignStmt{std::move(lval), std::move(expr)};
+                 }},
+                {TokenKind::SlashEqual,
+                 [](LValue lval, ExprNode expr) {
+                     return DivAssignStmt{std::move(lval), std::move(expr)};
+                 }},
+                {TokenKind::PercentEqual,
+                 [](LValue lval, ExprNode expr) {
+                     return ModAssignStmt{std::move(lval), std::move(expr)};
+                 }},
+            });
+        for (auto& [kind, constructor] : ops) {
+            if (consume(kind)) {
+                auto expr = tryParseExpression();
+                if (!expr) {
+                    throwDiag(ExpectedExpression{}, current_.pos());
+                }
+                return StatementNode(start_pos, constructor(std::move(*lvalue),
+                                                            std::move(*expr)));
+            }
+        }
+        throwDiag(
+            ExpectedToken{.expected = TokenKind::Equal, .got = current_.kind()},
+            current_.pos());
+
+        std::unreachable();
+    }
+
+    // lvalue = IDENTIFIER, { "[", expression, "]" };
+    std::optional<LValue> tryParseLValue() {
+        auto const start_pos = current_.pos();
+        auto identifier = consumeIdentifier();
+
+        if (!identifier) {
+            return std::nullopt;
+        }
+        std::vector<ExprNode> indices;
+        while (consume(TokenKind::BracketOpen)) {
+            auto expr = tryParseExpression();
+            if (!expr) {
+                throwDiag(ExpectedExpression{}, current_.pos());
+            }
+            expect(TokenKind::BracketClose);
+            indices.push_back(std::move(*expr));
+        }
+        return LValue{.identifier = std::move(*identifier),
+                      .indices = std::move(indices)};
     }
 
     // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };

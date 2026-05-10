@@ -44,11 +44,11 @@ let_binding
 assignment_statement
     = lvalue, ( "=" | compound_assignment_op ), ( if_expression | expression );
 
-if_expression
-    = "if", expression, "{", expression, "}", "else", "{", expression, "}";
-
 lvalue
     = IDENTIFIER, { "[", expression, "]" };
+    
+if_expression
+    = "if", expression, "{", expression, "}", "else", "{", expression, "}";
 
 compound_assignment_op
     = "+="

@@ -494,6 +494,108 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses let statement with type") {
                          .value = ExprNode(pos[6], IntLiteral{.value = 1})}));
 }
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple assignment") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "a"},
+                                              {TokenKind::Equal},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Semicolon}});
+    CHECK(stmts == makeVec<StatementNode>(StatementNode(
+                       pos[0], AssignStmt{LValue{.identifier = "a"},
+                                          ExprNode(pos[2], IntLiteral{1})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses add assignment") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "a"},
+                                              {TokenKind::PlusEqual},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Semicolon}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], AddAssignStmt{LValue{.identifier = "a"},
+                                    ExprNode(pos[2], IntLiteral{1})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses sub assignment") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "a"},
+                                              {TokenKind::MinusEqual},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Semicolon}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], SubAssignStmt{LValue{.identifier = "a"},
+                                    ExprNode(pos[2], IntLiteral{1})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses mul assignment") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "a"},
+                                              {TokenKind::AsteriskEqual},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Semicolon}});
+
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], MulAssignStmt{LValue{.identifier = "a"},
+                                    ExprNode(pos[2], IntLiteral{1})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses div assignment") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "a"},
+                                              {TokenKind::SlashEqual},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Semicolon}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], DivAssignStmt{LValue{.identifier = "a"},
+                                    ExprNode(pos[2], IntLiteral{1})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses mod assignment") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "a"},
+                                              {TokenKind::PercentEqual},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Semicolon}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], ModAssignStmt{LValue{.identifier = "a"},
+                                    ExprNode(pos[2], IntLiteral{1})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses indexed assignment") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "a"},
+                                              {TokenKind::BracketOpen},
+                                              {TokenKind::IntLiteral, 0},
+                                              {TokenKind::BracketClose},
+                                              {TokenKind::Equal},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Semicolon}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], AssignStmt{LValue{.identifier = "a",
+                                        .indices = makeVec<ExprNode>(
+                                            ExprNode(pos[2], IntLiteral{0}))},
+                                 ExprNode(pos[5], IntLiteral{1})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses double indexed assignment") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "a"},
+                                              {TokenKind::BracketOpen},
+                                              {TokenKind::IntLiteral, 0},
+                                              {TokenKind::BracketClose},
+                                              {TokenKind::BracketOpen},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::BracketClose},
+                                              {TokenKind::Equal},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::Semicolon}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], AssignStmt{LValue{.identifier = "a",
+                                        .indices = makeVec<ExprNode>(
+                                            ExprNode(pos[2], IntLiteral{0}),
+                                            ExprNode(pos[5], IntLiteral{1}))},
+                                 ExprNode(pos[8], IntLiteral{2})})));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple indexing expression") {
     auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
                                               {TokenKind::BracketOpen},

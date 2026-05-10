@@ -267,7 +267,42 @@ struct LetBinding {
     bool operator==(LetBinding const& other) const = default;
 };
 
-using StatementKind = std::variant<BreakStmt, ContinueStmt, LetBinding>;
+struct LValue {
+    std::string identifier;
+    std::vector<ExprNode> indices;
+    bool operator==(LValue const& other) const = default;
+};
+
+struct AssignBase {
+    LValue target;
+    ExprNode value;
+    AssignBase(LValue target, ExprNode value)
+        : target(std::move(target)), value(std::move(value)) {}
+    bool operator==(AssignBase const& other) const = default;
+};
+
+struct AssignStmt : AssignBase {
+    using AssignBase::AssignBase;
+};
+struct AddAssignStmt : AssignBase {
+    using AssignBase::AssignBase;
+};
+struct SubAssignStmt : AssignBase {
+    using AssignBase::AssignBase;
+};
+struct MulAssignStmt : AssignBase {
+    using AssignBase::AssignBase;
+};
+struct DivAssignStmt : AssignBase {
+    using AssignBase::AssignBase;
+};
+struct ModAssignStmt : AssignBase {
+    using AssignBase::AssignBase;
+};
+
+using StatementKind =
+    std::variant<BreakStmt, ContinueStmt, LetBinding, AssignStmt, AddAssignStmt,
+                 SubAssignStmt, MulAssignStmt, DivAssignStmt, ModAssignStmt>;
 using StatementNode = Node<StatementKind>;
 
 struct Block {
