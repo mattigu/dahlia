@@ -371,12 +371,13 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes keywords") {
         {.src = "in", .expected = TokenKind::In},
         {.src = "return", .expected = TokenKind::Return},
         {.src = "true", .expected = TokenKind::True},
+        {.src = "break", .expected = TokenKind::Break},
+        {.src = "continue", .expected = TokenKind::Continue},
         {.src = "false", .expected = TokenKind::False},
         {.src = "int", .expected = TokenKind::Int},
         {.src = "float", .expected = TokenKind::Float},
         {.src = "bool", .expected = TokenKind::Bool},
         {.src = "str", .expected = TokenKind::Str},
-        {.src = "vec", .expected = TokenKind::Vec},
     });
 
     for (auto const& test : cases) {

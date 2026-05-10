@@ -59,6 +59,8 @@ enum class TokenKind : std::uint8_t {
     Fn,
     True,
     False,
+    Break,
+    Continue,
     Return,
 
     // Type keywords

@@ -38,6 +38,8 @@ static constexpr auto KEYWORDS =
         {"for", TokenKind::For},
         {"while", TokenKind::While},
         {"in", TokenKind::In},
+        {"break", TokenKind::Break},
+        {"continue", TokenKind::Continue},
         {"return", TokenKind::Return},
         {"true", TokenKind::True},
         {"false", TokenKind::False},
@@ -45,7 +47,6 @@ static constexpr auto KEYWORDS =
         {"float", TokenKind::Float},
         {"bool", TokenKind::Bool},
         {"str", TokenKind::Str},
-        {"vec", TokenKind::Vec},
     });
 
 Lexer::Lexer(std::istream& src, LexerOptions const& options) noexcept
