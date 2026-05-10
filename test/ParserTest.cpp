@@ -635,3 +635,131 @@ TEST_CASE_FIXTURE(ParserFixture,
                                      ExprNode(pos[2], IntLiteral{.value = 3}))),
                     ExprNode(pos[4], IntLiteral{.value = 4}))));
 }
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses addition") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 1},
+                                              {TokenKind::Plus},
+                                              {TokenKind::IntLiteral, 2}});
+    CHECK(expr == ExprNode(pos[1], AddExpr(ExprNode(pos[0], IntLiteral{1}),
+                                           ExprNode(pos[2], IntLiteral{2}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses subtraction") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 1},
+                                              {TokenKind::Minus},
+                                              {TokenKind::IntLiteral, 2}});
+    CHECK(expr == ExprNode(pos[1], SubExpr(ExprNode(pos[0], IntLiteral{1}),
+                                           ExprNode(pos[2], IntLiteral{2}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses additive left associativity") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 1},
+                                              {TokenKind::Plus},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::Plus},
+                                              {TokenKind::IntLiteral, 3}});
+    CHECK(expr ==
+          ExprNode(pos[3],
+                   AddExpr(ExprNode(pos[1],
+                                    AddExpr(ExprNode(pos[0], IntLiteral{1}),
+                                            ExprNode(pos[2], IntLiteral{2}))),
+                           ExprNode(pos[4], IntLiteral{3}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses intersection") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
+                                              {TokenKind::GreaterLess},
+                                              {TokenKind::Identifier, "b"}});
+    CHECK(expr ==
+          ExprNode(pos[1], IntersectExpr(ExprNode(pos[0], Identifier{"a"}),
+                                         ExprNode(pos[2], Identifier{"b"}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses in expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
+                                              {TokenKind::In},
+                                              {TokenKind::Identifier, "b"}});
+    CHECK(expr == ExprNode(pos[1], InExpr(ExprNode(pos[0], Identifier{"a"}),
+                                          ExprNode(pos[2], Identifier{"b"}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses equal") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 1},
+                                              {TokenKind::EqualEqual},
+                                              {TokenKind::IntLiteral, 1}});
+    CHECK(expr == ExprNode(pos[1], EqExpr(ExprNode(pos[0], IntLiteral{1}),
+                                          ExprNode(pos[2], IntLiteral{1}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses not equal") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 1},
+                                              {TokenKind::ExclamationEqual},
+                                              {TokenKind::IntLiteral, 2}});
+    CHECK(expr == ExprNode(pos[1], NeqExpr(ExprNode(pos[0], IntLiteral{1}),
+                                           ExprNode(pos[2], IntLiteral{2}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses less than") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 1},
+                                              {TokenKind::Less},
+                                              {TokenKind::IntLiteral, 2}});
+    CHECK(expr == ExprNode(pos[1], LtExpr(ExprNode(pos[0], IntLiteral{1}),
+                                          ExprNode(pos[2], IntLiteral{2}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses greater than") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 2},
+                                              {TokenKind::Greater},
+                                              {TokenKind::IntLiteral, 1}});
+    CHECK(expr == ExprNode(pos[1], GtExpr(ExprNode(pos[0], IntLiteral{2}),
+                                          ExprNode(pos[2], IntLiteral{1}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses less than or equal") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 1},
+                                              {TokenKind::LessEqual},
+                                              {TokenKind::IntLiteral, 2}});
+    CHECK(expr == ExprNode(pos[1], LeExpr(ExprNode(pos[0], IntLiteral{1}),
+                                          ExprNode(pos[2], IntLiteral{2}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses greater than or equal") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 2},
+                                              {TokenKind::GreaterEqual},
+                                              {TokenKind::IntLiteral, 1}});
+    CHECK(expr == ExprNode(pos[1], GeExpr(ExprNode(pos[0], IntLiteral{2}),
+                                          ExprNode(pos[2], IntLiteral{1}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses and") {
+    auto const [expr, pos] = parseExpression(
+        {{TokenKind::True}, {TokenKind::And}, {TokenKind::False}});
+    CHECK(expr ==
+          ExprNode(pos[1], AndExpr(ExprNode(pos[0], BoolLiteral{true}),
+                                   ExprNode(pos[2], BoolLiteral{false}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses or") {
+    auto const [expr, pos] = parseExpression(
+        {{TokenKind::True}, {TokenKind::Or}, {TokenKind::False}});
+    CHECK(expr ==
+          ExprNode(pos[1], OrExpr(ExprNode(pos[0], BoolLiteral{true}),
+                                  ExprNode(pos[2], BoolLiteral{false}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses filter expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
+                                              {TokenKind::Question},
+                                              {TokenKind::Identifier, "b"}});
+    CHECK(expr ==
+          ExprNode(pos[1], FilterExpr(ExprNode(pos[0], Identifier{"a"}),
+                                      ExprNode(pos[2], Identifier{"b"}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses map expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
+                                              {TokenKind::ColonGreater},
+                                              {TokenKind::Identifier, "b"}});
+    CHECK(expr == ExprNode(pos[1], MapExpr(ExprNode(pos[0], Identifier{"a"}),
+                                           ExprNode(pos[2], Identifier{"b"}))));
+}

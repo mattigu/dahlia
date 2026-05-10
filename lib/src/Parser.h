@@ -310,38 +310,61 @@ private:
                           .value = std::move(*expr)};
     }
 
+    // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };
     std::optional<ExprNode> tryParseExpression() {
-        return tryParseMultiplicativeExpr();
+        return tryParseBinaryExpr(&ParserTemplate::tryParseDisjunctionExpr,
+                                  binOp<FilterExpr>(TokenKind::Question),
+                                  binOp<MapExpr>(TokenKind::ColonGreater));
     }
 
-    // multiplicative_expr= unary_expr, { ( "*" | "/" ), unary_expr };
-    std::optional<ExprNode> tryParseMultiplicativeExpr() {
-        auto left = tryParseUnaryExpr();
-        if (!left) {
-            return std::nullopt;
-        }
+    // logical_or_expr = logical_and_expr, { "or", logical_and_expr };
+    std::optional<ExprNode> tryParseDisjunctionExpr() {
+        return tryParseBinaryExpr(&ParserTemplate::tryParseConjunctionExpr,
+                                  binOp<OrExpr>(TokenKind::Or));
+    }
 
-        while (true) {
-            auto const pos = current_.pos();
-            if (consume(TokenKind::Asterisk)) {
-                auto right = tryParseUnaryExpr();
-                if (!right) {
-                    throwDiag(ExpectedExpression{}, current_.pos());
-                }
-                left =
-                    ExprNode(pos, MulExpr(std::move(*left), std::move(*right)));
-            } else if (consume(TokenKind::Slash)) {
-                auto right = tryParseUnaryExpr();
-                if (!right) {
-                    throwDiag(ExpectedExpression{}, current_.pos());
-                }
-                left =
-                    ExprNode(pos, DivExpr(std::move(*left), std::move(*right)));
-            } else {
-                break;
-            }
-        }
-        return left;
+    // logical_and_expr = relation_expr, { "and", relation_expr };
+    std::optional<ExprNode> tryParseConjunctionExpr() {
+        return tryParseBinaryExpr(&ParserTemplate::tryParseRelationExpr,
+                                  binOp<AndExpr>(TokenKind::And));
+    }
+
+    // relation_expr = in_expr, { relation_operator, in_expr };
+    std::optional<ExprNode> tryParseRelationExpr() {
+        return tryParseBinaryExpr(&ParserTemplate::tryParseInExpr,
+                                  binOp<GeExpr>(TokenKind::GreaterEqual),
+                                  binOp<GtExpr>(TokenKind::Greater),
+                                  binOp<LeExpr>(TokenKind::LessEqual),
+                                  binOp<LtExpr>(TokenKind::Less),
+                                  binOp<EqExpr>(TokenKind::EqualEqual),
+                                  binOp<NeqExpr>(TokenKind::ExclamationEqual));
+    }
+
+    // in_expr = intersection_expr, {"in", intersection_expr};
+    std::optional<ExprNode> tryParseInExpr() {
+        return tryParseBinaryExpr(&ParserTemplate::tryParseIntersectionExpr,
+                                  binOp<InExpr>(TokenKind::In));
+    }
+
+    // intersection_expr = additive_expr, { "><", additive_expr };
+    std::optional<ExprNode> tryParseIntersectionExpr() {
+        return tryParseBinaryExpr(&ParserTemplate::tryParseAdditiveExpr,
+                                  binOp<IntersectExpr>(TokenKind::GreaterLess));
+    }
+
+    // additive_expr = multiplicative_expr, { ( "+" | "-" ), multiplicative_expr
+    // };
+    std::optional<ExprNode> tryParseAdditiveExpr() {
+        return tryParseBinaryExpr(&ParserTemplate::tryParseMultiplicativeExpr,
+                                  binOp<AddExpr>(TokenKind::Plus),
+                                  binOp<SubExpr>(TokenKind::Minus));
+    }
+
+    // multiplicative_expr = unary_expr, { ( "*" | "/" ), unary_expr };
+    std::optional<ExprNode> tryParseMultiplicativeExpr() {
+        return tryParseBinaryExpr(&ParserTemplate::tryParseUnaryExpr,
+                                  binOp<MulExpr>(TokenKind::Asterisk),
+                                  binOp<DivExpr>(TokenKind::Slash));
     }
 
     // unary_expr = [ "-" | "!" | "@" ], index_expr;
@@ -437,7 +460,7 @@ private:
         while (consume(TokenKind::Comma)) {
             auto expr = tryParseExpression();
             if (!expr) {
-                break;
+                throwDiag(ExpectedExpression{}, current_.pos());
             }
             args.push_back(std::move(*expr));
         }
@@ -495,9 +518,44 @@ private:
                 break;
             }
         }
-        consume(TokenKind::Comma);
         expect(TokenKind::BracketClose);
         return ExprNode(start_pos, VecLiteral{.elements = std::move(elements)});
     };
+
+    template <typename NextLevel, typename... Ops>
+    std::optional<ExprNode> tryParseBinaryExpr(NextLevel next, Ops... ops) {
+        auto left = (this->*next)();
+        if (!left) {
+            return std::nullopt;
+        }
+
+        while (true) {
+            auto const pos = current_.pos();
+            bool matched = false;
+            auto try_op = [&](auto kind, auto constructor) {
+                if (!matched && consume(kind)) {
+                    auto right = (this->*next)();
+                    if (!right) {
+                        throwDiag(ExpectedExpression{}, current_.pos());
+                    }
+                    left = ExprNode(
+                        pos, constructor(std::move(*left), std::move(*right)));
+                    matched = true;
+                }
+            };
+            (try_op(ops.first, ops.second), ...);
+            if (!matched) {
+                break;
+            }
+        }
+        return left;
+    }
+
+    template <typename T>
+    auto binOp(TokenKind kind) {
+        return std::make_pair(kind, [](ExprNode lhs, ExprNode rhs) {
+            return Expr{T(std::move(lhs), std::move(rhs))};
+        });
+    }
 };
 using Parser = ParserTemplate<Lexer>;

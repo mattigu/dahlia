@@ -112,10 +112,27 @@ struct LengthExpr;
 struct NotExpr;
 struct MulExpr;
 struct DivExpr;
+struct AddExpr;
+struct SubExpr;
+struct IntersectExpr;
+struct InExpr;
+struct EqExpr;
+struct NeqExpr;
+struct LtExpr;
+struct GtExpr;
+struct LeExpr;
+struct GeExpr;
+struct AndExpr;
+struct OrExpr;
+struct FilterExpr;
+struct MapExpr;
 
-using Expr = std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
-                          VecLiteral, Identifier, FunctionCall, IndexExpr,
-                          NegExpr, LengthExpr, NotExpr, MulExpr, DivExpr>;
+using Expr =
+    std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
+                 VecLiteral, Identifier, FunctionCall, IndexExpr, NegExpr,
+                 LengthExpr, NotExpr, MulExpr, DivExpr, AddExpr, SubExpr,
+                 IntersectExpr, InExpr, EqExpr, NeqExpr, LtExpr, GtExpr, LeExpr,
+                 GeExpr, AndExpr, OrExpr, FilterExpr, MapExpr>;
 using ExprNode = Node<Expr>;
 
 struct FunctionCall {
@@ -168,6 +185,49 @@ struct DivExpr : BinaryBase {
     using BinaryBase::BinaryBase;
 };
 
+struct AddExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct SubExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct IntersectExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct InExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct EqExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct NeqExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct LtExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct GtExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct LeExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct GeExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct AndExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct OrExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct FilterExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct MapExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+
 inline BinaryBase::BinaryBase(ExprNode left, ExprNode right)
     : left(std::make_unique<ExprNode>(std::move(left))),
       right(std::make_unique<ExprNode>(std::move(right))) {}
@@ -188,7 +248,6 @@ inline bool IndexExpr::operator==(IndexExpr const& other) const {
 }
 inline bool VecLiteral::operator==(VecLiteral const& other) const = default;
 inline bool FunctionCall::operator==(FunctionCall const& other) const = default;
-
 
 struct BreakStmt {
     bool operator==(BreakStmt const& other) const = default;

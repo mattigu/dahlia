@@ -154,13 +154,13 @@ function_arguments
     = [ expression, { ",", expression } ];
 
 expression
-    = disjunction, { ( "?" | ":>" ), disjunction };
+    = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };
 
-disjunction
-    = conjunction, { "or", conjunction };
+logical_or_expr
+    = logical_and_expr, { "or", logical_and_expr };
 
-conjunction
-    = relation_term, { "and", relation_term };
+logical_and_expr
+    = relation_expr, { "and", relation_expr };
 
 relation_operator
     = ">="
@@ -170,25 +170,25 @@ relation_operator
     | "=="
     | "!=";
 
-relation_term
-    = in_application, { relation_operator, in_application };
+relation_expr
+    = in_expr, { relation_operator, in_expr };
 
-in_application
-    = intersection_application, { "in", intersection_application };
+in_expr
+    = intersection_expr, { "in", intersection_expr };
 
-intersection_application
-    = additive_term, { "><", additive_term };
+intersection_expr
+    = additive_expr, { "><", additive_expr };
 
-additive_term
-    = multiplicative_term, { ( "+" | "-" ), multiplicative_term };
+additive_expr
+    = multiplicative_expr, { ( "+" | "-" ), multiplicative_expr };
 
-multiplicative_term
-    = unary_application, { ( "*" | "/" ), unary_application };
+multiplicative_expr
+    = unary_expr, { ( "*" | "/" ), unary_expr };
 
-unary_application
-    = [ "-" | "!" | "@" ], index_application;
+unary_expr
+    = [ "-" | "!" | "@" ], index_expr;
 
-index_application
+index_expr
     = term, { "[", expression, "]" };
 
 term
