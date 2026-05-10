@@ -598,9 +598,9 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses double indexed assignment") {
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses function call statement") {
     auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "fun"},
-                                        {TokenKind::ParenOpen},
-                                        {TokenKind::ParenClose},
-                                        {TokenKind::Semicolon}});
+                                              {TokenKind::ParenOpen},
+                                              {TokenKind::ParenClose},
+                                              {TokenKind::Semicolon}});
     CHECK(stmts == makeVec<StatementNode>(StatementNode(
                        pos[0], FunctionCall{.identifier = "fun", .args = {}})));
 }
@@ -608,12 +608,12 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses function call statement") {
 TEST_CASE_FIXTURE(ParserFixture,
                   "Parser parses function call statement with arguments") {
     auto const [stmts, pos] = parseStatement({{TokenKind::Identifier, "fun"},
-                                        {TokenKind::ParenOpen},
-                                        {TokenKind::Identifier, "a"},
-                                        {TokenKind::Comma},
-                                        {TokenKind::Identifier, "b"},
-                                        {TokenKind::ParenClose},
-                                        {TokenKind::Semicolon}});
+                                              {TokenKind::ParenOpen},
+                                              {TokenKind::Identifier, "a"},
+                                              {TokenKind::Comma},
+                                              {TokenKind::Identifier, "b"},
+                                              {TokenKind::ParenClose},
+                                              {TokenKind::Semicolon}});
     CHECK(stmts ==
           makeVec<StatementNode>(StatementNode(
               pos[0],
@@ -622,6 +622,19 @@ TEST_CASE_FIXTURE(ParserFixture,
                   .args = makeVec<ExprNode>(
                       ExprNode(pos[2], Identifier{.identifier = "a"}),
                       ExprNode(pos[4], Identifier{.identifier = "b"}))})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses break statement") {
+    auto const [stmts, pos] =
+        parseStatement({{TokenKind::Break}, {TokenKind::Semicolon}});
+    CHECK(stmts == makeVec<StatementNode>(StatementNode(pos[0], BreakStmt{})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses continue statement") {
+    auto const [stmts, pos] =
+        parseStatement({{TokenKind::Continue}, {TokenKind::Semicolon}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(pos[0], ContinueStmt{})));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple indexing expression") {

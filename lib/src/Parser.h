@@ -268,8 +268,10 @@ private:
     std::optional<StatementNode> tryParseStatement() {
         auto const start_pos = current_.pos();
 
-        auto stmt = tryParseLetBinding().or_else(
-            [this]() { return tryParseCallOrAssign(); });
+        auto stmt = tryParseLetBinding()
+                        .or_else([this]() { return tryParseCallOrAssign(); })
+                        .or_else([this]() { return tryParseContinueStmt(); })
+                        .or_else([this]() { return tryParseBreakStmt(); });
         if (stmt) {
             expect(TokenKind::Semicolon);
             return stmt;
@@ -399,6 +401,21 @@ private:
                 return StatementNode(start_pos, constructor(std::move(lvalue),
                                                             std::move(*expr)));
             }
+        }
+        return std::nullopt;
+    }
+    std::optional<StatementNode> tryParseBreakStmt() {
+        auto const start_pos = current_.pos();
+        if (consume(TokenKind::Break)) {
+            return StatementNode(start_pos, BreakStmt{});
+        }
+        return std::nullopt;
+    }
+
+    std::optional<StatementNode> tryParseContinueStmt() {
+        auto const start_pos = current_.pos();
+        if (consume(TokenKind::Continue)) {
+            return StatementNode(start_pos, ContinueStmt{});
         }
         return std::nullopt;
     }
