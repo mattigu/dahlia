@@ -306,10 +306,11 @@ struct ModAssignStmt : AssignBase {
     using AssignBase::AssignBase;
 };
 
+struct Block;
 using StatementKind =
     std::variant<BreakStmt, ContinueStmt, ReturnStmt, LetBinding, AssignStmt, AddAssignStmt,
                  SubAssignStmt, MulAssignStmt, DivAssignStmt, ModAssignStmt,
-                 FunctionCall>;
+                 FunctionCall, Block>;
 using StatementNode = Node<StatementKind>;
 
 struct Block {

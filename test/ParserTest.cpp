@@ -646,11 +646,28 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty return statement") {
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses return statement with value") {
     auto const [stmts, pos] = parseStatement({{TokenKind::Return},
-                                        {TokenKind::IntLiteral, 1},
-                                        {TokenKind::Semicolon}});
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Semicolon}});
     CHECK(stmts ==
           makeVec<StatementNode>(StatementNode(
               pos[0], ReturnStmt{.value = ExprNode(pos[1], IntLiteral{1})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses nested blocks") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::BraceOpen},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::Break},
+                                              {TokenKind::Semicolon},
+                                              {TokenKind::BraceClose},
+                                              {TokenKind::BraceClose}});
+
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0],
+              Block{.statements = makeVec<StatementNode>(StatementNode(
+                        pos[1],
+                        Block{.statements = makeVec<StatementNode>(
+                                  StatementNode(pos[2], BreakStmt{}))}))})));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple indexing expression") {

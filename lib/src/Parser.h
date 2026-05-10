@@ -11,8 +11,8 @@
 #include "Diagnostics.hpp"
 #include "Lexer.h"
 #include "ParserDiagnostic.h"
+#include "Position.h"
 #include "Token.h"
-#include "src/Position.h"
 
 template <typename L>
 class ParserTemplate {
@@ -268,14 +268,25 @@ private:
     std::optional<StatementNode> tryParseStatement() {
         auto const start_pos = current_.pos();
 
-        auto stmt = tryParseLetBinding()
-                        .or_else([this]() { return tryParseCallOrAssign(); })
-                        .or_else([this]() { return tryParseContinueStmt(); })
-                        .or_else([this]() { return tryParseBreakStmt(); })
-                        .or_else([this]() { return tryParseReturnStmt(); });
-        if (stmt) {
+        auto block_stmt = tryParseBlock();
+        if (block_stmt) {
+            return StatementNode(start_pos, std::move(**block_stmt));
+        }
+
+        // auto unterminated_stmt = tryParseBlock();
+        // if (unterminated_stmt) {
+        //     return StatementNode(start_pos, std::move(*unterminated_stmt));
+        // }
+
+        auto terminated_stmt =
+            tryParseLetBinding()
+                .or_else([this]() { return tryParseCallOrAssign(); })
+                .or_else([this]() { return tryParseContinueStmt(); })
+                .or_else([this]() { return tryParseBreakStmt(); })
+                .or_else([this]() { return tryParseReturnStmt(); });
+        if (terminated_stmt) {
             expect(TokenKind::Semicolon);
-            return stmt;
+            return terminated_stmt;
         }
         return std::nullopt;
     }
