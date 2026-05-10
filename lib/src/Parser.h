@@ -12,6 +12,7 @@
 #include "Lexer.h"
 #include "ParserDiagnostic.h"
 #include "Token.h"
+#include "src/Position.h"
 
 template <typename L>
 class ParserTemplate {
@@ -268,7 +269,7 @@ private:
         auto const start_pos = current_.pos();
 
         auto stmt = tryParseLetBinding().or_else(
-            [this]() { return tryParseAssignmentStmt(); });
+            [this]() { return tryParseCallOrAssign(); });
         if (stmt) {
             expect(TokenKind::Semicolon);
             return stmt;
@@ -314,15 +315,52 @@ private:
                                         .value = std::move(*expr)});
     }
 
-    // if expression skipped for now
-    // assignment_statement = lvalue, ("=" | compound_assignment_op),
-    // (if_expression | expression);
-    std::optional<StatementNode> tryParseAssignmentStmt() {
+    // These 2 take the identifier and build the full FunctionCall or AssignStmt
+    // call_or_assign = IDENTIFIER, ( call_suffix | assignment_suffix );
+    std::optional<StatementNode> tryParseCallOrAssign() {
         auto const start_pos = current_.pos();
-        auto lvalue = tryParseLValue();
-        if (!lvalue) {
+
+        auto const identifier = consumeIdentifier();
+        if (!identifier) {
             return std::nullopt;
         }
+        auto call_or_assign =
+            tryParseCallSuffix(start_pos, *identifier).or_else([&]() {
+                return tryParseAssignmentSuffix(start_pos, *identifier);
+            });
+
+        return call_or_assign;
+    }
+
+    // call_suffix = "(", function_arguments, ")";
+    std::optional<StatementNode> tryParseCallSuffix(
+        Position start_pos, std::string const& identifier) {
+        if (!consume(TokenKind::ParenOpen)) {
+            return std::nullopt;
+        }
+        auto args = tryParseFunctionArgs();
+
+        expect(TokenKind::ParenClose);
+        return StatementNode(start_pos, FunctionCall{.identifier = identifier,
+                                                     .args = std::move(args)});
+    }
+
+    // if expression skipped for now
+    // assignment_suffix = { "[", expression, "]" }, ( "=" |
+    // compound_assignment_op ), ( if_expression | expression );
+    std::optional<StatementNode> tryParseAssignmentSuffix(
+        auto const start_pos, std::string const& identifier) {
+        std::vector<ExprNode> indices;
+        while (consume(TokenKind::BracketOpen)) {
+            auto expr = tryParseExpression();
+            if (!expr) {
+                throwDiag(ExpectedExpression{}, current_.pos());
+            }
+            expect(TokenKind::BracketClose);
+            indices.push_back(std::move(*expr));
+        }
+        auto lvalue =
+            LValue{.identifier = identifier, .indices = std::move(indices)};
 
         using Constructor = std::function<StatementKind(LValue, ExprNode)>;
         auto static const ops =
@@ -352,42 +390,17 @@ private:
                      return ModAssignStmt{std::move(lval), std::move(expr)};
                  }},
             });
-        for (auto& [kind, constructor] : ops) {
+        for (auto const& [kind, constructor] : ops) {
             if (consume(kind)) {
                 auto expr = tryParseExpression();
                 if (!expr) {
                     throwDiag(ExpectedExpression{}, current_.pos());
                 }
-                return StatementNode(start_pos, constructor(std::move(*lvalue),
+                return StatementNode(start_pos, constructor(std::move(lvalue),
                                                             std::move(*expr)));
             }
         }
-        throwDiag(
-            ExpectedToken{.expected = TokenKind::Equal, .got = current_.kind()},
-            current_.pos());
-
-        std::unreachable();
-    }
-
-    // lvalue = IDENTIFIER, { "[", expression, "]" };
-    std::optional<LValue> tryParseLValue() {
-        auto const start_pos = current_.pos();
-        auto identifier = consumeIdentifier();
-
-        if (!identifier) {
-            return std::nullopt;
-        }
-        std::vector<ExprNode> indices;
-        while (consume(TokenKind::BracketOpen)) {
-            auto expr = tryParseExpression();
-            if (!expr) {
-                throwDiag(ExpectedExpression{}, current_.pos());
-            }
-            expect(TokenKind::BracketClose);
-            indices.push_back(std::move(*expr));
-        }
-        return LValue{.identifier = std::move(*identifier),
-                      .indices = std::move(indices)};
+        return std::nullopt;
     }
 
     // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };

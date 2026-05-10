@@ -28,11 +28,10 @@ block
 
 statement
     = let_binding, ";"
-    | assignment_statement, ";"
+    | call_or_assign, ";"
     | return_statement, ";"
     | break_statement, ";"
     | continue_statement, ";"
-    | function_call, ";"
     | block
     | if_statement
     | while_loop
@@ -41,12 +40,15 @@ statement
 let_binding
     = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", ( if_expression | expression );
 
-assignment_statement
-    = lvalue, ( "=" | compound_assignment_op ), ( if_expression | expression );
+call_or_assign
+    = IDENTIFIER, ( call_suffix | assignment_suffix );
 
-lvalue
-    = IDENTIFIER, { "[", expression, "]" };
-    
+call_suffix
+    = "(", function_arguments, ")";
+
+assignment_suffix
+    = { "[", expression, "]" }, ( "=" | compound_assignment_op ), ( if_expression | expression );
+
 if_expression
     = "if", expression, "{", expression, "}", "else", "{", expression, "}";
 
@@ -146,9 +148,6 @@ vec_literal
 
 vec_elements
     = [ expression, { ",", expression }, [ "," ] ];
-
-function_call
-    = IDENTIFIER, "(", function_arguments, ")";
 
 function_arguments
     = [ expression, { ",", expression } ];
