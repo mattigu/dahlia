@@ -271,7 +271,8 @@ private:
         auto stmt = tryParseLetBinding()
                         .or_else([this]() { return tryParseCallOrAssign(); })
                         .or_else([this]() { return tryParseContinueStmt(); })
-                        .or_else([this]() { return tryParseBreakStmt(); });
+                        .or_else([this]() { return tryParseBreakStmt(); })
+                        .or_else([this]() { return tryParseReturnStmt(); });
         if (stmt) {
             expect(TokenKind::Semicolon);
             return stmt;
@@ -406,18 +407,29 @@ private:
     }
     std::optional<StatementNode> tryParseBreakStmt() {
         auto const start_pos = current_.pos();
-        if (consume(TokenKind::Break)) {
-            return StatementNode(start_pos, BreakStmt{});
+        if (!consume(TokenKind::Break)) {
+            return std::nullopt;
         }
-        return std::nullopt;
+        return StatementNode(start_pos, BreakStmt{});
     }
 
     std::optional<StatementNode> tryParseContinueStmt() {
         auto const start_pos = current_.pos();
-        if (consume(TokenKind::Continue)) {
-            return StatementNode(start_pos, ContinueStmt{});
+        if (!consume(TokenKind::Continue)) {
+            return std::nullopt;
         }
-        return std::nullopt;
+        return StatementNode(start_pos, ContinueStmt{});
+    }
+
+    // return_statement = "return", [ expression ], ";";
+    std::optional<StatementNode> tryParseReturnStmt() {
+        auto const start_pos = current_.pos();
+        if (!consume(TokenKind::Return)) {
+            return std::nullopt;
+        }
+        auto expr = tryParseExpression();
+
+        return StatementNode(start_pos, ReturnStmt{.value = std::move(expr)});
     }
 
     // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };

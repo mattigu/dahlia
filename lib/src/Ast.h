@@ -255,6 +255,12 @@ struct BreakStmt {
 struct ContinueStmt {
     bool operator==(ContinueStmt const& other) const = default;
 };
+
+struct ReturnStmt {
+    std::optional<ExprNode> value;
+    bool operator==(ReturnStmt const& other) const = default;
+};
+
 struct ForLoop {
     bool operator==(ForLoop const& other) const = default;
 };
@@ -301,7 +307,7 @@ struct ModAssignStmt : AssignBase {
 };
 
 using StatementKind =
-    std::variant<BreakStmt, ContinueStmt, LetBinding, AssignStmt, AddAssignStmt,
+    std::variant<BreakStmt, ContinueStmt, ReturnStmt, LetBinding, AssignStmt, AddAssignStmt,
                  SubAssignStmt, MulAssignStmt, DivAssignStmt, ModAssignStmt,
                  FunctionCall>;
 using StatementNode = Node<StatementKind>;

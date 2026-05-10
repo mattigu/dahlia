@@ -637,6 +637,22 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses continue statement") {
           makeVec<StatementNode>(StatementNode(pos[0], ContinueStmt{})));
 }
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty return statement") {
+    auto const [stmts, pos] =
+        parseStatement({{TokenKind::Return}, {TokenKind::Semicolon}});
+    CHECK(stmts == makeVec<StatementNode>(StatementNode(
+                       pos[0], ReturnStmt{.value = std::nullopt})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses return statement with value") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::Return},
+                                        {TokenKind::IntLiteral, 1},
+                                        {TokenKind::Semicolon}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], ReturnStmt{.value = ExprNode(pos[1], IntLiteral{1})})));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple indexing expression") {
     auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
                                               {TokenKind::BracketOpen},

@@ -77,13 +77,13 @@ range_bound
     | "(", expression, ")";
 
 return_statement
-    = "return", [ expression ], ";";
+    = "return", [ expression ];
 
 break_statement
-    = "break", ";";
+    = "break";
 
 continue_statement
-    = "continue", ";";
+    = "continue";
 
 (* Keywords are excluded from identifiers *)
 IDENTIFIER
