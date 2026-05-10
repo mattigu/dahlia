@@ -178,9 +178,8 @@ public:
         REQUIRE(std::holds_alternative<LetBinding>(*stmt));
 
         auto& let = std::get<LetBinding>(*stmt);
-        auto value = std::move(let.value);
-        return std::pair<ExprNode, std::span<Position const>>(
-            std::move(value), std::span(positions_).subspan(offset));
+        return std::make_pair(std::move(let.value),
+                              std::span(positions_).subspan(offset));
     }
 
     static constexpr void assertTokensMatch(
@@ -189,7 +188,7 @@ public:
         Lexer lexer{stream};
         lexer.next();
         for (auto const& mock : tokens) {
-            auto token = lexer.current();
+            auto const token = lexer.current();
             REQUIRE(token.kind() == mock.kind_);
             REQUIRE(token.value() == mock.value_);
             lexer.next();
@@ -600,4 +599,39 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses negation expression") {
         parseExpression({{TokenKind::Exclamation}, {TokenKind::IntLiteral, 1}});
     CHECK(expr ==
           ExprNode(pos[0], NotExpr(ExprNode(pos[1], IntLiteral{.value = 1}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses multiplication expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 2},
+                                              {TokenKind::Asterisk},
+                                              {TokenKind::IntLiteral, 3}});
+    CHECK(expr ==
+          ExprNode(pos[1], MulExpr(ExprNode(pos[0], IntLiteral{.value = 2}),
+                                   ExprNode(pos[2], IntLiteral{.value = 3}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses division expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 6},
+                                              {TokenKind::Slash},
+                                              {TokenKind::IntLiteral, 2}});
+    CHECK(expr ==
+          ExprNode(pos[1], DivExpr(ExprNode(pos[0], IntLiteral{.value = 6}),
+                                   ExprNode(pos[2], IntLiteral{.value = 2}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses multiplicative left associativity") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 2},
+                                              {TokenKind::Asterisk},
+                                              {TokenKind::IntLiteral, 3},
+                                              {TokenKind::Asterisk},
+                                              {TokenKind::IntLiteral, 4}});
+    CHECK(
+        expr ==
+        ExprNode(
+            pos[3],
+            MulExpr(ExprNode(pos[1],
+                             MulExpr(ExprNode(pos[0], IntLiteral{.value = 2}),
+                                     ExprNode(pos[2], IntLiteral{.value = 3}))),
+                    ExprNode(pos[4], IntLiteral{.value = 4}))));
 }

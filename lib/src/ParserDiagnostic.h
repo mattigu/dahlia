@@ -2,7 +2,7 @@
 #include <variant>
 
 #include "Token.h"
-#include "src/Position.h"
+#include "Position.h"
 
 struct ExpectedToken {
     TokenKind expected;

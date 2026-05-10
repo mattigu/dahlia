@@ -310,7 +310,39 @@ private:
                           .value = std::move(*expr)};
     }
 
-    std::optional<ExprNode> tryParseExpression() { return tryParseUnaryExpr(); }
+    std::optional<ExprNode> tryParseExpression() {
+        return tryParseMultiplicativeExpr();
+    }
+
+    // multiplicative_expr= unary_expr, { ( "*" | "/" ), unary_expr };
+    std::optional<ExprNode> tryParseMultiplicativeExpr() {
+        auto left = tryParseUnaryExpr();
+        if (!left) {
+            return std::nullopt;
+        }
+
+        while (true) {
+            auto const pos = current_.pos();
+            if (consume(TokenKind::Asterisk)) {
+                auto right = tryParseUnaryExpr();
+                if (!right) {
+                    throwDiag(ExpectedExpression{}, current_.pos());
+                }
+                left =
+                    ExprNode(pos, MulExpr(std::move(*left), std::move(*right)));
+            } else if (consume(TokenKind::Slash)) {
+                auto right = tryParseUnaryExpr();
+                if (!right) {
+                    throwDiag(ExpectedExpression{}, current_.pos());
+                }
+                left =
+                    ExprNode(pos, DivExpr(std::move(*left), std::move(*right)));
+            } else {
+                break;
+            }
+        }
+        return left;
+    }
 
     // unary_expr = [ "-" | "!" | "@" ], index_expr;
     std::optional<ExprNode> tryParseUnaryExpr() {

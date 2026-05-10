@@ -30,8 +30,8 @@ public:
     bool operator==(Node const& other) const = default;
 
 private:
+    Position pos_;
     T value_;
-    Position pos_{};
 };
 
 class Type;
@@ -110,10 +110,12 @@ struct IndexExpr;
 struct NegExpr;
 struct LengthExpr;
 struct NotExpr;
+struct MulExpr;
+struct DivExpr;
 
 using Expr = std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
                           VecLiteral, Identifier, FunctionCall, IndexExpr,
-                          NegExpr, LengthExpr, NotExpr>;
+                          NegExpr, LengthExpr, NotExpr, MulExpr, DivExpr>;
 using ExprNode = Node<Expr>;
 
 struct FunctionCall {
@@ -159,6 +161,12 @@ struct NotExpr : UnaryBase {
 struct LengthExpr : UnaryBase {
     using UnaryBase::UnaryBase;
 };
+struct MulExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct DivExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
 
 inline BinaryBase::BinaryBase(ExprNode left, ExprNode right)
     : left(std::make_unique<ExprNode>(std::move(left))),
@@ -180,6 +188,7 @@ inline bool IndexExpr::operator==(IndexExpr const& other) const {
 }
 inline bool VecLiteral::operator==(VecLiteral const& other) const = default;
 inline bool FunctionCall::operator==(FunctionCall const& other) const = default;
+
 
 struct BreakStmt {
     bool operator==(BreakStmt const& other) const = default;
