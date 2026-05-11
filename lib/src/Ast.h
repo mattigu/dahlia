@@ -307,18 +307,49 @@ struct ModAssignStmt : AssignBase {
 };
 
 struct Block;
+using BlockNode = Node<Block>;
+struct IfStmt;
+
 using StatementKind =
-    std::variant<BreakStmt, ContinueStmt, ReturnStmt, LetBinding, AssignStmt, AddAssignStmt,
-                 SubAssignStmt, MulAssignStmt, DivAssignStmt, ModAssignStmt,
-                 FunctionCall, Block>;
+    std::variant<BreakStmt, ContinueStmt, ReturnStmt, LetBinding, AssignStmt,
+                 AddAssignStmt, SubAssignStmt, MulAssignStmt, DivAssignStmt,
+                 ModAssignStmt, FunctionCall, Block, IfStmt>;
 using StatementNode = Node<StatementKind>;
 
 struct Block {
     std::vector<StatementNode> statements;
 
-    bool operator==(Block const& other) const = default;
+    bool operator==(Block const& other) const;
 };
-using BlockNode = Node<Block>;
+
+struct IfStmt {
+    ExprNode if_cond;
+    std::unique_ptr<BlockNode> if_block;
+
+    std::vector<std::pair<ExprNode, BlockNode>> else_if_branches;
+    std::unique_ptr<BlockNode> else_block;
+
+    IfStmt(ExprNode if_cond, BlockNode if_block,
+           std::vector<std::pair<ExprNode, BlockNode>> else_if_branches,
+           std::optional<BlockNode> else_block)
+        : if_cond(std::move(if_cond)),
+          if_block(std::make_unique<BlockNode>(std::move(if_block))),
+          else_if_branches(std::move(else_if_branches)),
+          else_block(else_block
+                         ? std::make_unique<BlockNode>(std::move(*else_block))
+                         : nullptr) {}
+
+    bool operator==(IfStmt const& other) const;
+};
+
+inline bool Block::operator==(Block const&) const = default;
+inline bool IfStmt::operator==(IfStmt const& other) const {
+    return if_cond == other.if_cond && *if_block == *other.if_block &&
+           else_if_branches == other.else_if_branches &&
+           static_cast<bool>(else_block) ==
+               static_cast<bool>(other.else_block) &&
+           (!else_block || *else_block == *other.else_block);
+}
 
 struct Param {
     TypeNode type;

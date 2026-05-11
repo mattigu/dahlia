@@ -670,6 +670,81 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses nested blocks") {
                                   StatementNode(pos[2], BreakStmt{}))}))})));
 }
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple if statement") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::If},
+                                              {TokenKind::True},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], IfStmt(ExprNode(pos[1], BoolLiteral{true}),
+                             BlockNode(pos[2], Block{}), {}, std::nullopt))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses if else statement") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::If},
+                                              {TokenKind::True},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose},
+                                              {TokenKind::Else},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+    CHECK(stmts == makeVec<StatementNode>(StatementNode(
+                       pos[0], IfStmt(ExprNode(pos[1], BoolLiteral{true}),
+                                      BlockNode(pos[2], Block{}), {},
+                                      BlockNode(pos[5], Block{})))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses if with multiple else ifs") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::If},
+                                              {TokenKind::True},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose},
+                                              {TokenKind::Else},
+                                              {TokenKind::If},
+                                              {TokenKind::False},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose},
+                                              {TokenKind::Else},
+                                              {TokenKind::If},
+                                              {TokenKind::True},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], IfStmt(ExprNode(pos[1], BoolLiteral{true}),
+                             BlockNode(pos[2], Block{}),
+                             makeVec<std::pair<ExprNode, BlockNode>>(
+                                 std::pair{ExprNode(pos[6], BoolLiteral{false}),
+                                           BlockNode(pos[7], Block{})},
+                                 std::pair{ExprNode(pos[11], BoolLiteral{true}),
+                                           BlockNode(pos[12], Block{})}),
+                             std::nullopt))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses if with else ifs and else") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::If},
+                                              {TokenKind::True},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose},
+                                              {TokenKind::Else},
+                                              {TokenKind::If},
+                                              {TokenKind::False},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose},
+                                              {TokenKind::Else},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], IfStmt(ExprNode(pos[1], BoolLiteral{true}),
+                             BlockNode(pos[2], Block{}),
+                             makeVec<std::pair<ExprNode, BlockNode>>(
+                                 std::pair{ExprNode(pos[6], BoolLiteral{false}),
+                                           BlockNode(pos[7], Block{})}),
+                             BlockNode(pos[10], Block{})))));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple indexing expression") {
     auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
                                               {TokenKind::BracketOpen},

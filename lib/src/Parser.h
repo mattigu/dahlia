@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -273,10 +274,10 @@ private:
             return StatementNode(start_pos, std::move(**block_stmt));
         }
 
-        // auto unterminated_stmt = tryParseBlock();
-        // if (unterminated_stmt) {
-        //     return StatementNode(start_pos, std::move(*unterminated_stmt));
-        // }
+        auto unterminated_stmt = tryParseIfStmt();
+        if (unterminated_stmt) {
+            return std::move(*unterminated_stmt);
+        }
 
         auto terminated_stmt =
             tryParseLetBinding()
@@ -443,6 +444,56 @@ private:
         return StatementNode(start_pos, ReturnStmt{.value = std::move(expr)});
     }
 
+    // if_statement = "if", expression, block, { "else", "if", expression, block
+    // }, [ "else", block ];
+    std::optional<StatementNode> tryParseIfStmt() {
+        auto const start_pos = current_.pos();
+        if (!consume(TokenKind::If)) {
+            return std::nullopt;
+        }
+        auto if_cond = tryParseExpression();
+        if (!if_cond) {
+            throwDiag(ExpectedExpression{}, current_.pos());
+        }
+        auto if_block = tryParseBlock();
+        if (!if_block) {
+            throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
+                                    .got = current_.kind()},
+                      current_.pos());
+        }
+
+        std::vector<std::pair<ExprNode, BlockNode>> else_ifs;
+        std::optional<BlockNode> else_block = std::nullopt;
+
+        while (consume(TokenKind::Else)) {
+            if (consume(TokenKind::If)) {
+                auto cond = tryParseExpression();
+                if (!cond) {
+                    throwDiag(ExpectedExpression{}, current_.pos());
+                }
+                auto block = tryParseBlock();
+                if (!block) {
+                    throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
+                                            .got = current_.kind()},
+                              current_.pos());
+                }
+                else_ifs.push_back({std::move(*cond), std::move(*block)});
+
+            } else {
+                else_block = std::move(tryParseBlock());
+                if (!else_block) {
+                    throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
+                                            .got = current_.kind()},
+                              current_.pos());
+                }
+                break;
+            }
+        }
+        return StatementNode(
+            start_pos, IfStmt{std::move(*if_cond), std::move(*if_block),
+                              std::move(else_ifs), std::move(else_block)});
+    }
+
     // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };
     std::optional<ExprNode> tryParseExpression() {
         return tryParseBinaryExpr(&ParserTemplate::tryParseDisjunctionExpr,
@@ -485,7 +536,8 @@ private:
                                   binOp<IntersectExpr>(TokenKind::GreaterLess));
     }
 
-    // additive_expr = multiplicative_expr, { ( "+" | "-" ), multiplicative_expr
+    // additive_expr = multiplicative_expr, { ( "+" | "-" ),
+    // multiplicative_expr
     // };
     std::optional<ExprNode> tryParseAdditiveExpr() {
         return tryParseBinaryExpr(&ParserTemplate::tryParseMultiplicativeExpr,
