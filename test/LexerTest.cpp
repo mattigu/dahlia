@@ -3,6 +3,7 @@
 #include <string>
 
 #include "doctest.h"
+#include "src/Diagnostics.hpp"
 #include "src/Lexer.h"
 #include "src/LexerDiagnostics.h"
 #include "src/Position.h"
@@ -87,13 +88,10 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 4, .offset = 3}});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{UnexpectedChar{.chr = '^'}});
-
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 4, .offset = 3});
+    CHECK(diagnostics().last() ==
+          LexerDiagnostic{.kind = UnexpectedChar{.chr = '^'},
+                          .pos = Position{.line = 1, .column = 4, .offset = 3},
+                          .severity = Severity::Error});
 
     CHECK(next() == Token{TokenKind::Semicolon,
                           Position{.line = 1, .column = 5, .offset = 4}});
@@ -144,12 +142,10 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports comments too long") {
                           Position{.line = 2, .column = 1, .offset = 3},
                           TokenValue("1")});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind == LexerDiagnosticKind{CommentTooLong{}});
-
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 2, .column = 1, .offset = 3});
+    CHECK(diagnostics().last() ==
+          LexerDiagnostic{.kind = CommentTooLong{},
+                          .pos = Position{.line = 2, .column = 1, .offset = 3},
+                          .severity = Severity::Warning});
 
     CHECK(next() == Token{TokenKind::Semicolon,
                           Position{.line = 3, .column = 1, .offset = 7}});
@@ -176,13 +172,10 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{UnterminatedString{}});
-
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 1, .offset = 0});
+    CHECK(diagnostics().last() ==
+          LexerDiagnostic{.kind = UnterminatedString{},
+                          .pos = Position{.line = 1, .column = 1, .offset = 0},
+                          .severity = Severity::Error});
 
     CHECK(next() == Token{TokenKind::Semicolon,
                           Position{.line = 2, .column = 1, .offset = 7}});
@@ -286,9 +279,11 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects integer overflow") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 21, .offset = 20}});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind == LexerDiagnosticKind{IntegerOverflow{}});
+    CHECK(
+        diagnostics().last() ==
+        LexerDiagnostic{.kind = IntegerOverflow{},
+                        .pos = Position{.line = 1, .column = 21, .offset = 20},
+                        .severity = Severity::Error});
 
     CHECK(next() == Token{TokenKind::ETX,
                           Position{.line = 1, .column = 40, .offset = 39}});
@@ -300,13 +295,10 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects double separators") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{InvalidNumericSeparator{}});
-
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 3, .offset = 2});
+    CHECK(diagnostics().last() ==
+          LexerDiagnostic{.kind = InvalidNumericSeparator{},
+                          .pos = Position{.line = 1, .column = 3, .offset = 2},
+                          .severity = Severity::Error});
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 1, .column = 5, .offset = 4}});
@@ -318,13 +310,10 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects leading separator") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{InvalidNumericSeparator{}});
-
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 1, .offset = 0});
+    CHECK(diagnostics().last() ==
+          LexerDiagnostic{.kind = InvalidNumericSeparator{},
+                          .pos = Position{.line = 1, .column = 1, .offset = 0},
+                          .severity = Severity::Error});
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 1, .column = 5, .offset = 4}});
@@ -336,13 +325,10 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects trailing separator") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{InvalidNumericSeparator{}});
-
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 4, .offset = 3});
+    CHECK(diagnostics().last() ==
+          LexerDiagnostic{.kind = InvalidNumericSeparator{},
+                          .pos = Position{.line = 1, .column = 4, .offset = 3},
+                          .severity = Severity::Error});
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 1, .column = 5, .offset = 4}});
@@ -355,13 +341,10 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind ==
-          LexerDiagnosticKind{InvalidNumericSeparator{}});
-
-    CHECK(diagnostics().last().pos ==
-          Position{.line = 1, .column = 2, .offset = 1});
+    CHECK(diagnostics().last() ==
+          LexerDiagnostic{.kind = InvalidNumericSeparator{},
+                          .pos = Position{.line = 1, .column = 2, .offset = 1},
+                          .severity = Severity::Error});
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 1, .column = 5, .offset = 4}});
@@ -451,9 +434,10 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    REQUIRE(!diagnostics().empty());
-
-    CHECK(diagnostics().last().kind == LexerDiagnosticKind{FloatOutOfRange{}});
+    CHECK(diagnostics().last() ==
+          LexerDiagnostic{.kind = FloatOutOfRange{},
+                          .pos = Position{.line = 1, .column = 1, .offset = 0},
+                          .severity = Severity::Error});
 
     CHECK(next() == Token{TokenKind::ETX, Position{
                                               .line = 1,

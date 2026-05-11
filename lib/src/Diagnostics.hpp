@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cstdint>
+#include <cassert>
 #include <vector>
 
 #include "Position.h"
@@ -29,7 +30,10 @@ public:
 
     auto const& all() const noexcept { return diagnostics_; };
 
-    auto const& last() const noexcept { return diagnostics_.back(); }
+    Diagnostic<Kind> last() const noexcept {
+        assert(!diagnostics_.empty());
+        return diagnostics_.back();
+    }
 
     [[nodiscard]] bool empty() const noexcept { return diagnostics_.empty(); }
 

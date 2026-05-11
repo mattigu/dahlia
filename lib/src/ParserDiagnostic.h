@@ -1,8 +1,9 @@
 #pragma once
 #include <variant>
 
-#include "Token.h"
+#include "Diagnostics.hpp"
 #include "Position.h"
+#include "Token.h"
 
 struct ExpectedToken {
     TokenKind expected;
@@ -27,4 +28,6 @@ struct FunctionRedefined {
 };
 
 using ParserDiagnosticKind =
-    std::variant<ExpectedToken, ExpectedType, ExpectedExpression, FunctionRedefined>;
+    std::variant<ExpectedToken, ExpectedType, ExpectedExpression,
+                 FunctionRedefined>;
+using ParserDiagnostic = Diagnostic<ParserDiagnosticKind>;

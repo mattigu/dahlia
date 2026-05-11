@@ -1,6 +1,8 @@
 #pragma once
 #include <variant>
 
+#include "Diagnostics.hpp"
+
 struct UnterminatedString {
     bool operator==(UnterminatedString const&) const = default;
 };
@@ -57,3 +59,4 @@ using LexerDiagnosticKind =
                  UnexpectedChar, ExpectedChar, InvalidNumericSeparator,
                  InvalidNumericLiteral, IntegerOverflow, FloatOutOfRange,
                  StringTooLong, CommentTooLong, IdentifierTooLong>;
+using LexerDiagnostic = Diagnostic<LexerDiagnosticKind>;

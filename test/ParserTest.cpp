@@ -8,6 +8,7 @@
 
 #include "doctest.h"
 #include "src/Ast.h"
+#include "src/Diagnostics.hpp"
 #include "src/Parser.h"
 #include "src/ParserDiagnostic.h"
 #include "src/Position.h"
@@ -262,10 +263,11 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser detects redefined functions") {
     REQUIRE(!program.has_value());
     REQUIRE(!diagnostics().empty());
 
-    REQUIRE(diagnostics().last().kind ==
-            ParserDiagnosticKind{FunctionRedefined{.identifier = "main",
-                                                   .original_pos = pos[0]}});
-    REQUIRE(diagnostics().last().pos == pos[6]);
+    CHECK(diagnostics().last() ==
+          ParserDiagnostic{.kind = {FunctionRedefined{.identifier = "main",
+                                                      .original_pos = pos[0]}},
+                           .pos = pos[6],
+                           .severity = Severity::Error});
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses function parameters") {
