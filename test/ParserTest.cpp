@@ -209,6 +209,11 @@ public:
         return vec;
     }
 
+    template <typename... Args>
+    std::vector<StatementNode> makeStatements(Args&&... args) {
+        return makeVec<StatementNode>(std::forward<Args>(args)...);
+    }
+
     std::optional<ProgramNode> parse() { return parser_->parse(); }
     auto const& diagnostics() { return parser_->diagnostics(); }
 
@@ -527,7 +532,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple assignment") {
                                               {TokenKind::Equal},
                                               {TokenKind::IntLiteral, 1},
                                               {TokenKind::Semicolon}});
-    CHECK(stmts == makeVec<StatementNode>(StatementNode(
+    CHECK(stmts == makeStatements(StatementNode(
                        pos[0], AssignStmt{LValue{.identifier = "a"},
                                           ExprNode(pos[2], IntLiteral{1})})));
 }
@@ -538,7 +543,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses add assignment") {
                                               {TokenKind::IntLiteral, 1},
                                               {TokenKind::Semicolon}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], AddAssignStmt{LValue{.identifier = "a"},
                                     ExprNode(pos[2], IntLiteral{1})})));
 }
@@ -549,7 +554,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses sub assignment") {
                                               {TokenKind::IntLiteral, 1},
                                               {TokenKind::Semicolon}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], SubAssignStmt{LValue{.identifier = "a"},
                                     ExprNode(pos[2], IntLiteral{1})})));
 }
@@ -561,7 +566,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses mul assignment") {
                                               {TokenKind::Semicolon}});
 
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], MulAssignStmt{LValue{.identifier = "a"},
                                     ExprNode(pos[2], IntLiteral{1})})));
 }
@@ -572,7 +577,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses div assignment") {
                                               {TokenKind::IntLiteral, 1},
                                               {TokenKind::Semicolon}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], DivAssignStmt{LValue{.identifier = "a"},
                                     ExprNode(pos[2], IntLiteral{1})})));
 }
@@ -583,7 +588,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses mod assignment") {
                                               {TokenKind::IntLiteral, 1},
                                               {TokenKind::Semicolon}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], ModAssignStmt{LValue{.identifier = "a"},
                                     ExprNode(pos[2], IntLiteral{1})})));
 }
@@ -597,7 +602,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses indexed assignment") {
                                               {TokenKind::IntLiteral, 1},
                                               {TokenKind::Semicolon}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], AssignStmt{LValue{.identifier = "a",
                                         .indices = makeVec<ExprNode>(
                                             ExprNode(pos[2], IntLiteral{0}))},
@@ -616,7 +621,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses double indexed assignment") {
                                               {TokenKind::IntLiteral, 2},
                                               {TokenKind::Semicolon}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], AssignStmt{LValue{.identifier = "a",
                                         .indices = makeVec<ExprNode>(
                                             ExprNode(pos[2], IntLiteral{0}),
@@ -629,7 +634,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses function call statement") {
                                               {TokenKind::ParenOpen},
                                               {TokenKind::ParenClose},
                                               {TokenKind::Semicolon}});
-    CHECK(stmts == makeVec<StatementNode>(StatementNode(
+    CHECK(stmts == makeStatements(StatementNode(
                        pos[0], FunctionCall{.identifier = "fun", .args = {}})));
 }
 
@@ -643,7 +648,7 @@ TEST_CASE_FIXTURE(ParserFixture,
                                               {TokenKind::ParenClose},
                                               {TokenKind::Semicolon}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0],
               FunctionCall{
                   .identifier = "fun",
@@ -655,20 +660,19 @@ TEST_CASE_FIXTURE(ParserFixture,
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses break statement") {
     auto const [stmts, pos] =
         parseStatement({{TokenKind::Break}, {TokenKind::Semicolon}});
-    CHECK(stmts == makeVec<StatementNode>(StatementNode(pos[0], BreakStmt{})));
+    CHECK(stmts == makeStatements(StatementNode(pos[0], BreakStmt{})));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses continue statement") {
     auto const [stmts, pos] =
         parseStatement({{TokenKind::Continue}, {TokenKind::Semicolon}});
-    CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(pos[0], ContinueStmt{})));
+    CHECK(stmts == makeStatements(StatementNode(pos[0], ContinueStmt{})));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty return statement") {
     auto const [stmts, pos] =
         parseStatement({{TokenKind::Return}, {TokenKind::Semicolon}});
-    CHECK(stmts == makeVec<StatementNode>(StatementNode(
+    CHECK(stmts == makeStatements(StatementNode(
                        pos[0], ReturnStmt{.value = std::nullopt})));
 }
 
@@ -677,7 +681,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses return statement with value") {
                                               {TokenKind::IntLiteral, 1},
                                               {TokenKind::Semicolon}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], ReturnStmt{.value = ExprNode(pos[1], IntLiteral{1})})));
 }
 
@@ -689,13 +693,13 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses nested blocks") {
                                               {TokenKind::BraceClose},
                                               {TokenKind::BraceClose}});
 
-    CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
-              pos[0],
-              Block{.statements = makeVec<StatementNode>(StatementNode(
-                        pos[1],
-                        Block{.statements = makeVec<StatementNode>(
-                                  StatementNode(pos[2], BreakStmt{}))}))})));
+    CHECK(
+        stmts ==
+        makeStatements(StatementNode(
+            pos[0],
+            Block{.statements = makeStatements(StatementNode(
+                      pos[1], Block{.statements = makeStatements(StatementNode(
+                                        pos[2], BreakStmt{}))}))})));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple if statement") {
@@ -704,7 +708,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple if statement") {
                                               {TokenKind::BraceOpen},
                                               {TokenKind::BraceClose}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], IfStmt(ExprNode(pos[1], BoolLiteral{true}),
                              BlockNode(pos[2], Block{}), {}, std::nullopt))));
 }
@@ -717,7 +721,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses if else statement") {
                                               {TokenKind::Else},
                                               {TokenKind::BraceOpen},
                                               {TokenKind::BraceClose}});
-    CHECK(stmts == makeVec<StatementNode>(StatementNode(
+    CHECK(stmts == makeStatements(StatementNode(
                        pos[0], IfStmt(ExprNode(pos[1], BoolLiteral{true}),
                                       BlockNode(pos[2], Block{}), {},
                                       BlockNode(pos[5], Block{})))));
@@ -739,7 +743,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses if with multiple else ifs") {
                                               {TokenKind::BraceOpen},
                                               {TokenKind::BraceClose}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], IfStmt(ExprNode(pos[1], BoolLiteral{true}),
                              BlockNode(pos[2], Block{}),
                              makeVec<std::pair<ExprNode, BlockNode>>(
@@ -764,7 +768,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses if with else ifs and else") {
                                               {TokenKind::BraceOpen},
                                               {TokenKind::BraceClose}});
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], IfStmt(ExprNode(pos[1], BoolLiteral{true}),
                              BlockNode(pos[2], Block{}),
                              makeVec<std::pair<ExprNode, BlockNode>>(
@@ -780,7 +784,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses while loop") {
                                               {TokenKind::BraceClose}});
     CHECK(
         stmts ==
-        makeVec<StatementNode>(StatementNode(
+        makeStatements(StatementNode(
             pos[0], WhileLoop{.condition = ExprNode(pos[1], BoolLiteral{true}),
                               .block = BlockNode(pos[2], Block{})})));
 }
@@ -797,7 +801,7 @@ TEST_CASE_FIXTURE(ParserFixture,
                                               {TokenKind::BraceClose}});
 
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], ForLoop{.loop_var = "i",
                               .mut = false,
                               .range = RangeNode(
@@ -822,7 +826,7 @@ TEST_CASE_FIXTURE(ParserFixture,
                                               {TokenKind::BraceClose}});
 
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], ForLoop{.loop_var = "i",
                               .mut = false,
                               .range = RangeNode(
@@ -847,7 +851,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses for loop with mut loop var") {
                                               {TokenKind::BraceClose}});
 
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], ForLoop{.loop_var = "i",
                               .mut = true,
                               .range = RangeNode(
@@ -873,7 +877,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses for loop with step") {
                                               {TokenKind::BraceClose}});
 
     CHECK(stmts ==
-          makeVec<StatementNode>(StatementNode(
+          makeStatements(StatementNode(
               pos[0], ForLoop{.loop_var = "i",
                               .mut = false,
                               .range = RangeNode(
