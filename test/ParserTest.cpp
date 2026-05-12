@@ -61,6 +61,7 @@ public:
     std::span<Position> init(std::vector<MockToken> tokens) {
         positions_.clear();
         positions_.reserve(tokens.size());
+        tokens.emplace_back(TokenKind::ETX);
         for (auto [idx, token] : std::views::enumerate(tokens)) {
             positions_.push_back(Position{.line = 1,
                                           .column = static_cast<int>(idx + 1),
@@ -91,9 +92,8 @@ public:
 
         tokens.append_range(type_tokens);
 
-        tokens.append_range(std::to_array<MockToken>({{TokenKind::BraceOpen},
-                                                      {TokenKind::BraceClose},
-                                                      {TokenKind::ETX}}));
+        tokens.append_range(std::to_array<MockToken>(
+            {{TokenKind::BraceOpen}, {TokenKind::BraceClose}}));
 
         auto const all_pos = init(std::move(tokens));
 
@@ -124,8 +124,9 @@ public:
 
         tokens.append_range(stmt_tokens);
 
-        tokens.append_range(std::to_array<MockToken>(
-            {{TokenKind::BraceClose}, {TokenKind::ETX}}));
+        tokens.append_range(std::to_array<MockToken>({
+            {TokenKind::BraceClose},
+        }));
 
         auto const all_pos = init(std::move(tokens));
 
@@ -159,9 +160,8 @@ public:
 
         tokens.append_range(expr_tokens);
 
-        tokens.append_range(std::to_array<MockToken>({{TokenKind::Semicolon},
-                                                      {TokenKind::BraceClose},
-                                                      {TokenKind::ETX}}));
+        tokens.append_range(std::to_array<MockToken>(
+            {{TokenKind::Semicolon}, {TokenKind::BraceClose}}));
 
         init(std::move(tokens));
 
@@ -223,7 +223,7 @@ private:
 };
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty program") {
-    auto const pos = initValidated("", {TokenKind::ETX});
+    auto const pos = initValidated("", {});
 
     auto const program = parse();
 
@@ -232,15 +232,12 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty program") {
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty function") {
     auto const pos =
-        initValidated("fn main() {}", {
-                                          {TokenKind::Fn},
-                                          {TokenKind::Identifier, "main"},
-                                          {TokenKind::ParenOpen},
-                                          {TokenKind::ParenClose},
-                                          {TokenKind::BraceOpen},
-                                          {TokenKind::BraceClose},
-                                          {TokenKind::ETX},
-                                      });
+        initValidated("fn main() {}", {{TokenKind::Fn},
+                                       {TokenKind::Identifier, "main"},
+                                       {TokenKind::ParenOpen},
+                                       {TokenKind::ParenClose},
+                                       {TokenKind::BraceOpen},
+                                       {TokenKind::BraceClose}});
 
     auto const program = parse();
 
@@ -257,16 +254,13 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty function") {
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser skips comments") {
     auto const pos =
-        initValidated("fn main() {#abc\n}", {
-                                                {TokenKind::Fn},
-                                                {TokenKind::Identifier, "main"},
-                                                {TokenKind::ParenOpen},
-                                                {TokenKind::ParenClose},
-                                                {TokenKind::BraceOpen},
-                                                {TokenKind::Comment, "abc"},
-                                                {TokenKind::BraceClose},
-                                                {TokenKind::ETX},
-                                            });
+        initValidated("fn main() {#abc\n}", {{TokenKind::Fn},
+                                             {TokenKind::Identifier, "main"},
+                                             {TokenKind::ParenOpen},
+                                             {TokenKind::ParenClose},
+                                             {TokenKind::BraceOpen},
+                                             {TokenKind::Comment, "abc"},
+                                             {TokenKind::BraceClose}});
 
     auto const program = parse();
 
@@ -294,8 +288,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser detects redefined functions") {
                                     {TokenKind::ParenOpen},
                                     {TokenKind::ParenClose},
                                     {TokenKind::BraceOpen},
-                                    {TokenKind::BraceClose},
-                                    {TokenKind::ETX}});
+                                    {TokenKind::BraceClose}});
 
     auto const program = parse();
 
@@ -327,8 +320,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses function parameters") {
                        {TokenKind::BracketClose},
                        {TokenKind::ParenClose},
                        {TokenKind::BraceOpen},
-                       {TokenKind::BraceClose},
-                       {TokenKind::ETX}});
+                       {TokenKind::BraceClose}});
 
     auto const program = parse();
 
@@ -361,8 +353,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses return type") {
                                               {TokenKind::MinusGreater},
                                               {TokenKind::Int},
                                               {TokenKind::BraceOpen},
-                                              {TokenKind::BraceClose},
-                                              {TokenKind::ETX}});
+                                              {TokenKind::BraceClose}});
 
     auto const program = parse();
 
