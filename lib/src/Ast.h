@@ -338,6 +338,8 @@ using FunctionNode = Node<Function>;
 
 struct Program {
     std::unordered_map<std::string, FunctionNode> functions;
+
+    bool operator==(Program const& other) const = default;
 };
 
 using ProgramNode = Node<Program>;

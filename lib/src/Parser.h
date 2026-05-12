@@ -22,9 +22,7 @@ public:
         : lexer_{std::move(lexer)}, current_{lexer_.current()} {}
 
     std::optional<ProgramNode> parse() {
-        if (current_.is(TokenKind::STX)) {
-            nextToken();
-        }
+        consume(TokenKind::STX);
 
         auto const start_pos = current_.pos();
         std::unordered_map<std::string, FunctionNode> functions;

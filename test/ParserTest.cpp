@@ -222,6 +222,14 @@ private:
     std::vector<Position> positions_;
 };
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty program") {
+    auto const pos = initValidated("", {TokenKind::ETX});
+
+    auto const program = parse();
+
+    CHECK(program == ProgramNode(pos[0], Program{}));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty function") {
     auto const pos =
         initValidated("fn main() {}", {
