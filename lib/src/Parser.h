@@ -279,7 +279,7 @@ private:
                 .or_else([this]() { return tryParseWhileLoop(); })
                 .or_else([this]() { return tryParseForLoop(); });
         if (unterminated_stmt) {
-            return std::move(*unterminated_stmt);
+            return StatementNode(start_pos, std::move(*unterminated_stmt));
         }
 
         auto terminated_stmt =
@@ -290,7 +290,7 @@ private:
                 .or_else([this]() { return tryParseReturnStmt(); });
         if (terminated_stmt) {
             expect(TokenKind::Semicolon);
-            return terminated_stmt;
+            return StatementNode(start_pos, std::move(*terminated_stmt));
         }
         return std::nullopt;
     }
@@ -298,8 +298,7 @@ private:
     // If_expression skipped for now
     // let_binding = "let", [ "mut" ], IDENTIFIER, [ ":", type ], "=", (
     // if_expression | expression );
-    std::optional<StatementNode> tryParseLetBinding() {
-        auto const start_pos = current_.pos();
+    std::optional<StatementKind> tryParseLetBinding() {
         if (!consume(TokenKind::Let)) {
             return std::nullopt;
         }
@@ -326,48 +325,43 @@ private:
         if (!expr) {
             throwDiag(ExpectedExpression{}, current_.pos());
         }
-        return StatementNode(start_pos,
-                             LetBinding{.identifier = std::move(*identifier),
-                                        .mut = mut,
-                                        .type = std::move(type),
-                                        .value = std::move(*expr)});
+        return LetBinding{.identifier = std::move(*identifier),
+                          .mut = mut,
+                          .type = std::move(type),
+                          .value = std::move(*expr)};
     }
 
     // These 2 take the identifier and build the full FunctionCall or AssignStmt
     // call_or_assign = IDENTIFIER, ( call_suffix | assignment_suffix );
-    std::optional<StatementNode> tryParseCallOrAssign() {
-        auto const start_pos = current_.pos();
-
+    std::optional<StatementKind> tryParseCallOrAssign() {
         auto const identifier = consumeIdentifier();
         if (!identifier) {
             return std::nullopt;
         }
-        auto call_or_assign =
-            tryParseCallSuffix(start_pos, *identifier).or_else([&]() {
-                return tryParseAssignmentSuffix(start_pos, *identifier);
-            });
+        auto call_or_assign = tryParseCallSuffix(*identifier).or_else([&]() {
+            return tryParseAssignmentSuffix(*identifier);
+        });
 
         return call_or_assign;
     }
 
     // call_suffix = "(", function_arguments, ")";
-    std::optional<StatementNode> tryParseCallSuffix(
-        Position start_pos, std::string const& identifier) {
+    std::optional<StatementKind> tryParseCallSuffix(
+        std::string const& identifier) {
         if (!consume(TokenKind::ParenOpen)) {
             return std::nullopt;
         }
         auto args = tryParseFunctionArgs();
 
         expect(TokenKind::ParenClose);
-        return StatementNode(start_pos, FunctionCall{.identifier = identifier,
-                                                     .args = std::move(args)});
+        return FunctionCall{.identifier = identifier, .args = std::move(args)};
     }
 
     // if expression skipped for now
     // assignment_suffix = { "[", expression, "]" }, ( "=" |
     // compound_assignment_op ), ( if_expression | expression );
-    std::optional<StatementNode> tryParseAssignmentSuffix(
-        auto const start_pos, std::string const& identifier) {
+    std::optional<StatementKind> tryParseAssignmentSuffix(
+        std::string const& identifier) {
         std::vector<ExprNode> indices;
         while (consume(TokenKind::BracketOpen)) {
             auto expr = tryParseExpression();
@@ -414,43 +408,41 @@ private:
                 if (!expr) {
                     throwDiag(ExpectedExpression{}, current_.pos());
                 }
-                return StatementNode(start_pos, constructor(std::move(lvalue),
-                                                            std::move(*expr)));
+                return constructor(std::move(lvalue), std::move(*expr));
             }
         }
         return std::nullopt;
     }
-    std::optional<StatementNode> tryParseBreakStmt() {
+    std::optional<StatementKind> tryParseBreakStmt() {
         auto const start_pos = current_.pos();
         if (!consume(TokenKind::Break)) {
             return std::nullopt;
         }
-        return StatementNode(start_pos, BreakStmt{});
+        return BreakStmt{};
     }
 
-    std::optional<StatementNode> tryParseContinueStmt() {
+    std::optional<StatementKind> tryParseContinueStmt() {
         auto const start_pos = current_.pos();
         if (!consume(TokenKind::Continue)) {
             return std::nullopt;
         }
-        return StatementNode(start_pos, ContinueStmt{});
+        return ContinueStmt{};
     }
 
     // return_statement = "return", [ expression ], ";";
-    std::optional<StatementNode> tryParseReturnStmt() {
+    std::optional<StatementKind> tryParseReturnStmt() {
         auto const start_pos = current_.pos();
         if (!consume(TokenKind::Return)) {
             return std::nullopt;
         }
         auto expr = tryParseExpression();
 
-        return StatementNode(start_pos, ReturnStmt{.value = std::move(expr)});
+        return ReturnStmt{.value = std::move(expr)};
     }
 
     // if_statement = "if", expression, block, { "else", "if", expression, block
     // }, [ "else", block ];
-    std::optional<StatementNode> tryParseIfStmt() {
-        auto const start_pos = current_.pos();
+    std::optional<StatementKind> tryParseIfStmt() {
         if (!consume(TokenKind::If)) {
             return std::nullopt;
         }
@@ -492,17 +484,14 @@ private:
                 break;
             }
         }
-        return StatementNode(start_pos,
-                             IfStmt{.if_cond = std::move(*if_cond),
-                                    .if_block = std::move(*if_block),
-                                    .else_if_branches = std::move(else_ifs),
-                                    .else_block = std::move(else_block)});
+        return IfStmt{.if_cond = std::move(*if_cond),
+                      .if_block = std::move(*if_block),
+                      .else_if_branches = std::move(else_ifs),
+                      .else_block = std::move(else_block)};
     }
 
     // while_loop = "while", expression, block;
-    std::optional<StatementNode> tryParseWhileLoop() {
-        auto const start_pos = current_.pos();
-
+    std::optional<StatementKind> tryParseWhileLoop() {
         if (!consume(TokenKind::While)) {
             return std::nullopt;
         }
@@ -517,10 +506,10 @@ private:
                                     .got = current_.kind()},
                       current_.pos());
         }
-        return StatementNode(start_pos, WhileLoop{
-                                            .condition = std::move(*condition),
-                                            .block = std::move(*block),
-                                        });
+        return WhileLoop{
+            .condition = std::move(*condition),
+            .block = std::move(*block),
+        };
     }
 
     // range = term, "..", [ "=" ], term, [ "..", term ];
@@ -559,8 +548,7 @@ private:
     }
 
     // for_loop = "for", [ "mut" ], IDENTIFIER, "in", range, block;
-    std::optional<StatementNode> tryParseForLoop() {
-        auto const start_pos = current_.pos();
+    std::optional<StatementKind> tryParseForLoop() {
         if (!consume(TokenKind::For)) {
             return std::nullopt;
         }
@@ -583,11 +571,10 @@ private:
         if (!block) {
             throwDiag(ExpectedExpression{}, current_.pos());
         }
-        return StatementNode(start_pos,
-                             ForLoop{.loop_var = std::move(*loop_var),
-                                     .mut = mut,
-                                     .range = std::move(*range),
-                                     .block = std::move(*block)});
+        return ForLoop{.loop_var = std::move(*loop_var),
+                       .mut = mut,
+                       .range = std::move(*range),
+                       .block = std::move(*block)};
     }
 
     // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };
