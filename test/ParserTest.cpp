@@ -759,6 +759,109 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses while loop") {
                               .block = BlockNode(pos[2], Block{})})));
 }
 
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses for loop with inclusive range") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::For},
+                                              {TokenKind::Identifier, "i"},
+                                              {TokenKind::In},
+                                              {TokenKind::IntLiteral, 0},
+                                              {TokenKind::DotDotEq},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], ForLoop{.loop_var = "i",
+                              .mut = false,
+                              .range = RangeNode(
+                                  pos[3],
+                                  Range{
+                                      .start = ExprNode(pos[3], IntLiteral{0}),
+                                      .inclusive = true,
+                                      .end = ExprNode(pos[5], IntLiteral{2}),
+                                  }),
+                              .block = BlockNode(pos[6], Block{})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser parses for loop with non inclusive range") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::For},
+                                              {TokenKind::Identifier, "i"},
+                                              {TokenKind::In},
+                                              {TokenKind::IntLiteral, 0},
+                                              {TokenKind::DotDot},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], ForLoop{.loop_var = "i",
+                              .mut = false,
+                              .range = RangeNode(
+                                  pos[3],
+                                  Range{
+                                      .start = ExprNode(pos[3], IntLiteral{0}),
+                                      .inclusive = false,
+                                      .end = ExprNode(pos[5], IntLiteral{2}),
+                                  }),
+                              .block = BlockNode(pos[6], Block{})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses for loop with mut loop var") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::For},
+                                              {TokenKind::Mut},
+                                              {TokenKind::Identifier, "i"},
+                                              {TokenKind::In},
+                                              {TokenKind::IntLiteral, 0},
+                                              {TokenKind::DotDot},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], ForLoop{.loop_var = "i",
+                              .mut = true,
+                              .range = RangeNode(
+                                  pos[4],
+                                  Range{
+                                      .start = ExprNode(pos[4], IntLiteral{0}),
+                                      .inclusive = false,
+                                      .end = ExprNode(pos[6], IntLiteral{2}),
+                                  }),
+                              .block = BlockNode(pos[7], Block{})})));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses for loop with step") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::For},
+                                              {TokenKind::Identifier, "i"},
+                                              {TokenKind::In},
+                                              {TokenKind::IntLiteral, 0},
+                                              {TokenKind::DotDot},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::DotDot},
+                                              {TokenKind::IntLiteral, 6},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+
+    CHECK(stmts ==
+          makeVec<StatementNode>(StatementNode(
+              pos[0], ForLoop{.loop_var = "i",
+                              .mut = false,
+                              .range = RangeNode(
+                                  pos[3],
+                                  Range{
+                                      .start = ExprNode(pos[3], IntLiteral{0}),
+                                      .inclusive = false,
+                                      .end = ExprNode(pos[5], IntLiteral{2}),
+                                      .step = ExprNode(pos[7], IntLiteral{6}),
+
+                                  }),
+                              .block = BlockNode(pos[8], Block{})})));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple indexing expression") {
     auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
                                               {TokenKind::BracketOpen},

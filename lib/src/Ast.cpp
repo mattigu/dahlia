@@ -21,6 +21,8 @@ std::string toString(PrimitiveType type) {
 }
 
 bool Block::operator==(Block const&) const = default;
+bool Range::operator==(Range const&) const = default;
+bool ForLoop::operator==(ForLoop const&) const = default;
 
 bool IfStmt::operator==(IfStmt const& other) const {
     return if_cond == other.if_cond && *if_block == *other.if_block &&

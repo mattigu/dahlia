@@ -261,9 +261,6 @@ struct ReturnStmt {
     bool operator==(ReturnStmt const& other) const = default;
 };
 
-struct ForLoop {
-    bool operator==(ForLoop const& other) const = default;
-};
 struct LetBinding {
     std::string identifier;
     bool mut;
@@ -309,11 +306,13 @@ struct Block;
 using BlockNode = Node<Block>;
 struct IfStmt;
 struct WhileLoop;
+struct ForLoop;
 
 using StatementKind =
     std::variant<BreakStmt, ContinueStmt, ReturnStmt, LetBinding, AssignStmt,
                  AddAssignStmt, SubAssignStmt, MulAssignStmt, DivAssignStmt,
-                 ModAssignStmt, FunctionCall, Block, IfStmt, WhileLoop>;
+                 ModAssignStmt, FunctionCall, Block, IfStmt, WhileLoop,
+                 ForLoop>;
 using StatementNode = Node<StatementKind>;
 
 struct Block {
@@ -327,6 +326,23 @@ struct WhileLoop {
     BlockNode block;
 
     bool operator==(WhileLoop const& other) const;
+};
+
+struct Range {
+    ExprNode start;
+    bool inclusive;
+    ExprNode end;
+    std::optional<ExprNode> step;
+    bool operator==(Range const& other) const;
+};
+using RangeNode = Node<Range>;
+
+struct ForLoop {
+    std::string loop_var;
+    bool mut;
+    RangeNode range;
+    BlockNode block;
+    bool operator==(ForLoop const& other) const;
 };
 
 struct IfStmt {

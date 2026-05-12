@@ -275,7 +275,9 @@ private:
         }
 
         auto unterminated_stmt =
-            tryParseIfStmt().or_else([this]() { return tryParseWhileLoop(); });
+            tryParseIfStmt()
+                .or_else([this]() { return tryParseWhileLoop(); })
+                .or_else([this]() { return tryParseForLoop(); });
         if (unterminated_stmt) {
             return std::move(*unterminated_stmt);
         }
@@ -519,6 +521,73 @@ private:
                                             .condition = std::move(*condition),
                                             .block = std::move(*block),
                                         });
+    }
+
+    // range = term, "..", [ "=" ], term, [ "..", term ];
+    std::optional<RangeNode> tryParseRange() {
+        auto const start_pos = current_.pos();
+
+        auto start = tryParseTerm();
+        if (!start) {
+            return std::nullopt;
+        }
+        bool const inclusive = consume(TokenKind::DotDotEq);
+        if (!inclusive) {
+            consume(TokenKind::DotDot);
+        }
+
+        auto end = tryParseTerm();
+        if (!end) {
+            throwDiag(ExpectedExpression{}, current_.pos());
+        }
+
+        if (!consume(TokenKind::DotDot)) {
+            return RangeNode(start_pos, Range{.start = std::move(*start),
+                                              .inclusive = inclusive,
+                                              .end = std::move(*end)});
+        }
+        auto step = tryParseTerm();
+
+        if (!step) {
+            throwDiag(ExpectedExpression{}, current_.pos());
+        }
+
+        return RangeNode(start_pos, Range{.start = std::move(*start),
+                                          .inclusive = inclusive,
+                                          .end = std::move(*end),
+                                          .step = std::move(*step)});
+    }
+
+    // for_loop = "for", [ "mut" ], IDENTIFIER, "in", range, block;
+    std::optional<StatementNode> tryParseForLoop() {
+        auto const start_pos = current_.pos();
+        if (!consume(TokenKind::For)) {
+            return std::nullopt;
+        }
+
+        bool const mut = consume(TokenKind::Mut);
+
+        auto loop_var = consumeIdentifier();
+        if (!loop_var) {
+            throwDiag(ExpectedToken{.expected = TokenKind::Identifier,
+                                    .got = current_.kind()},
+                      current_.pos());
+        }
+
+        expect(TokenKind::In);
+        auto range = tryParseRange();
+        if (!range) {
+            throwDiag(ExpectedExpression{}, current_.pos());
+        }
+        auto block = tryParseBlock();
+        if (!block) {
+            throwDiag(ExpectedExpression{}, current_.pos());
+        }
+        return StatementNode(start_pos,
+                             ForLoop{.loop_var = std::move(*loop_var),
+                                     .mut = mut,
+                                     .range = std::move(*range),
+                                     .block = std::move(*block)});
     }
 
     // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };

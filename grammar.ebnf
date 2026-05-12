@@ -69,12 +69,7 @@ for_loop
     = "for", [ "mut" ], IDENTIFIER, "in", range, block;
 
 range
-    = range_bound, "..", [ "=" ], range_bound, [ "..", range_bound ];
-
-range_bound
-    = identifier_or_call
-    | literal
-    | "(", expression, ")";
+    = term, "..", [ "=" ], term, [ "..", term ];
 
 return_statement
     = "return", [ expression ];
