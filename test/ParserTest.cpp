@@ -242,6 +242,32 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty function") {
                                         .block = BlockNode(pos[4], Block{})}));
 }
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser skips comments") {
+    auto const pos =
+        initValidated("fn main() {#abc\n}", {
+                                                {TokenKind::Fn},
+                                                {TokenKind::Identifier, "main"},
+                                                {TokenKind::ParenOpen},
+                                                {TokenKind::ParenClose},
+                                                {TokenKind::BraceOpen},
+                                                {TokenKind::Comment, "abc"},
+                                                {TokenKind::BraceClose},
+                                                {TokenKind::ETX},
+                                            });
+
+    auto const program = parse();
+
+    REQUIRE(program.has_value());
+    REQUIRE(program.value()->functions.contains("main"));
+
+    auto const& function_node = program.value()->functions.at("main");
+
+    CHECK(function_node ==
+          FunctionNode(pos[0], Function{.identifier = "main",
+                                        .params = {},
+                                        .block = BlockNode(pos[4], Block{})}));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser detects redefined functions") {
     auto const pos = initValidated("fn main() {} fn main() {}",
                                    {{TokenKind::Fn},
