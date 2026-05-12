@@ -29,8 +29,8 @@ public:
         auto const start_pos = current_.pos();
         std::unordered_map<std::string, FunctionNode> functions;
 
-        try {
-            while (auto fun = tryParseFunction()) {
+        while (auto fun = tryParseFunction()) {
+            try {
                 auto const new_pos = fun->pos();
                 auto const [iter, inserted] =
                     functions.try_emplace((*fun)->identifier, std::move(*fun));
@@ -40,9 +40,10 @@ public:
                                           .original_pos = iter->second.pos()},
                         new_pos);
                 }
+            } catch (Diagnostic<ParserDiagnosticKind> const&) {
+                // Add some error count limit here?
+                skipWhile([](TokenKind kind) { return kind != TokenKind::Fn; });
             }
-        } catch (Diagnostic<ParserDiagnosticKind> const&) {
-            return std::nullopt;
         }
 
         if (!consume(TokenKind::ETX)) {
@@ -76,6 +77,12 @@ private:
             current_ = lexer_.next();
         }
         return current_;
+    }
+
+    void skipWhile(std::function<bool(TokenKind)> const& predicate) {
+        while (!current_.is(TokenKind::ETX) && predicate(current_.kind())) {
+            nextToken();
+        }
     }
 
     void pushDiag(ParserDiagnosticKind const& kind, Position const& pos,
