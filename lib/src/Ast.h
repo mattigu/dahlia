@@ -305,15 +305,15 @@ struct DivAssignStmt : AssignBase {
 struct ModAssignStmt : AssignBase {
     using AssignBase::AssignBase;
 };
-
 struct Block;
 using BlockNode = Node<Block>;
 struct IfStmt;
+struct WhileLoop;
 
 using StatementKind =
     std::variant<BreakStmt, ContinueStmt, ReturnStmt, LetBinding, AssignStmt,
                  AddAssignStmt, SubAssignStmt, MulAssignStmt, DivAssignStmt,
-                 ModAssignStmt, FunctionCall, Block, IfStmt>;
+                 ModAssignStmt, FunctionCall, Block, IfStmt, WhileLoop>;
 using StatementNode = Node<StatementKind>;
 
 struct Block {
@@ -322,34 +322,22 @@ struct Block {
     bool operator==(Block const& other) const;
 };
 
+struct WhileLoop {
+    ExprNode condition;
+    BlockNode block;
+
+    bool operator==(WhileLoop const& other) const;
+};
+
 struct IfStmt {
     ExprNode if_cond;
-    std::unique_ptr<BlockNode> if_block;
+    BlockNode if_block;
 
     std::vector<std::pair<ExprNode, BlockNode>> else_if_branches;
-    std::unique_ptr<BlockNode> else_block;
-
-    IfStmt(ExprNode if_cond, BlockNode if_block,
-           std::vector<std::pair<ExprNode, BlockNode>> else_if_branches,
-           std::optional<BlockNode> else_block)
-        : if_cond(std::move(if_cond)),
-          if_block(std::make_unique<BlockNode>(std::move(if_block))),
-          else_if_branches(std::move(else_if_branches)),
-          else_block(else_block
-                         ? std::make_unique<BlockNode>(std::move(*else_block))
-                         : nullptr) {}
+    std::optional<BlockNode> else_block;
 
     bool operator==(IfStmt const& other) const;
 };
-
-inline bool Block::operator==(Block const&) const = default;
-inline bool IfStmt::operator==(IfStmt const& other) const {
-    return if_cond == other.if_cond && *if_block == *other.if_block &&
-           else_if_branches == other.else_if_branches &&
-           static_cast<bool>(else_block) ==
-               static_cast<bool>(other.else_block) &&
-           (!else_block || *else_block == *other.else_block);
-}
 
 struct Param {
     TypeNode type;

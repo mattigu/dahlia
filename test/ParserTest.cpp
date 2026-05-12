@@ -747,6 +747,18 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses if with else ifs and else") {
                              BlockNode(pos[10], Block{})))));
 }
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses while loop") {
+    auto const [stmts, pos] = parseStatement({{TokenKind::While},
+                                              {TokenKind::True},
+                                              {TokenKind::BraceOpen},
+                                              {TokenKind::BraceClose}});
+    CHECK(
+        stmts ==
+        makeVec<StatementNode>(StatementNode(
+            pos[0], WhileLoop{.condition = ExprNode(pos[1], BoolLiteral{true}),
+                              .block = BlockNode(pos[2], Block{})})));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple indexing expression") {
     auto const [expr, pos] = parseExpression({{TokenKind::Identifier, "a"},
                                               {TokenKind::BracketOpen},

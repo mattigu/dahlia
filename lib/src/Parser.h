@@ -274,7 +274,8 @@ private:
             return StatementNode(start_pos, std::move(**block_stmt));
         }
 
-        auto unterminated_stmt = tryParseIfStmt();
+        auto unterminated_stmt =
+            tryParseIfStmt().or_else([this]() { return tryParseWhileLoop(); });
         if (unterminated_stmt) {
             return std::move(*unterminated_stmt);
         }
@@ -489,9 +490,35 @@ private:
                 break;
             }
         }
-        return StatementNode(
-            start_pos, IfStmt{std::move(*if_cond), std::move(*if_block),
-                              std::move(else_ifs), std::move(else_block)});
+        return StatementNode(start_pos,
+                             IfStmt{.if_cond = std::move(*if_cond),
+                                    .if_block = std::move(*if_block),
+                                    .else_if_branches = std::move(else_ifs),
+                                    .else_block = std::move(else_block)});
+    }
+
+    // while_loop = "while", expression, block;
+    std::optional<StatementNode> tryParseWhileLoop() {
+        auto const start_pos = current_.pos();
+
+        if (!consume(TokenKind::While)) {
+            return std::nullopt;
+        }
+
+        auto condition = tryParseExpression();
+        if (!condition) {
+            throwDiag(ExpectedExpression{}, current_.pos());
+        }
+        auto block = tryParseBlock();
+        if (!block) {
+            throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
+                                    .got = current_.kind()},
+                      current_.pos());
+        }
+        return StatementNode(start_pos, WhileLoop{
+                                            .condition = std::move(*condition),
+                                            .block = std::move(*block),
+                                        });
     }
 
     // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };
