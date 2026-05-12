@@ -20,6 +20,14 @@ struct ExpectedExpression {
     bool operator==(ExpectedExpression const&) const = default;
 };
 
+struct ExpectedIdentifier {
+    bool operator==(ExpectedIdentifier const&) const = default;
+};
+
+struct ExpectedBlock {
+    bool operator==(ExpectedBlock const&) const = default;
+};
+
 struct FunctionRedefined {
     std::string identifier;
     Position original_pos;
@@ -29,5 +37,5 @@ struct FunctionRedefined {
 
 using ParserDiagnosticKind =
     std::variant<ExpectedToken, ExpectedType, ExpectedExpression,
-                 FunctionRedefined>;
+                 FunctionRedefined, ExpectedIdentifier, ExpectedBlock>;
 using ParserDiagnostic = Diagnostic<ParserDiagnosticKind>;

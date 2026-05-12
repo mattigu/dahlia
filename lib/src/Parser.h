@@ -133,6 +133,38 @@ private:
         return consumeValue<std::string>(TokenKind::StrLiteral);
     }
 
+    std::string expectIdentifier() {
+        if (auto identifier = consumeIdentifier()) {
+            return std::move(*identifier);
+        }
+        throwDiag(ExpectedIdentifier{}, current_.pos());
+        std::unreachable();
+    }
+
+    ExprNode expectExpr() {
+        if (auto expr = tryParseExpression()) {
+            return std::move(*expr);
+        }
+        throwDiag(ExpectedExpression{}, current_.pos());
+        std::unreachable();
+    }
+
+    TypeNode expectType() {
+        if (auto type = tryParseType()) {
+            return std::move(*type);
+        }
+        throwDiag(ExpectedType{}, current_.pos());
+        std::unreachable();
+    }
+
+    BlockNode expectBlock() {
+        if (auto block = tryParseBlock()) {
+            return std::move(*block);
+        }
+        throwDiag(ExpectedBlock{}, current_.pos());
+        std::unreachable();
+    }
+
     // function_definition  = "fn", IDENTIFIER, "(", function_params, ")", [
     // "->", type ], block;
     std::optional<FunctionNode> tryParseFunction() {
@@ -141,12 +173,7 @@ private:
             return std::nullopt;
         }
 
-        auto identifier = consumeIdentifier();
-        if (!identifier) {
-            throwDiag(ExpectedToken{.expected = TokenKind::Identifier,
-                                    .got = current_.kind()},
-                      current_.pos());
-        }
+        auto identifier = expectIdentifier();
 
         bool const paren_open = consume(TokenKind::ParenOpen);
         auto params = tryParseFunctionParams();
@@ -154,25 +181,16 @@ private:
 
         std::optional<TypeNode> return_type;
         if (consume(TokenKind::MinusGreater)) {
-            return_type = tryParseType();
-            if (!return_type) {
-                throwDiag(ExpectedType{}, current_.pos());
-            }
+            return_type = expectType();
         }
 
-        auto block = tryParseBlock();
-
-        if (!block) {
-            throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
-                                    .got = current_.kind()},
-                      current_.pos());
-        }
+        auto block = expectBlock();
 
         return FunctionNode(start_pos,
-                            Function{.identifier = std::move(*identifier),
+                            Function{.identifier = std::move(identifier),
                                      .params = std::move(params),
                                      .return_type = std::move(return_type),
-                                     .block = std::move(*block)});
+                                     .block = std::move(block)});
     }
 
     // function_params = [ function_param, { ",", function_param } ];
@@ -203,18 +221,14 @@ private:
         }
 
         bool const mut = consume(TokenKind::Mut);
-        auto identifier = consumeIdentifier();
-        if (!identifier) {
-            throwDiag(ExpectedToken{.expected = TokenKind::Identifier,
-                                    .got = current_.kind()},
-                      current_.pos());
-        }
+        auto identifier = expectIdentifier();
 
         expect(TokenKind::Colon);
-        auto type = tryParseType();
 
-        return ParamNode(start_pos, Param{.type = std::move(*type),
-                                          .identifier = *identifier,
+        auto type = expectType();
+
+        return ParamNode(start_pos, Param{.type = std::move(type),
+                                          .identifier = identifier,
                                           .mut = mut});
     }
 
@@ -304,31 +318,21 @@ private:
         }
         bool const mut = consume(TokenKind::Mut);
 
-        auto const identifier = consumeIdentifier();
-        if (!identifier) {
-            throwDiag({ExpectedToken{.expected = TokenKind::Identifier,
-                                     .got = current_.kind()}},
-                      current_.pos());
-        }
+        auto const identifier = expectIdentifier();
 
         std::optional<TypeNode> type;
         if (consume(TokenKind::Colon)) {
-            type = tryParseType();
-            if (!type) {
-                throwDiag(ExpectedType{}, current_.pos());
-            }
+            type = expectType();
         }
 
         expect(TokenKind::Equal);
 
-        auto expr = tryParseExpression();
-        if (!expr) {
-            throwDiag(ExpectedExpression{}, current_.pos());
-        }
-        return LetBinding{.identifier = std::move(*identifier),
+        auto expr = expectExpr();
+
+        return LetBinding{.identifier = std::move(identifier),
                           .mut = mut,
                           .type = std::move(type),
-                          .value = std::move(*expr)};
+                          .value = std::move(expr)};
     }
 
     // These 2 take the identifier and build the full FunctionCall or AssignStmt
@@ -364,12 +368,9 @@ private:
         std::string const& identifier) {
         std::vector<ExprNode> indices;
         while (consume(TokenKind::BracketOpen)) {
-            auto expr = tryParseExpression();
-            if (!expr) {
-                throwDiag(ExpectedExpression{}, current_.pos());
-            }
+            auto expr = expectExpr();
             expect(TokenKind::BracketClose);
-            indices.push_back(std::move(*expr));
+            indices.push_back(std::move(expr));
         }
         auto lvalue =
             LValue{.identifier = identifier, .indices = std::move(indices)};
@@ -404,11 +405,8 @@ private:
             });
         for (auto const& [kind, constructor] : ops) {
             if (consume(kind)) {
-                auto expr = tryParseExpression();
-                if (!expr) {
-                    throwDiag(ExpectedExpression{}, current_.pos());
-                }
-                return constructor(std::move(lvalue), std::move(*expr));
+                auto expr = expectExpr();
+                return constructor(std::move(lvalue), std::move(expr));
             }
         }
         return std::nullopt;
@@ -446,46 +444,23 @@ private:
         if (!consume(TokenKind::If)) {
             return std::nullopt;
         }
-        auto if_cond = tryParseExpression();
-        if (!if_cond) {
-            throwDiag(ExpectedExpression{}, current_.pos());
-        }
-        auto if_block = tryParseBlock();
-        if (!if_block) {
-            throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
-                                    .got = current_.kind()},
-                      current_.pos());
-        }
+        auto if_cond = expectExpr();
+        auto if_block = expectBlock();
 
         std::vector<std::pair<ExprNode, BlockNode>> else_ifs;
         std::optional<BlockNode> else_block = std::nullopt;
 
         while (consume(TokenKind::Else)) {
             if (consume(TokenKind::If)) {
-                auto cond = tryParseExpression();
-                if (!cond) {
-                    throwDiag(ExpectedExpression{}, current_.pos());
-                }
-                auto block = tryParseBlock();
-                if (!block) {
-                    throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
-                                            .got = current_.kind()},
-                              current_.pos());
-                }
-                else_ifs.push_back({std::move(*cond), std::move(*block)});
-
+                auto cond = expectExpr();
+                auto block = expectBlock();
+                else_ifs.push_back({std::move(cond), std::move(block)});
             } else {
-                else_block = std::move(tryParseBlock());
-                if (!else_block) {
-                    throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
-                                            .got = current_.kind()},
-                              current_.pos());
-                }
-                break;
+                else_block = std::move(expectBlock());
             }
         }
-        return IfStmt{.if_cond = std::move(*if_cond),
-                      .if_block = std::move(*if_block),
+        return IfStmt{.if_cond = std::move(if_cond),
+                      .if_block = std::move(if_block),
                       .else_if_branches = std::move(else_ifs),
                       .else_block = std::move(else_block)};
     }
@@ -496,19 +471,11 @@ private:
             return std::nullopt;
         }
 
-        auto condition = tryParseExpression();
-        if (!condition) {
-            throwDiag(ExpectedExpression{}, current_.pos());
-        }
-        auto block = tryParseBlock();
-        if (!block) {
-            throwDiag(ExpectedToken{.expected = TokenKind::BraceOpen,
-                                    .got = current_.kind()},
-                      current_.pos());
-        }
+        auto condition = expectExpr();
+        auto block = expectBlock();
         return WhileLoop{
-            .condition = std::move(*condition),
-            .block = std::move(*block),
+            .condition = std::move(condition),
+            .block = std::move(block),
         };
     }
 
@@ -555,26 +522,19 @@ private:
 
         bool const mut = consume(TokenKind::Mut);
 
-        auto loop_var = consumeIdentifier();
-        if (!loop_var) {
-            throwDiag(ExpectedToken{.expected = TokenKind::Identifier,
-                                    .got = current_.kind()},
-                      current_.pos());
-        }
+        auto loop_var = expectIdentifier();
 
         expect(TokenKind::In);
         auto range = tryParseRange();
         if (!range) {
             throwDiag(ExpectedExpression{}, current_.pos());
         }
-        auto block = tryParseBlock();
-        if (!block) {
-            throwDiag(ExpectedExpression{}, current_.pos());
-        }
-        return ForLoop{.loop_var = std::move(*loop_var),
+        auto block = expectBlock();
+
+        return ForLoop{.loop_var = std::move(loop_var),
                        .mut = mut,
                        .range = std::move(*range),
-                       .block = std::move(*block)};
+                       .block = std::move(block)};
     }
 
     // expression = logical_or_expr, { ( "?" | ":>" ), logical_or_expr };
