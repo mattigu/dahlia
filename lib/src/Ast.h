@@ -47,32 +47,18 @@ struct VecType {
 
 class Type {
 public:
-    Type(PrimitiveType primitive) : value_(primitive) {}
+    Type(PrimitiveType primitive);
+    Type(VecType vec);
 
-    Type(VecType vec) : value_(std::move(vec)) {}
+    static Type vec(Type inner);
 
-    static Type vec(Type inner) {
-        return Type(VecType{.inner = std::make_unique<Type>(std::move(inner))});
-    }
-
-    [[nodiscard]] bool isVec() const {
-        return std::holds_alternative<VecType>(value_);
-    }
+    [[nodiscard]] bool isVec() const;
 
     //! Returns the inner type of Vec.
-    [[nodiscard]] Type const& element() const {
-        assert(isVec());
-        return *std::get<VecType>(value_).inner;
-    }
+    [[nodiscard]] Type const& element() const;
 
-    [[nodiscard]] bool isPrimitive() const {
-        return std::holds_alternative<PrimitiveType>(value_);
-    }
-
-    [[nodiscard]] PrimitiveType asPrimitive() const {
-        assert(isPrimitive());
-        return std::get<PrimitiveType>(value_);
-    }
+    [[nodiscard]] bool isPrimitive() const;
+    [[nodiscard]] PrimitiveType asPrimitive() const;
 
     bool operator==(Type const& other) const = default;
 
@@ -84,17 +70,14 @@ struct IntLiteral {
     std::int64_t value;
     bool operator==(IntLiteral const& other) const = default;
 };
-
 struct FloatLiteral {
     double value;
     bool operator==(FloatLiteral const& other) const = default;
 };
-
 struct BoolLiteral {
     bool value;
     bool operator==(BoolLiteral const& other) const = default;
 };
-
 struct StringLiteral {
     std::string value;
     bool operator==(StringLiteral const& other) const = default;
@@ -178,13 +161,13 @@ struct NotExpr : UnaryBase {
 struct LengthExpr : UnaryBase {
     using UnaryBase::UnaryBase;
 };
+
 struct MulExpr : BinaryBase {
     using BinaryBase::BinaryBase;
 };
 struct DivExpr : BinaryBase {
     using BinaryBase::BinaryBase;
 };
-
 struct AddExpr : BinaryBase {
     using BinaryBase::BinaryBase;
 };
@@ -228,27 +211,6 @@ struct MapExpr : BinaryBase {
     using BinaryBase::BinaryBase;
 };
 
-inline BinaryBase::BinaryBase(ExprNode left, ExprNode right)
-    : left(std::make_unique<ExprNode>(std::move(left))),
-      right(std::make_unique<ExprNode>(std::move(right))) {}
-
-inline bool BinaryBase::operator==(BinaryBase const& other) const {
-    return *left == *other.left && *right == *other.right;
-}
-
-inline UnaryBase::UnaryBase(ExprNode operand)
-    : operand(std::make_unique<ExprNode>(std::move(operand))) {}
-
-inline bool UnaryBase::operator==(UnaryBase const& other) const {
-    return *operand == *other.operand;
-}
-
-inline bool IndexExpr::operator==(IndexExpr const& other) const {
-    return *object == *other.object && *index == *other.index;
-}
-inline bool VecLiteral::operator==(VecLiteral const& other) const = default;
-inline bool FunctionCall::operator==(FunctionCall const& other) const = default;
-
 struct BreakStmt {
     bool operator==(BreakStmt const& other) const = default;
 };
@@ -279,8 +241,7 @@ struct LValue {
 struct AssignBase {
     LValue target;
     ExprNode value;
-    AssignBase(LValue target, ExprNode value)
-        : target(std::move(target)), value(std::move(value)) {}
+    AssignBase(LValue target, ExprNode value);
     bool operator==(AssignBase const& other) const = default;
 };
 
