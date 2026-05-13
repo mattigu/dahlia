@@ -28,20 +28,26 @@ public:
         auto const start_pos = current_.pos();
         std::unordered_map<std::string, FunctionNode> functions;
 
-        while (auto fun = tryParseFunction()) {
+        while (true) {
+            std::optional<FunctionNode> fun;
             try {
-                auto const new_pos = fun->pos();
-                auto const [iter, inserted] =
-                    functions.try_emplace((*fun)->identifier, std::move(*fun));
-                if (!inserted) {
-                    pushDiag(
-                        FunctionRedefined{.identifier = iter->first,
-                                          .original_pos = iter->second.pos()},
-                        new_pos);
+                fun = tryParseFunction();
+                if (!fun) {
+                    break;
                 }
-            } catch (Diagnostic<ParserDiagnosticKind> const&) {
+            } catch (ParserDiagnostic const& diag) {
                 // Add some error count limit here?
                 skipWhile([](TokenKind kind) { return kind != TokenKind::Fn; });
+                continue;
+            }
+
+            auto const new_pos = fun->pos();
+            auto const [iter, inserted] =
+                functions.try_emplace((*fun)->identifier, std::move(*fun));
+            if (!inserted) {
+                pushDiag(FunctionRedefined{.identifier = iter->first,
+                                           .original_pos = iter->second.pos()},
+                         new_pos);
             }
         }
 
@@ -91,7 +97,7 @@ private:
 
     void throwDiag(ParserDiagnosticKind const& kind, Position const& pos,
                    Severity severity = Severity::Fatal) {
-        Diagnostic<ParserDiagnosticKind> diag{
+        ParserDiagnostic diag{
             .kind = kind, .pos = current_.pos(), .severity = severity};
         diagnostics_.push(diag);
         throw diag;

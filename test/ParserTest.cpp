@@ -298,13 +298,12 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser detects redefined functions") {
     auto const program = parse();
 
     REQUIRE(!program.has_value());
-    REQUIRE(!diagnostics().empty());
 
-    CHECK(diagnostics().last() ==
-          ParserDiagnostic{.kind = {FunctionRedefined{.identifier = "main",
-                                                      .original_pos = pos[0]}},
-                           .pos = pos[6],
-                           .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({{.kind = {FunctionRedefined{.identifier = "main",
+                                                 .original_pos = pos[0]}},
+                      .pos = pos[6],
+                      .severity = Severity::Error}}));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses function parameters") {
@@ -349,7 +348,7 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses function parameters") {
                           .mut = false}});
 }
 
-TEST_CASE_FIXTURE(ParserFixture, "Parser detect duplicated pararemet names") {
+TEST_CASE_FIXTURE(ParserFixture, "Parser detect duplicated pararemer names") {
     auto const pos =
         initValidated("fn main(a : int, a : int) {}",
                       {{TokenKind::Fn},
@@ -396,6 +395,80 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses return type") {
         program.value()->functions.at("main")->return_type;
 
     CHECK(return_type == TypeNode(pos[5], PrimitiveType::Int));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser errors on missing function identifier") {
+    auto const pos = initValidated("fn () {}", {{TokenKind::Fn},
+                                                {TokenKind::ParenOpen},
+                                                {TokenKind::ParenClose},
+                                                {TokenKind::BraceOpen},
+                                                {TokenKind::BraceClose}});
+
+    auto const program = parse();
+
+    REQUIRE(!program.has_value());
+
+    CHECK(diagnostics().all() == makeDiags({{.kind = {ExpectedIdentifier{}},
+                                             .pos = pos[1],
+                                             .severity = Severity::Fatal}}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser errors on missing param type") {
+    auto const pos =
+        initValidated("fn main(a : ) {}", {{TokenKind::Fn},
+                                           {TokenKind::Identifier, "main"},
+                                           {TokenKind::ParenOpen},
+                                           {TokenKind::Identifier, "a"},
+                                           {TokenKind::Colon},
+                                           {TokenKind::ParenClose},
+                                           {TokenKind::BraceOpen},
+                                           {TokenKind::BraceClose}});
+
+    auto const program = parse();
+    REQUIRE(!program.has_value());
+
+    CHECK(diagnostics().all() == makeDiags({{.kind = {ExpectedType{}},
+                                             .pos = pos[5],
+                                             .severity = Severity::Fatal}}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser errors on incorrect function return type") {
+    auto const pos =
+        initValidated("fn main() -> ; {}", {{TokenKind::Fn},
+                                            {TokenKind::Identifier, "main"},
+                                            {TokenKind::ParenOpen},
+                                            {TokenKind::ParenClose},
+                                            {TokenKind::MinusGreater},
+                                            {TokenKind::Semicolon},
+                                            {TokenKind::BraceOpen},
+                                            {TokenKind::BraceClose}});
+
+    auto const program = parse();
+
+    REQUIRE(!program.has_value());
+
+    CHECK(diagnostics().all() == makeDiags({{.kind = {ExpectedType{}},
+                                             .pos = pos[5],
+                                             .severity = Severity::Fatal}}));
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser errors on missing function block") {
+    auto const pos =
+        initValidated("fn main () ;", {{TokenKind::Fn},
+                                       {TokenKind::Identifier, "main"},
+                                       {TokenKind::ParenOpen},
+                                       {TokenKind::ParenClose},
+                                       {TokenKind::Semicolon}});
+
+    auto const program = parse();
+
+    REQUIRE(!program.has_value());
+
+    CHECK(diagnostics().all() == makeDiags({{.kind = {ExpectedBlock{}},
+                                             .pos = pos[4],
+                                             .severity = Severity::Fatal}}));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses int type") {
