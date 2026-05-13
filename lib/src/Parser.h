@@ -479,6 +479,7 @@ private:
                 else_ifs.push_back({std::move(cond), std::move(block)});
             } else {
                 else_block = std::move(expectBlock());
+                break;
             }
         }
         return IfStmt{.if_cond = std::move(if_cond),
