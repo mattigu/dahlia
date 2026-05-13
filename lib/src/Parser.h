@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -213,6 +214,16 @@ private:
             if (!param) {
                 break;
             }
+            auto const iter =
+                std::ranges::find_if(params, [&](ParamNode const& par) {
+                    return (*param)->identifier == par->identifier;
+                });
+            if (iter != params.cend()) {
+                pushDiag(ParameterRedefined{.identifier = (*param)->identifier,
+                                            .original_pos = iter->pos()},
+                         param->pos());
+            }
+
             params.push_back(std::move(*param));
         }
         return params;

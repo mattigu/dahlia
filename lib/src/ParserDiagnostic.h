@@ -35,7 +35,15 @@ struct FunctionRedefined {
     bool operator==(FunctionRedefined const&) const = default;
 };
 
+struct ParameterRedefined {
+    std::string identifier;
+    Position original_pos;
+
+    bool operator==(ParameterRedefined const&) const = default;
+};
+
 using ParserDiagnosticKind =
     std::variant<ExpectedToken, ExpectedType, ExpectedExpression,
-                 FunctionRedefined, ExpectedIdentifier, ExpectedBlock>;
+                 FunctionRedefined, ExpectedIdentifier, ExpectedBlock,
+                 ParameterRedefined>;
 using ParserDiagnostic = Diagnostic<ParserDiagnosticKind>;

@@ -209,6 +209,11 @@ public:
         return vec;
     }
 
+    static std::vector<ParserDiagnostic> makeDiags(
+        std::initializer_list<ParserDiagnostic> diags) {
+        return diags;
+    }
+
     template <typename... Args>
     std::vector<StatementNode> makeStatements(Args&&... args) {
         return makeVec<StatementNode>(std::forward<Args>(args)...);
@@ -342,6 +347,33 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses function parameters") {
                     Param{.type = {pos[10], Type::vec(PrimitiveType::Str)},
                           .identifier = "b",
                           .mut = false}});
+}
+
+TEST_CASE_FIXTURE(ParserFixture, "Parser detect duplicated pararemet names") {
+    auto const pos =
+        initValidated("fn main(a : int, a : int) {}",
+                      {{TokenKind::Fn},
+                       {TokenKind::Identifier, std::string{"main"}},
+                       {TokenKind::ParenOpen},
+                       {TokenKind::Identifier, std::string{"a"}},
+                       {TokenKind::Colon},
+                       {TokenKind::Int},
+                       {TokenKind::Comma},
+                       {TokenKind::Identifier, std::string{"a"}},
+                       {TokenKind::Colon},
+                       {TokenKind::Int},
+                       {TokenKind::ParenClose},
+                       {TokenKind::BraceOpen},
+                       {TokenKind::BraceClose}});
+
+    auto const program = parse();
+
+    REQUIRE(!program.has_value());
+    CHECK(diagnostics().all() ==
+          makeDiags({{.kind = ParameterRedefined{.identifier = "a",
+                                                 .original_pos = pos[3]},
+                      .pos = pos[7],
+                      .severity = Severity::Error}}));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses return type") {
