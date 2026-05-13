@@ -182,6 +182,23 @@ public:
         return std::make_pair(std::move(let.value),
                               std::span(positions_).subspan(offset));
     }
+    template <typename High, typename Low>
+    void checkPrecedenceBinary(TokenKind high, TokenKind low) {  // NOLINT
+
+        auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 1},
+                                                  low,
+                                                  {TokenKind::IntLiteral, 2},
+                                                  high,
+                                                  {TokenKind::IntLiteral, 3}});
+        CHECK(expr ==
+              ExprNode(pos[1],
+                       Low(ExprNode(pos[0], IntLiteral{1}),
+                           ExprNode(pos[3],
+                                    High(ExprNode(pos[2], IntLiteral{2}),
+                                         ExprNode(pos[4], IntLiteral{3}))))));
+    }
+    // void checkPrecedenceUnary(TokenKind higher, TokenKind lower) {  // NOLINT
+    // }
 
     static constexpr void assertTokensMatch(
         std::string const& src, std::vector<MockToken> const& tokens) {
@@ -1282,4 +1299,84 @@ TEST_CASE_FIXTURE(ParserFixture,
                                     AddExpr(ExprNode(pos[1], IntLiteral{1}),
                                             ExprNode(pos[3], IntLiteral{2}))),
                            ExprNode(pos[6], IntLiteral{3}))));
+}
+
+// PRECEDENCE TESTS
+// First template Arg and function arg is the operator with higher precedence
+// 1 operator per level of precedence is tested
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser expression precedence ? higher than logical_or") {
+    checkPrecedenceBinary<OrExpr, FilterExpr>(TokenKind::Or,
+                                              TokenKind::Question);
+}
+TEST_CASE_FIXTURE(
+    ParserFixture,
+    "Parser expression precedence logical or higher than logical and") {
+    checkPrecedenceBinary<AndExpr, OrExpr>(TokenKind::And, TokenKind::Or);
+}
+
+TEST_CASE_FIXTURE(
+    ParserFixture,
+    "Parser expression precedence comparison higher than logical and") {
+    checkPrecedenceBinary<LtExpr, AndExpr>(TokenKind::Less, TokenKind::And);
+}
+
+TEST_CASE_FIXTURE(
+    ParserFixture,
+    "Parser expression precedence in expr higher than comparison") {
+    checkPrecedenceBinary<InExpr, LtExpr>(TokenKind::In, TokenKind::Less);
+}
+
+TEST_CASE_FIXTURE(
+    ParserFixture,
+    "Parser expression precedence intersection higher than in expr") {
+    checkPrecedenceBinary<IntersectExpr, InExpr>(TokenKind::GreaterLess,
+                                                 TokenKind::In);
+}
+
+TEST_CASE_FIXTURE(
+    ParserFixture,
+    "Parser expression precedence additive higher than intersection") {
+    checkPrecedenceBinary<AddExpr, IntersectExpr>(TokenKind::Plus,
+                                                  TokenKind::GreaterLess);
+}
+
+TEST_CASE_FIXTURE(
+    ParserFixture,
+    "Parser expression precedence multiplicative higher than additive") {
+    checkPrecedenceBinary<MulExpr, AddExpr>(TokenKind::Asterisk,
+                                            TokenKind::Plus);
+}
+
+TEST_CASE_FIXTURE(
+    ParserFixture,
+    "Parser expression precedence unary higher than multiplicative") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Exclamation},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Asterisk},
+                                              {TokenKind::IntLiteral, 2}});
+
+    CHECK(expr ==
+          ExprNode(pos[2],
+                   MulExpr(ExprNode(pos[0],
+                                    NotExpr(ExprNode(pos[1], IntLiteral{1}))),
+                           ExprNode(pos[3], IntLiteral{2}))));
+}
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser expression precedence index higher than unary") {
+    auto const [expr, pos] = parseExpression({{TokenKind::Exclamation},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::BracketOpen},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::BracketClose}});
+
+    CHECK(
+        expr ==
+        ExprNode(pos[0], NotExpr(ExprNode(
+                             pos[1], IndexExpr{std::make_unique<ExprNode>(
+                                                   pos[1], IntLiteral{1}),
+                                               std::make_unique<ExprNode>(
+                                                   pos[3], IntLiteral{2})}))));
 }
