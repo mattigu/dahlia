@@ -1265,3 +1265,21 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses map expression") {
     CHECK(expr == ExprNode(pos[1], MapExpr(ExprNode(pos[0], Identifier{"a"}),
                                            ExprNode(pos[2], Identifier{"b"}))));
 }
+
+TEST_CASE_FIXTURE(ParserFixture,
+                  "Parser respects parenthesized operator precedence") {
+    auto const [expr, pos] = parseExpression({{TokenKind::ParenOpen},
+                                              {TokenKind::IntLiteral, 1},
+                                              {TokenKind::Plus},
+                                              {TokenKind::IntLiteral, 2},
+                                              {TokenKind::ParenClose},
+                                              {TokenKind::Asterisk},
+                                              {TokenKind::IntLiteral, 3}});
+
+    CHECK(expr ==
+          ExprNode(pos[5],
+                   MulExpr(ExprNode(pos[2],
+                                    AddExpr(ExprNode(pos[1], IntLiteral{1}),
+                                            ExprNode(pos[3], IntLiteral{2}))),
+                           ExprNode(pos[6], IntLiteral{3}))));
+}
