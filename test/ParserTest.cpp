@@ -431,6 +431,33 @@ TEST_CASE_FIXTURE(ParserFixture,
                                              .severity = Severity::Fatal}}));
 }
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser skips to next function on error") {
+    auto const pos = initValidated("fn () {} fn main () ;",
+                                   {
+                                       {TokenKind::Fn},
+                                       {TokenKind::ParenOpen},
+                                       {TokenKind::ParenClose},
+                                       {TokenKind::BraceOpen},
+                                       {TokenKind::BraceClose},
+                                       {TokenKind::Fn},
+                                       {TokenKind::Identifier, "main"},
+                                       {TokenKind::ParenOpen},
+                                       {TokenKind::ParenClose},
+                                       {TokenKind::Semicolon},
+                                   });
+
+    auto const program = parse();
+
+    REQUIRE(!program.has_value());
+
+    CHECK(diagnostics().all() == makeDiags({{.kind = {ExpectedIdentifier{}},
+                                             .pos = pos[1],
+                                             .severity = Severity::Fatal},
+                                            {.kind = {ExpectedBlock{}},
+                                             .pos = pos[9],
+                                             .severity = Severity::Fatal}}));
+}
+
 TEST_CASE_FIXTURE(ParserFixture, "Parser errors on missing param type") {
     auto const pos =
         initValidated("fn main(a : ) {}", {{TokenKind::Fn},
@@ -554,8 +581,6 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses empty vec literal") {
         parseExpression({{TokenKind::BracketOpen}, {TokenKind::BracketClose}});
     CHECK(bool_val == ExprNode(pos[0], VecLiteral{.elements = {}}));
 }
-
-// TODO! Test comma in empty vec once error handling finalized.
 
 TEST_CASE_FIXTURE(ParserFixture,
                   "Parser parses simple vec literal with one element") {
