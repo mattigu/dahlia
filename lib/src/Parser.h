@@ -35,19 +35,18 @@ public:
                 if (!fun) {
                     break;
                 }
+                auto const new_pos = fun->pos();
+                auto const [iter, inserted] =
+                    functions.try_emplace((*fun)->identifier, std::move(*fun));
+                if (!inserted) {
+                    pushDiag(
+                        FunctionRedefined{.identifier = iter->first,
+                                          .original_pos = iter->second.pos()},
+                        new_pos);
+                }
             } catch (ParserDiagnostic const& diag) {
                 // Add some error count limit here?
                 skipWhile([](TokenKind kind) { return kind != TokenKind::Fn; });
-                continue;
-            }
-
-            auto const new_pos = fun->pos();
-            auto const [iter, inserted] =
-                functions.try_emplace((*fun)->identifier, std::move(*fun));
-            if (!inserted) {
-                pushDiag(FunctionRedefined{.identifier = iter->first,
-                                           .original_pos = iter->second.pos()},
-                         new_pos);
             }
         }
 
@@ -187,7 +186,7 @@ private:
 
         auto identifier = expectIdentifier();
 
-        bool const paren_open = consume(TokenKind::ParenOpen);
+        expect(TokenKind::ParenOpen);
         auto params = tryParseFunctionParams();
         expect(TokenKind::ParenClose);
 
