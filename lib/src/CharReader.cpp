@@ -1,6 +1,6 @@
-#include "CharReader.h"
+#include "dahlia_lib/CharReader.h"
 
-#include "Position.h"
+#include "dahlia_lib/Position.h"
 
 CharReader::CharReader(std::istream& input)
     : input_{input},

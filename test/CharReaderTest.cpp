@@ -1,10 +1,10 @@
-#include "src/CharReader.h"
+#include "dahlia_lib/CharReader.h"
 
 #include <sstream>
 #include <stdexcept>
 
 #include "doctest.h"
-#include "src/Position.h"
+#include "dahlia_lib/Position.h"
 
 TEST_CASE("CharReader first token is STX") {
     std::istringstream input("123");

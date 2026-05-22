@@ -1,4 +1,4 @@
-#include "Lexer.h"
+#include "dahlia_lib/Lexer.h"
 
 #include <array>
 #include <cctype>
@@ -7,11 +7,11 @@
 #include <optional>
 #include <string_view>
 
-#include "CharReader.h"
-#include "Diagnostics.hpp"
-#include "LexerDiagnostics.h"
-#include "Position.h"
-#include "Token.h"
+#include "dahlia_lib/CharReader.h"
+#include "dahlia_lib/Diagnostics.hpp"
+#include "dahlia_lib/LexerDiagnostics.h"
+#include "dahlia_lib/Position.h"
+#include "dahlia_lib/Token.h"
 
 static constexpr auto SINGLE_CHAR_TOKENS =
     std::to_array<std::pair<char, TokenKind>>({

@@ -7,12 +7,12 @@
 #include <vector>
 
 #include "doctest.h"
-#include "src/Ast.h"
-#include "src/Diagnostics.hpp"
-#include "src/Parser.h"
-#include "src/ParserDiagnostic.h"
-#include "src/Position.h"
-#include "src/Token.h"
+#include "dahlia_lib/Ast.h"
+#include "dahlia_lib/Diagnostics.hpp"
+#include "dahlia_lib/Parser.h"
+#include "dahlia_lib/ParserDiagnostic.h"
+#include "dahlia_lib/Position.h"
+#include "dahlia_lib/Token.h"
 
 struct MockToken {
 public:

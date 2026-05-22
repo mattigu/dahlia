@@ -2,11 +2,11 @@
 #include <string>
 
 #include "doctest.h"
-#include "src/Diagnostics.hpp"
-#include "src/Lexer.h"
-#include "src/LexerDiagnostics.h"
-#include "src/Position.h"
-#include "src/Token.h"
+#include "dahlia_lib/Diagnostics.hpp"
+#include "dahlia_lib/Lexer.h"
+#include "dahlia_lib/LexerDiagnostics.h"
+#include "dahlia_lib/Position.h"
+#include "dahlia_lib/Token.h"
 
 struct LexerFixture {
     void init(std::string const& src, LexerOptions const& options = {}) {
