@@ -2,10 +2,6 @@
 
 #include "magic_enum/magic_enum.hpp"
 
-bool VecType::operator==(VecType const& other) const {
-    return *inner == *other.inner;
-}
-
 std::ostream& operator<<(std::ostream& oss, Type const& type) {
     return oss << std::format("{}", type);
 }
@@ -61,13 +57,21 @@ bool WhileLoop::operator==(WhileLoop const& other) const {
     return condition == other.condition && *block == *other.block;
 }
 
+VecType::VecType(Type inner)
+    : inner{std::make_unique<Type>(std::move(inner))} {}
+
+VecType::VecType(VecType const& other)
+    : inner{std::make_unique<Type>(*other.inner)} {}
+
+bool VecType::operator==(VecType const& other) const {
+    return *inner == *other.inner;
+}
+
 Type::Type(PrimitiveType primitive) : value_(primitive) {}
 
 Type::Type(VecType vec) : value_(std::move(vec)) {}
 
-Type Type::vec(Type inner) {
-    return Type(VecType{.inner = std::make_unique<Type>(std::move(inner))});
-}
+Type Type::vec(Type inner) { return Type{VecType{std::move(inner)}}; }
 
 bool Type::isVec() const { return std::holds_alternative<VecType>(value_); }
 

@@ -42,6 +42,14 @@ enum class PrimitiveType : std::int8_t { Int, Float, Bool, Str };
 struct VecType {
     std::unique_ptr<Type> inner;
 
+    explicit VecType(Type inner);
+    ~VecType() = default;
+
+    VecType(VecType const& other);
+    VecType& operator=(VecType const& other);
+    VecType(VecType&&) = default;
+    VecType& operator=(VecType&&) = default;
+
     bool operator==(VecType const& other) const;
 };
 
