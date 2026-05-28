@@ -18,16 +18,16 @@ public:
 
     void initMain(std::vector<StatementNode> statements) {
         init(ProgramNode(
-            pos1,
+            pos0_,
             makeProgram(FunctionNode(
-                pos1, Function{.identifier = "main",
-                               .block = BlockNode(
-                                   pos2, Block{std::move(statements)})}))));
+                pos0_, Function{.identifier = "main",
+                                .block = BlockNode(
+                                    pos2, Block{std::move(statements)})}))));
     }
 
     void initExpr(ExprNode expr) {
         initMain(
-            makeStatements(StatementNode(pos1, ReturnStmt{std::move(expr)})));
+            makeStatements(StatementNode(pos0_, ReturnStmt{std::move(expr)})));
     }
 
     template <typename... FunctionNodes>
@@ -63,12 +63,15 @@ public:
     }
 
     // NOLINTBEGIN
-    Position const pos1 = Position{.line = 0, .column = 0, .offset = 1};
-    Position const pos2 = Position{.line = 0, .column = 0, .offset = 1};
-    Position const pos3 = Position{.line = 0, .column = 0, .offset = 1};
+
+    Position const pos1 = Position{.line = 0, .column = 0, .offset = 3};
+    Position const pos2 = Position{.line = 0, .column = 0, .offset = 4};
+    Position const pos3 = Position{.line = 0, .column = 0, .offset = 5};
     // NOLINTEND
 
 private:
+    Position pos0_ = Position{.line = 0, .column = 0, .offset = 3};
+
     std::optional<Interpreter> interpreter_;
     std::optional<ProgramNode> program_;
 };
@@ -181,4 +184,23 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals nested vec literal") {
                                         .elements = {Value{1}}}},
                          Value{VecValue{.type = PrimitiveType::Int,
                                         .elements = {Value{2}, Value{3}}}}}}});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter throws on break statements outside of loops") {
+    initMain(makeStatements(StatementNode(pos1, BreakStmt{})));
+
+    auto const value = run();
+    CHECK(value == std::unexpected(
+                       RuntimeError{.kind = UnexpectedBreak{}, .pos = pos1}));
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter throws on continue statements outside of loops") {
+    initMain(makeStatements(StatementNode(pos1, ContinueStmt{})));
+
+    auto const value = run();
+    CHECK(value == std::unexpected(RuntimeError{.kind = UnexpectedContinue{},
+                                                .pos = pos1}));
 }

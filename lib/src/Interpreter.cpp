@@ -37,14 +37,19 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
     // Verify args and param types
     auto signal = visitBlock(fun->block);
 
-    return std::visit(
-        Overloaded{
-            [](ReturnSignal const& sig) { return sig.value; },
-            [](std::monostate) { return Value{}; },
-            [](BreakSignal const& sig) -> Value { throw std::string("A"); },
-            [](ContinueSignal const& sig) -> Value { throw std::string("A"); },
-        },
-        signal);
+    return std::visit(Overloaded{
+                          [](ReturnSignal const& sig) { return sig.value; },
+                          [](std::monostate) { return Value{}; },
+                          [](BreakSignal const& sig) -> Value {
+                              throw RuntimeError{.kind = UnexpectedBreak{},
+                                                 .pos = sig.pos};
+                          },
+                          [](ContinueSignal const& sig) -> Value {
+                              throw RuntimeError{.kind = UnexpectedContinue{},
+                                                 .pos = sig.pos};
+                          },
+                      },
+                      signal);
 }
 
 [[nodiscard]] Value Interpreter::visitExpr(ExprNode const& expr) const {
@@ -73,8 +78,12 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 }
                 return Signal{ReturnSignal{}};
             },
-            [](BreakStmt const& stmt) { return Signal{BreakSignal{}}; },
-            [](ContinueStmt const& stmt) { return Signal{ContinueSignal{}}; },
+            [&](BreakStmt const& stmt) {
+                return Signal{BreakSignal{statement.pos()}};
+            },
+            [&](ContinueStmt const& stmt) {
+                return Signal{ContinueSignal{statement.pos()}};
+            },
             [this](BlockNode const& block) { return visitBlock(block); },
             [this](LetBinding const& let) {
                 visitLetBinding(let);
@@ -87,8 +96,7 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
         *statement);
 }
 
-void Interpreter::visitLetBinding(LetBinding const& let) {
-}
+void Interpreter::visitLetBinding(LetBinding const& let) {}
 
 Signal Interpreter::visitBlock(BlockNode const& block) {
     stack_.current().pushScope();
