@@ -12,6 +12,7 @@ add_executable(dahlia_test
     CharReaderTest.cpp
     LexerTest.cpp
     ParserTest.cpp
+    InterpreterTest.cpp
 )
 
 target_link_libraries(dahlia_test

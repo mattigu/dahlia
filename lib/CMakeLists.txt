@@ -13,6 +13,8 @@ add_library(dahlia_lib STATIC
     src/Lexer.cpp
     src/Token.cpp
     src/Ast.cpp
+    src/Interpreter.cpp
+    src/Stack.cpp
 )
 
 target_link_libraries(dahlia_lib
