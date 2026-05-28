@@ -306,7 +306,7 @@ private:
 
         auto block_stmt = tryParseBlock();
         if (block_stmt) {
-            return StatementNode(start_pos, std::move(**block_stmt));
+            return StatementNode(start_pos, std::move(*block_stmt));
         }
 
         auto unterminated_stmt =

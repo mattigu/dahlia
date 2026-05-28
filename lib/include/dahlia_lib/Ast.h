@@ -280,7 +280,7 @@ struct ForLoop;
 using StatementKind =
     std::variant<BreakStmt, ContinueStmt, ReturnStmt, LetBinding, AssignStmt,
                  AddAssignStmt, SubAssignStmt, MulAssignStmt, DivAssignStmt,
-                 ModAssignStmt, FunctionCall, Block, IfStmt, WhileLoop,
+                 ModAssignStmt, FunctionCall, BlockNode, IfStmt, WhileLoop,
                  ForLoop>;
 using StatementNode = Node<StatementKind>;
 

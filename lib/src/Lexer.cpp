@@ -421,9 +421,9 @@ std::optional<Token> Lexer::tryBuildNumber() {
         return Token(TokenKind::ERROR, start_pos);
     }
 
-    uint64_t value = std::get<uint64_t>(int_part->value);
+    std::uint64_t value = std::get<std::uint64_t>(int_part->value);
 
-    if (value > static_cast<uint64_t>(options_.int_range)) {
+    if (value > static_cast<std::uint64_t>(options_.int_range)) {
         pushDiag(IntegerOverflow{}, start_pos);
         return Token(TokenKind::ERROR, start_pos);
     }
@@ -434,8 +434,9 @@ std::optional<Token> Lexer::tryBuildNumber() {
 void Lexer::appendIntegerDigit(BuiltDigits& result, uint8_t digit) {
     ++result.count;
 
-    if (auto* value = std::get_if<uint64_t>(&result.value)) {
-        if (*value <= (std::numeric_limits<uint64_t>::max() - digit) / 10) {
+    if (auto* value = std::get_if<std::uint64_t>(&result.value)) {
+        if (*value <=
+            (std::numeric_limits<std::uint64_t>::max() - digit) / 10) {
             *value = (*value * 10) + digit;
             return;
         }

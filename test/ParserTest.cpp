@@ -6,13 +6,13 @@
 #include <variant>
 #include <vector>
 
-#include "doctest.h"
 #include "dahlia_lib/Ast.h"
 #include "dahlia_lib/Diagnostics.hpp"
 #include "dahlia_lib/Parser.h"
 #include "dahlia_lib/ParserDiagnostic.h"
 #include "dahlia_lib/Position.h"
 #include "dahlia_lib/Token.h"
+#include "doctest.h"
 
 struct MockToken {
 public:
@@ -197,8 +197,6 @@ public:
                                     High(ExprNode(pos[2], IntLiteral{2}),
                                          ExprNode(pos[4], IntLiteral{3}))))));
     }
-    // void checkPrecedenceUnary(TokenKind higher, TokenKind lower) {  // NOLINT
-    // }
 
     static constexpr void assertTokensMatch(
         std::string const& src, std::vector<MockToken> const& tokens) {
@@ -211,11 +209,6 @@ public:
             REQUIRE(token.value() == mock.value_);
             lexer.next();
         }
-    }
-
-    template <typename T>
-    Node<T> testNode(T value) {
-        return Node<T>{Position{}, std::move(value)};
     }
 
     template <typename T, typename... Args>
@@ -843,9 +836,14 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses nested blocks") {
         stmts ==
         makeStatements(StatementNode(
             pos[0],
-            Block{.statements = makeStatements(StatementNode(
-                      pos[1], Block{.statements = makeStatements(StatementNode(
-                                        pos[2], BreakStmt{}))}))})));
+            BlockNode(
+                pos[0],
+                Block{.statements = makeStatements(StatementNode(
+                          pos[1],
+                          BlockNode(
+                              pos[1],
+                              Block{.statements = makeStatements(StatementNode(
+                                        pos[2], BreakStmt{}))})))}))));
 }
 
 TEST_CASE_FIXTURE(ParserFixture, "Parser parses simple if statement") {
