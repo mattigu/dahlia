@@ -1,12 +1,12 @@
 #include <sstream>
 #include <string>
 
-#include "doctest.h"
 #include "dahlia_lib/Diagnostics.hpp"
 #include "dahlia_lib/Lexer.h"
 #include "dahlia_lib/LexerDiagnostics.h"
 #include "dahlia_lib/Position.h"
 #include "dahlia_lib/Token.h"
+#include "doctest.h"
 
 struct LexerFixture {
     void init(std::string const& src, LexerOptions const& options = {}) {
@@ -23,6 +23,11 @@ struct LexerFixture {
     static std::string makeNumber(std::size_t int_digits,
                                   std::size_t frac_digits = 0,
                                   char digit = '9');
+
+    static std::vector<LexerDiagnostic> makeDiags(
+        std::initializer_list<LexerDiagnostic> diags) {
+        return diags;
+    }
 };
 
 inline std::string subcaseName(char const* src, TokenKind kind) {
@@ -87,10 +92,11 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 4, .offset = 3}});
 
-    CHECK(diagnostics().last() ==
-          LexerDiagnostic{.kind = UnexpectedChar{.chr = '^'},
-                          .pos = Position{.line = 1, .column = 4, .offset = 3},
-                          .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = UnexpectedChar{.chr = '^'},
+              .pos = Position{.line = 1, .column = 4, .offset = 3},
+              .severity = Severity::Error}}));
 
     CHECK(next() == Token{TokenKind::Semicolon,
                           Position{.line = 1, .column = 5, .offset = 4}});
@@ -99,20 +105,36 @@ TEST_CASE_FIXTURE(LexerFixture,
           Token{TokenKind::ETX, Position{.line = 1, .column = 6, .offset = 5}});
 }
 
-TEST_CASE_FIXTURE(LexerFixture, "Lexer token positions single char") {
-    init("()\n[");
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes single char tokens") {
+    struct Case {
+        char const* src;
+        TokenKind kind;
+    };
 
-    REQUIRE(next() == Token{TokenKind::ParenOpen,
-                            Position{.line = 1, .column = 1, .offset = 0}});
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "(", .kind = TokenKind::ParenOpen},
+        {.src = ")", .kind = TokenKind::ParenClose},
+        {.src = "[", .kind = TokenKind::BracketOpen},
+        {.src = "]", .kind = TokenKind::BracketClose},
+        {.src = "{", .kind = TokenKind::BraceOpen},
+        {.src = "}", .kind = TokenKind::BraceClose},
+        {.src = ";", .kind = TokenKind::Semicolon},
+        {.src = ",", .kind = TokenKind::Comma},
+        {.src = "@", .kind = TokenKind::At},
+        {.src = "?", .kind = TokenKind::Question},
+    });
 
-    REQUIRE(next() == Token{TokenKind::ParenClose,
-                            Position{.line = 1, .column = 2, .offset = 1}});
-
-    REQUIRE(next() == Token{TokenKind::BracketOpen,
-                            Position{.line = 2, .column = 1, .offset = 3}});
-
-    REQUIRE(next() == Token{TokenKind::ETX,
-                            Position{.line = 2, .column = 2, .offset = 4}});
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.kind)) {
+            init(test.src);
+            CHECK(next() ==
+                  Token{test.kind,
+                        Position{.line = 1, .column = 1, .offset = 0}});
+            CHECK(next() ==
+                  Token{TokenKind::ETX,
+                        Position{.line = 1, .column = 2, .offset = 1}});
+        }
+    }
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes comments") {
@@ -141,16 +163,161 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer reports comments too long") {
                           Position{.line = 2, .column = 1, .offset = 3},
                           TokenValue("1")});
 
-    CHECK(diagnostics().last() ==
-          LexerDiagnostic{.kind = CommentTooLong{},
-                          .pos = Position{.line = 2, .column = 1, .offset = 3},
-                          .severity = Severity::Warning});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = CommentTooLong{},
+              .pos = Position{.line = 2, .column = 1, .offset = 3},
+              .severity = Severity::Warning}}));
 
     CHECK(next() == Token{TokenKind::Semicolon,
                           Position{.line = 3, .column = 1, .offset = 7}});
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 3, .column = 2, .offset = 8}});
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple operators") {
+    struct Case {
+        char const* src;
+        TokenKind kind;
+    };
+
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "+", .kind = TokenKind::Plus},
+        {.src = "-", .kind = TokenKind::Minus},
+        {.src = "*", .kind = TokenKind::Asterisk},
+        {.src = "/", .kind = TokenKind::Slash},
+        {.src = "%", .kind = TokenKind::Percent},
+        {.src = "=", .kind = TokenKind::Equal},
+        {.src = "!", .kind = TokenKind::Exclamation},
+        {.src = "<", .kind = TokenKind::Less},
+        {.src = ">", .kind = TokenKind::Greater},
+        {.src = ":", .kind = TokenKind::Colon},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.kind)) {
+            init(test.src);
+            CHECK(next() ==
+                  Token{test.kind,
+                        Position{.line = 1, .column = 1, .offset = 0}});
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer tokenizes compound assignment operators") {
+    struct Case {
+        char const* src;
+        TokenKind kind;
+    };
+
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "+=", .kind = TokenKind::PlusEqual},
+        {.src = "-=", .kind = TokenKind::MinusEqual},
+        {.src = "*=", .kind = TokenKind::AsteriskEqual},
+        {.src = "/=", .kind = TokenKind::SlashEqual},
+        {.src = "%=", .kind = TokenKind::PercentEqual},
+        {.src = "==", .kind = TokenKind::EqualEqual},
+        {.src = "!=", .kind = TokenKind::ExclamationEqual},
+        {.src = "<=", .kind = TokenKind::LessEqual},
+        {.src = ">=", .kind = TokenKind::GreaterEqual},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.kind)) {
+            init(test.src);
+            CHECK(next() ==
+                  Token{test.kind,
+                        Position{.line = 1, .column = 1, .offset = 0}});
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes special operators") {
+    struct Case {
+        char const* src;
+        TokenKind kind;
+    };
+
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "..", .kind = TokenKind::DotDot},
+        {.src = "..=", .kind = TokenKind::DotDotEq},
+        {.src = ":>", .kind = TokenKind::ColonGreater},
+        {.src = "><", .kind = TokenKind::GreaterLess},
+        {.src = "->", .kind = TokenKind::MinusGreater},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.kind)) {
+            init(test.src);
+            CHECK(next() ==
+                  Token{test.kind,
+                        Position{.line = 1, .column = 1, .offset = 0}});
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer reports 'Expected' error for ..") {
+    init("for x in a.b");
+
+    CHECK(next().kind() == TokenKind::For);
+    CHECK(next().kind() == TokenKind::Identifier);
+    CHECK(next().kind() == TokenKind::In);
+    CHECK(next().kind() == TokenKind::Identifier);
+
+    CHECK(next().kind() == TokenKind::ERROR);
+
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = ExpectedChar{.expected = '.', .got = 'b'},
+              .pos = Position{.line = 1, .column = 12, .offset = 11},
+              .severity = Severity::Error}}));
+
+    CHECK(next().kind() == TokenKind::Identifier);
+    CHECK(next().kind() == TokenKind::ETX);
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes keywords") {
+    struct Case {
+        char const* src;
+        TokenKind expected;
+    };
+
+    constexpr auto cases = std::to_array<Case>({
+        {.src = "let", .expected = TokenKind::Let},
+        {.src = "mut", .expected = TokenKind::Mut},
+        {.src = "fn", .expected = TokenKind::Fn},
+        {.src = "if", .expected = TokenKind::If},
+        {.src = "else", .expected = TokenKind::Else},
+        {.src = "for", .expected = TokenKind::For},
+        {.src = "while", .expected = TokenKind::While},
+        {.src = "in", .expected = TokenKind::In},
+        {.src = "return", .expected = TokenKind::Return},
+        {.src = "true", .expected = TokenKind::True},
+        {.src = "break", .expected = TokenKind::Break},
+        {.src = "continue", .expected = TokenKind::Continue},
+        {.src = "false", .expected = TokenKind::False},
+        {.src = "int", .expected = TokenKind::Int},
+        {.src = "float", .expected = TokenKind::Float},
+        {.src = "bool", .expected = TokenKind::Bool},
+        {.src = "str", .expected = TokenKind::Str},
+    });
+
+    for (auto const& test : cases) {
+        SUBCASE(subcaseName(test.src, test.expected)) {
+            init(test.src);
+
+            CHECK(next() ==
+                  Token{test.expected,
+                        Position{.line = 1, .column = 1, .offset = 0}});
+
+            CHECK(next().kind() == TokenKind::ETX);
+        }
+    }
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
@@ -164,6 +331,90 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple strings") {
           Token{TokenKind::ETX, Position{.line = 1, .column = 8, .offset = 7}});
 }
 
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer tokenizes strings with escape sequences") {
+    init(R"(" 1 \t 2 \n 3 \" 4 \\ 5 \r 6 ")");
+
+    CHECK(next() == Token{TokenKind::StrLiteral,
+                          Position{.line = 1, .column = 1, .offset = 0},
+                          TokenValue{" 1 \t 2 \n 3 \" 4 \\ 5 \r 6 "}});
+
+    CHECK(next() == Token{TokenKind::ETX,
+                          Position{.line = 1, .column = 31, .offset = 30}});
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer recognizes and reports invalid escape sequences") {
+    init(R"("ab\c" )");
+
+    CHECK(next() == Token{TokenKind::ERROR,
+                          Position{.line = 1, .column = 1, .offset = 0}});
+
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = InvalidEscapeSequence{.chr = 'c'},
+              .pos = Position{.line = 1, .column = 5, .offset = 4},
+              .severity = Severity::Error}}));
+
+    CHECK(next() ==
+          Token{TokenKind::ETX, Position{.line = 1, .column = 8, .offset = 7}});
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer tokenizes strings with hex escape sequences") {
+    init(R"("\x48\x65\x6C\x6C\x6F")");
+
+    CHECK(next() == Token{TokenKind::StrLiteral,
+                          Position{.line = 1, .column = 1, .offset = 0},
+                          TokenValue{"Hello"}});
+
+    CHECK(next() == Token{TokenKind::ETX,
+                          Position{.line = 1, .column = 23, .offset = 22}});
+}
+
+TEST_CASE_FIXTURE(LexerFixture,
+                  "Lexer recognizes and reports invalid hex escape sequences") {
+    init(R"("\xLc" ;)");
+
+    CHECK(next() == Token{TokenKind::ERROR,
+                          Position{.line = 1, .column = 1, .offset = 0}});
+
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = InvalidHexEscape{.chr = 'L'},
+              .pos = Position{.line = 1, .column = 4, .offset = 3},
+              .severity = Severity::Error}}));
+
+    CHECK(next() == Token{TokenKind::Semicolon,
+                          Position{.line = 1, .column = 8, .offset = 7}});
+
+    CHECK(next() ==
+          Token{TokenKind::ETX, Position{.line = 1, .column = 9, .offset = 8}});
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer reports strings too long") {
+    init(R"("a" "ab" ;)", {.max_string_len = 1});
+
+    CHECK(next() == Token{TokenKind::StrLiteral,
+                          Position{.line = 1, .column = 1, .offset = 0},
+                          TokenValue{"a"}});
+
+    CHECK(next() == Token{TokenKind::ERROR,
+                          Position{.line = 1, .column = 5, .offset = 4}});
+
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = StringTooLong{},
+              .pos = Position{.line = 1, .column = 5, .offset = 4},
+              .severity = Severity::Error}}));
+
+    CHECK(next() == Token{TokenKind::Semicolon,
+                          Position{.line = 1, .column = 10, .offset = 9}});
+
+    CHECK(next() == Token{TokenKind::ETX,
+                          Position{.line = 1, .column = 11, .offset = 10}});
+}
+
 TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
     init(R"("hello
 ;)");
@@ -171,10 +422,11 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer recognizes unterminated strings") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    CHECK(diagnostics().last() ==
-          LexerDiagnostic{.kind = UnterminatedString{},
-                          .pos = Position{.line = 1, .column = 1, .offset = 0},
-                          .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = UnterminatedString{},
+              .pos = Position{.line = 1, .column = 1, .offset = 0},
+              .severity = Severity::Error}}));
 
     CHECK(next() == Token{TokenKind::Semicolon,
                           Position{.line = 2, .column = 1, .offset = 7}});
@@ -212,6 +464,29 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes valid identifiers") {
 
     CHECK(next() == Token{TokenKind::ETX,
                           Position{.line = 1, .column = 41, .offset = 40}});
+}
+
+TEST_CASE_FIXTURE(LexerFixture, "Lexer reports identifiers too long") {
+    init("a ab ;", {.max_identifier_len = 1});
+
+    CHECK(next() == Token{TokenKind::Identifier,
+                          Position{.line = 1, .column = 1, .offset = 0},
+                          TokenValue{"a"}});
+
+    CHECK(next() == Token{TokenKind::ERROR,
+                          Position{.line = 1, .column = 3, .offset = 2}});
+
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = IdentifierTooLong{},
+              .pos = Position{.line = 1, .column = 3, .offset = 2},
+              .severity = Severity::Error}}));
+
+    CHECK(next() == Token{TokenKind::Semicolon,
+                          Position{.line = 1, .column = 6, .offset = 5}});
+
+    CHECK(next() ==
+          Token{TokenKind::ETX, Position{.line = 1, .column = 7, .offset = 6}});
 }
 
 TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes simple integers") {
@@ -278,11 +553,11 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects integer overflow") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 21, .offset = 20}});
 
-    CHECK(
-        diagnostics().last() ==
-        LexerDiagnostic{.kind = IntegerOverflow{},
-                        .pos = Position{.line = 1, .column = 21, .offset = 20},
-                        .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = IntegerOverflow{},
+              .pos = Position{.line = 1, .column = 21, .offset = 20},
+              .severity = Severity::Error}}));
 
     CHECK(next() == Token{TokenKind::ETX,
                           Position{.line = 1, .column = 40, .offset = 39}});
@@ -294,10 +569,11 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects double separators") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    CHECK(diagnostics().last() ==
-          LexerDiagnostic{.kind = InvalidNumericSeparator{},
-                          .pos = Position{.line = 1, .column = 3, .offset = 2},
-                          .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = InvalidNumericSeparator{},
+              .pos = Position{.line = 1, .column = 3, .offset = 2},
+              .severity = Severity::Error}}));
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 1, .column = 5, .offset = 4}});
@@ -309,10 +585,11 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects leading separator") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    CHECK(diagnostics().last() ==
-          LexerDiagnostic{.kind = InvalidNumericSeparator{},
-                          .pos = Position{.line = 1, .column = 1, .offset = 0},
-                          .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = InvalidNumericSeparator{},
+              .pos = Position{.line = 1, .column = 1, .offset = 0},
+              .severity = Severity::Error}}));
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 1, .column = 5, .offset = 4}});
@@ -324,10 +601,11 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer detects trailing separator") {
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    CHECK(diagnostics().last() ==
-          LexerDiagnostic{.kind = InvalidNumericSeparator{},
-                          .pos = Position{.line = 1, .column = 4, .offset = 3},
-                          .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = InvalidNumericSeparator{},
+              .pos = Position{.line = 1, .column = 4, .offset = 3},
+              .severity = Severity::Error}}));
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 1, .column = 5, .offset = 4}});
@@ -340,10 +618,11 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    CHECK(diagnostics().last() ==
-          LexerDiagnostic{.kind = InvalidNumericSeparator{},
-                          .pos = Position{.line = 1, .column = 2, .offset = 1},
-                          .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = InvalidNumericSeparator{},
+              .pos = Position{.line = 1, .column = 2, .offset = 1},
+              .severity = Severity::Error}}));
 
     CHECK(next() ==
           Token{TokenKind::ETX, Position{.line = 1, .column = 5, .offset = 4}});
@@ -433,10 +712,11 @@ TEST_CASE_FIXTURE(LexerFixture,
     CHECK(next() == Token{TokenKind::ERROR,
                           Position{.line = 1, .column = 1, .offset = 0}});
 
-    CHECK(diagnostics().last() ==
-          LexerDiagnostic{.kind = FloatOutOfRange{},
-                          .pos = Position{.line = 1, .column = 1, .offset = 0},
-                          .severity = Severity::Error});
+    CHECK(diagnostics().all() ==
+          makeDiags({LexerDiagnostic{
+              .kind = FloatOutOfRange{},
+              .pos = Position{.line = 1, .column = 1, .offset = 0},
+              .severity = Severity::Error}}));
 
     CHECK(next() == Token{TokenKind::ETX, Position{
                                               .line = 1,
