@@ -1,6 +1,7 @@
 #include "dahlia_lib/Stack.h"
 
 #include <cassert>
+#include <ranges>
 
 void Stack::pushContext() { callContexts_.emplace_back(); }
 
@@ -30,25 +31,29 @@ Value const* CallContext::lookupValue(
     std::string const& identifier) const noexcept {
     assert(!scopes_.empty());
 
-    auto const& scope = scopes_.back();
+    for (auto const& scope : scopes_ | std::views::reverse) {
+        auto const iter = scope.variables.find(identifier);
 
-    auto iter = scope.variables.find(identifier);
-    if (iter == scope.variables.cend()) {
-        return nullptr;
+        if (iter != scope.variables.cend()) {
+            return &iter->second.data();
+        }
     }
-    return &iter->second.data();
+
+    return nullptr;
 }
 
 Variable* CallContext::lookupVariable(std::string const& identifier) noexcept {
     assert(!scopes_.empty());
 
-    auto& scope = scopes_.back();
+    for (auto& scope : scopes_ | std::views::reverse) {
+        auto const iter = scope.variables.find(identifier);
 
-    auto iter = scope.variables.find(identifier);
-    if (iter == scope.variables.cend()) {
-        return nullptr;
+        if (iter != scope.variables.cend()) {
+            return &iter->second;
+        }
     }
-    return &iter->second;
+
+    return nullptr;
 }
 
 std::optional<Position> CallContext::declareVariable(std::string identifier,
@@ -57,10 +62,10 @@ std::optional<Position> CallContext::declareVariable(std::string identifier,
 
     auto& scope = scopes_.back();
 
-    auto const [iter, duplicate] =
+    auto const [iter, inserted] =
         scope.variables.try_emplace(std::move(identifier), std::move(var));
 
-    if (duplicate) {
+    if (!inserted) {
         return iter->second.pos();
     }
     return std::nullopt;

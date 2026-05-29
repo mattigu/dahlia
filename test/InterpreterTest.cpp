@@ -275,3 +275,17 @@ TEST_CASE_FIXTURE(
     auto const value = run();
     CHECK(value == Value{1});
 }
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter sees variables in scopes above itself") {
+    initMain(makeStatements(
+        StatementNode(pos1, LetBinding{.identifier = "a",
+                                       .value = ExprNode(pos1, IntLiteral{1})}),
+        StatementNode(
+            pos1, BlockNode(pos1, Block{makeStatements(StatementNode(
+                                      pos1, ReturnStmt{ExprNode(
+                                                pos1, Identifier{"a"})}))}))));
+
+    auto const value = run();
+    CHECK(value == Value{1});
+}
