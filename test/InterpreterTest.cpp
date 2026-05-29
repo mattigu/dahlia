@@ -187,6 +187,18 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals nested vec literal") {
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter returns from nested blocks") {
+    initMain(makeStatements(StatementNode(
+        pos1,
+        BlockNode(pos1,
+                  Block{makeStatements(StatementNode(
+                      pos1, ReturnStmt{ExprNode(pos1, IntLiteral{1})}))}))));
+
+    auto const value = run();
+    CHECK(value == Value{1});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter throws on break statements outside of loops") {
     initMain(makeStatements(StatementNode(pos1, BreakStmt{})));
 
@@ -203,4 +215,63 @@ TEST_CASE_FIXTURE(
     auto const value = run();
     CHECK(value == std::unexpected(RuntimeError{.kind = UnexpectedContinue{},
                                                 .pos = pos1}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter assigns value to statements") {
+    initMain(makeStatements(
+        StatementNode(pos1, LetBinding{.identifier = "a",
+                                       .value = ExprNode(pos1, IntLiteral{1})}),
+        StatementNode(pos1, ReturnStmt{ExprNode(pos1, Identifier{"a"})})));
+
+    auto const value = run();
+    CHECK(value == Value{1});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter throws on usage of an undeclared variable") {
+    initMain(makeStatements(
+        StatementNode(pos1, ReturnStmt{ExprNode(pos2, Identifier{"a"})})));
+
+    auto const value = run();
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = UseOfUndeclaredVariable{}, .pos = pos2}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter allows shadowing variables in inner scopes") {
+    initMain(makeStatements(
+        StatementNode(pos1, LetBinding{.identifier = "a",
+                                       .value = ExprNode(pos1, IntLiteral{1})}),
+        StatementNode(
+            pos1,
+            BlockNode(
+                pos1,
+                Block{makeStatements(
+                    StatementNode(pos1, LetBinding{.identifier = "a",
+                                                   .value = ExprNode(
+                                                       pos1, IntLiteral{2})}),
+                    StatementNode(pos1, ReturnStmt{ExprNode(
+                                            pos1, Identifier{"a"})}))}))));
+
+    auto const value = run();
+    CHECK(value == Value{2});
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter restores shadowed variable value once block ends") {
+    initMain(makeStatements(
+        StatementNode(pos1, LetBinding{.identifier = "a",
+                                       .value = ExprNode(pos1, IntLiteral{1})}),
+        StatementNode(
+            pos1,
+            BlockNode(pos1, Block{makeStatements(StatementNode(
+                                pos1, LetBinding{.identifier = "a",
+                                                 .value = ExprNode(
+                                                     pos1, IntLiteral{2})}))})),
+        StatementNode(pos1, ReturnStmt{ExprNode(pos1, Identifier{"a"})})));
+
+    auto const value = run();
+    CHECK(value == Value{1});
 }

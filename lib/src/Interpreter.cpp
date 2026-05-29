@@ -4,9 +4,11 @@
 #include <ranges>
 
 #include "dahlia_lib/Ast.h"
+#include "dahlia_lib/Position.h"
 #include "dahlia_lib/RuntimeError.h"
 #include "dahlia_lib/Signal.h"
 #include "dahlia_lib/Stack.h"
+#include "dahlia_lib/Variable.h"
 
 std::expected<Value, RuntimeError> Interpreter::run(
     ProgramNode const& program) {
@@ -60,8 +62,12 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [](BoolLiteral const& lit) { return Value(lit.value); },
             [](FloatLiteral const& lit) { return Value(lit.value); },
             [](StringLiteral const& lit) { return Value(lit.value); },
-            [this](VecLiteral const& lit) { return visitVecLiteral(lit); },
-            [this](Identifier const& ident) { return visitIdentifier(ident); },
+            [&](VecLiteral const& lit) {
+                return visitVecLiteral(lit, expr.pos());
+            },
+            [&](Identifier const& ident) {
+                return visitIdentifier(ident, expr.pos());
+            },
 
             [](auto const& value) { return Value{}; }
 
@@ -85,8 +91,8 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 return Signal{ContinueSignal{statement.pos()}};
             },
             [this](BlockNode const& block) { return visitBlock(block); },
-            [this](LetBinding const& let) {
-                visitLetBinding(let);
+            [&](LetBinding const& let) {
+                visitLetBinding(let, statement.pos());
                 return Signal{};
             },
 
@@ -96,7 +102,15 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
         *statement);
 }
 
-void Interpreter::visitLetBinding(LetBinding const& let) {}
+void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
+    auto val = visitExpr(let.value);
+    auto const duplicate_pos = stack_.current().declareVariable(
+        let.identifier, Variable(std::move(val), let.mut, pos));
+    // Not yet sure how I want to handle redefinition in the same scope yet.
+    if (duplicate_pos) {
+        // throw RuntimeError{.kind = VariableRedefinition{}, .pos = *pos};
+    }
+}
 
 Signal Interpreter::visitBlock(BlockNode const& block) {
     stack_.current().pushScope();
@@ -132,15 +146,16 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call) {
     stack_.popContext();
 }
 
-Value Interpreter::visitIdentifier(Identifier const& ident) const {
+Value Interpreter::visitIdentifier(Identifier const& ident,
+                                   Position pos) const {
     auto const* val = stack_.current().lookupValue(ident.identifier);
     if (val == nullptr) {
-        // throw RuntimeError{.kind = UsedUndeclaredVariable{}, .pos=ident.}
+        throw RuntimeError{.kind = UseOfUndeclaredVariable{}, .pos = pos};
     }
     return *val;
 }
 
-Value Interpreter::visitVecLiteral(VecLiteral const& lit) const {
+Value Interpreter::visitVecLiteral(VecLiteral const& lit, Position pos) const {
     if (lit.elements.empty()) {
         return UninitVec{};
     }

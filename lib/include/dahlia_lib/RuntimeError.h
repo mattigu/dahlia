@@ -16,13 +16,19 @@ struct MissingMainFunction {
     bool operator==(MissingMainFunction const&) const noexcept = default;
 };
 
-struct UsedUndeclaredVariable {
-    bool operator==(UsedUndeclaredVariable const&) const noexcept = default;
+struct VariableRedefinition {
+    std::string identifier;
+    Position original_pos;
+    bool operator==(VariableRedefinition const&) const noexcept = default;
+};
+
+struct UseOfUndeclaredVariable {
+    bool operator==(UseOfUndeclaredVariable const&) const noexcept = default;
 };
 
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
-                 UsedUndeclaredVariable>;
+                 UseOfUndeclaredVariable>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

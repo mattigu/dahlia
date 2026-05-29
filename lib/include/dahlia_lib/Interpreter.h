@@ -27,12 +27,15 @@ private:
 
     Signal visitStatement(StatementNode const& statement);
 
-    void visitLetBinding(LetBinding const& let);
+    void visitLetBinding(LetBinding const& let, Position pos);
 
     Signal visitBlock(BlockNode const& block);
 
     Value visitFunctionCall(FunctionCall const& fun_call);
 
-    [[nodiscard]] Value visitIdentifier(Identifier const& ident) const;
-    [[nodiscard]] Value visitVecLiteral(VecLiteral const& lit) const;
+    [[nodiscard]] Value visitIdentifier(Identifier const& ident,
+                                        Position pos) const;
+
+    [[nodiscard]] Value visitVecLiteral(VecLiteral const& lit,
+                                        Position pos) const;
 };
