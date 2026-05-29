@@ -33,9 +33,7 @@ private:
 
     Value visitFunctionCall(FunctionCall const& fun_call);
 
-    [[nodiscard]] Value visitIdentifier(Identifier const& ident,
-                                        Position pos) const;
+    [[nodiscard]] EvalResult visitIdentifier(Identifier const& ident) const;
 
-    [[nodiscard]] Value visitVecLiteral(VecLiteral const& lit,
-                                        Position pos) const;
+    [[nodiscard]] EvalResult visitVecLiteral(VecLiteral const& lit) const;
 };

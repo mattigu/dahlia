@@ -1,11 +1,13 @@
 #pragma once
 #include <cstdint>
+#include <expected>
 #include <format>
 #include <string>
 #include <variant>
 #include <vector>
 
 #include "Ast.h"
+#include "dahlia_lib/RuntimeError.h"
 
 template <class... Ts>
 struct Overloaded : Ts... {
@@ -28,6 +30,8 @@ struct VecValue {
     bool operator==(VecValue const& other) const = default;
 };
 
+using EvalResult = std::expected<Value, RuntimeErrorKind>;
+
 constexpr Type typeFor(Value const& value) {
     return std::visit(
         Overloaded{
@@ -46,13 +50,13 @@ constexpr Type typeFor(Value const& value) {
         value);
 }
 
-std::string vecToString(VecValue const& vec);
-std::string valueToString(Value const& value);
+std::string toString(VecValue const& vec);
+std::string toString(Value const& value);
 
 template <>
 struct std::formatter<Value> : std::formatter<std::string> {
     auto format(Value const& value, std::format_context& ctx) const {
-        return std::formatter<std::string>::format(valueToString(value), ctx);
+        return std::formatter<std::string>::format(toString(value), ctx);
     }
 };
 

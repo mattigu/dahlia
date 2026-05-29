@@ -8,6 +8,7 @@
 #include "dahlia_lib/RuntimeError.h"
 #include "dahlia_lib/Signal.h"
 #include "dahlia_lib/Stack.h"
+#include "dahlia_lib/Value.h"
 #include "dahlia_lib/Variable.h"
 
 std::expected<Value, RuntimeError> Interpreter::run(
@@ -21,7 +22,6 @@ std::expected<Value, RuntimeError> Interpreter::run(
 
 Value Interpreter::visitProgram(ProgramNode const& program) {
     // parse builtins
-
     auto const main = program->functions.find("main");
 
     if (main == program->functions.cend()) {
@@ -55,24 +55,28 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
 }
 
 [[nodiscard]] Value Interpreter::visitExpr(ExprNode const& expr) const {
-    return std::visit(
+    auto const res = std::visit(
         Overloaded{
 
-            [](IntLiteral const& lit) { return Value(lit.value); },
-            [](BoolLiteral const& lit) { return Value(lit.value); },
-            [](FloatLiteral const& lit) { return Value(lit.value); },
-            [](StringLiteral const& lit) { return Value(lit.value); },
-            [&](VecLiteral const& lit) {
-                return visitVecLiteral(lit, expr.pos());
+            [](IntLiteral const& lit) -> EvalResult { return lit.value; },
+            [](BoolLiteral const& lit) -> EvalResult { return lit.value; },
+            [](FloatLiteral const& lit) -> EvalResult { return lit.value; },
+            [](StringLiteral const& lit) -> EvalResult { return lit.value; },
+            [&](VecLiteral const& lit) -> EvalResult {
+                return visitVecLiteral(lit);
             },
-            [&](Identifier const& ident) {
-                return visitIdentifier(ident, expr.pos());
+            [&](Identifier const& ident) -> EvalResult {
+                return visitIdentifier(ident);
             },
 
-            [](auto const& value) { return Value{}; }
+            [](auto const& value) -> EvalResult { return Value{}; }
 
         },
         *expr);
+    if (res) {
+        return res.value();
+    }
+    throw RuntimeError{.kind = res.error(), .pos = expr.pos()};
 }
 
 Signal Interpreter::visitStatement(StatementNode const& statement) {
@@ -95,7 +99,6 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 visitLetBinding(let, statement.pos());
                 return Signal{};
             },
-
             [](auto const& value) { return Signal{}; },
 
         },
@@ -146,16 +149,15 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call) {
     stack_.popContext();
 }
 
-Value Interpreter::visitIdentifier(Identifier const& ident,
-                                   Position pos) const {
+EvalResult Interpreter::visitIdentifier(Identifier const& ident) const {
     auto const* val = stack_.current().lookupValue(ident.identifier);
     if (val == nullptr) {
-        throw RuntimeError{.kind = UseOfUndeclaredVariable{}, .pos = pos};
+        return std::unexpected(UseOfUndeclaredVariable{});
     }
     return *val;
 }
 
-Value Interpreter::visitVecLiteral(VecLiteral const& lit, Position pos) const {
+EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) const {
     if (lit.elements.empty()) {
         return UninitVec{};
     }
