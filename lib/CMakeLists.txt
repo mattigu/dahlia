@@ -15,6 +15,7 @@ add_library(dahlia_lib STATIC
     src/Ast.cpp
     src/Interpreter.cpp
     src/Stack.cpp
+    src/Value.cpp
 )
 
 target_link_libraries(dahlia_lib

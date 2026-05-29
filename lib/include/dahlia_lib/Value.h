@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <format>
 #include <string>
 #include <variant>
 #include <vector>
@@ -44,3 +45,15 @@ constexpr Type typeFor(Value const& value) {
         },
         value);
 }
+
+std::string vecToString(VecValue const& vec);
+std::string valueToString(Value const& value);
+
+template <>
+struct std::formatter<Value> : std::formatter<std::string> {
+    auto format(Value const& value, std::format_context& ctx) const {
+        return std::formatter<std::string>::format(valueToString(value), ctx);
+    }
+};
+
+std::ostream& operator<<(std::ostream& oss, Value const& value);
