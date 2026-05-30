@@ -120,6 +120,7 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 visitLetBinding(let, statement.pos());
                 return Signal{};
             },
+            [&](WhileLoop const& loop) { return visitWhileLoop(loop); },
             [&](AssignStmt const& assign) {
                 visitAssign(assign, statement.pos());
                 return Signal{};
@@ -145,6 +146,22 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
     auto value = visitExpr(statement.value);
 
     var->data() = std::move(value);
+}
+
+Signal Interpreter::visitWhileLoop(WhileLoop const& loop) {
+    while (toBool(visitExpr(loop.condition))) {
+        auto const signal = visitBlock(loop.block);
+        if (std::holds_alternative<BreakSignal>(signal)) {
+            break;
+        }
+        if (std::holds_alternative<ContinueSignal>(signal)) {
+            continue;
+        }
+        if (std::holds_alternative<ReturnSignal>(signal)) {
+            return signal;
+        }
+    }
+    return Signal{};
 }
 
 void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {

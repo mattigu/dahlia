@@ -350,3 +350,29 @@ TEST_CASE_FIXTURE(InterpreterFixture,
           std::unexpected(RuntimeError{
               .kind = ConstAssignment{.identifier = "a"}, .pos = pos2}));
 }
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter runs while loops") {
+    initMain(makeStatements(
+        let_mut_a_eq(0),
+        StatementNode(
+            pos1,
+            WhileLoop{
+                .condition =
+                    ExprNode(pos1, LtExpr(ExprNode(pos1, Identifier{"a"}),
+                                          ExprNode(pos1, IntLiteral{10}))),
+                .block = BlockNode(
+                    pos1,
+                    Block{.statements = makeStatements(StatementNode(
+                              pos1,
+                              AssignStmt(
+                                  LValue{.identifier = "a", .indices = {}},
+                                  ExprNode(
+                                      pos1,
+                                      AddExpr(ExprNode(pos1, Identifier{"a"}),
+                                              ExprNode(pos1,
+                                                       IntLiteral{1}))))))})}),
+        return_a()));
+
+    auto const value = run();
+    CHECK(value == Value{10});
+}

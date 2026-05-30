@@ -28,6 +28,7 @@ private:
     Signal visitStatement(StatementNode const& statement);
 
     void visitAssign(AssignStmt const& statement, Position pos);
+    Signal visitWhileLoop(WhileLoop const& loop);
     void visitLetBinding(LetBinding const& let, Position pos);
 
     Signal visitBlock(BlockNode const& block);
