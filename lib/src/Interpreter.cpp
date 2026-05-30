@@ -83,8 +83,7 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](GtExpr const& expr) {
                 return gt(visitExpr(*expr.left), visitExpr(*expr.right));
             },
-            [&](LeExpr const& expr) {
-                return le(visitExpr(*expr.left), visitExpr(*expr.right));
+            [&](LeExpr const& expr) {                return le(visitExpr(*expr.left), visitExpr(*expr.right));
             },
             [&](GeExpr const& expr) {
                 return ge(visitExpr(*expr.left), visitExpr(*expr.right));

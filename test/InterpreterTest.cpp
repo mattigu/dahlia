@@ -70,20 +70,20 @@ public:
 
     StatementNode return_a() {  // NOLINT
         return StatementNode(
-            pos0_, ReturnStmt{.value = ExprNode(pos1, Identifier{"a"})});
+            pos0_, ReturnStmt{.value = ExprNode(pos0_, Identifier{"a"})});
     }
 
     StatementNode let_a_eq(std::int64_t x) {  // NOLINT
         return StatementNode(
             pos0_, LetBinding{.identifier = "a",
                               .mut = false,
-                              .value = ExprNode(pos1, IntLiteral{x})});
+                              .value = ExprNode(pos0_, IntLiteral{x})});
     }
     StatementNode let_mut_a_eq(std::int64_t x) {  // NOLINT
         return StatementNode(
             pos0_, LetBinding{.identifier = "a",
                               .mut = true,
-                              .value = ExprNode(pos1, IntLiteral{x})});
+                              .value = ExprNode(pos0_, IntLiteral{x})});
     }
 
     StatementNode return_val(Value val) {
@@ -108,7 +108,24 @@ public:
             },
             val);
         return StatementNode(
-            pos1, ReturnStmt{.value = ExprNode(pos1, std::move(expr))});
+            pos0_, ReturnStmt{.value = ExprNode(pos0_, std::move(expr))});
+    }
+
+    StatementNode whileALt5(std::vector<StatementNode> extra_statements = {}) {
+        auto statements = std::move(extra_statements);
+        statements.emplace_back(
+            pos0_,
+            AssignStmt(
+                LValue{.identifier = "a", .indices = {}},
+                ExprNode(pos0_, AddExpr(ExprNode(pos0_, Identifier{"a"}),
+                                        ExprNode(pos0_, IntLiteral{1})))));
+        return StatementNode(
+            pos0_,
+            WhileLoop{.condition = ExprNode(
+                          pos0_, LtExpr(ExprNode(pos0_, Identifier{"a"}),
+                                        ExprNode(pos0_, IntLiteral{5}))),
+                      .block = BlockNode(
+                          pos0_, Block{.statements = std::move(statements)})});
     }
 
     // NOLINTBEGIN
@@ -390,7 +407,7 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter runs while loops") {
             WhileLoop{
                 .condition =
                     ExprNode(pos1, LtExpr(ExprNode(pos1, Identifier{"a"}),
-                                          ExprNode(pos1, IntLiteral{10}))),
+                                          ExprNode(pos1, IntLiteral{5}))),
                 .block = BlockNode(
                     pos1,
                     Block{.statements = makeStatements(StatementNode(
@@ -405,7 +422,51 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter runs while loops") {
         return_a()));
 
     auto const value = run();
-    CHECK(value == Value{10});
+    CHECK(value == Value{5});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter break ends while lopp") {
+    initMain(makeStatements(
+        let_mut_a_eq(0),
+        whileALt5(makeStatements(StatementNode(
+            pos1,
+            IfStmt{
+                .if_cond =
+                    ExprNode(pos1, EqExpr(ExprNode(pos1, Identifier{"a"}),
+                                          ExprNode(pos1, IntLiteral{3}))),
+                .if_block = BlockNode(
+                    pos1, Block{.statements = makeStatements(
+                                    StatementNode(pos1, BreakStmt{}))}),
+            }))),
+        return_a()));
+    CHECK(run() == 3);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter continue works in while") {
+    initMain(makeStatements(
+        let_mut_a_eq(0),
+        StatementNode(
+            pos1,
+            WhileLoop{
+                .condition =
+                    ExprNode(pos1, LtExpr(ExprNode(pos1, Identifier{"a"}),
+                                          ExprNode(pos1, IntLiteral{3}))),
+                .block = BlockNode(
+                    pos1,
+                    Block{.statements = makeStatements(
+                              StatementNode(
+                                  pos1,
+                                  AssignStmt(
+                                      LValue{.identifier = "a", .indices = {}},
+                                      ExprNode(
+                                          pos1,
+                                          AddExpr(
+                                              ExprNode(pos1, Identifier{"a"}),
+                                              ExprNode(pos1, IntLiteral{1}))))),
+                              StatementNode(pos1, ContinueStmt{}),
+                              return_val(99))})}),
+        return_a()));
+    CHECK(run() == 3);
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter if - true executes block") {
@@ -448,7 +509,8 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter else if - first true") {
     CHECK(run() == 1);
 }
 
-TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter else if - first false second true") {
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter else if - first false second true") {
     initMain(makeStatements(StatementNode(
         pos1, IfStmt{
                   .if_cond = ExprNode(pos1, BoolLiteral{false}),
@@ -462,7 +524,8 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter else if - first false second 
     CHECK(run() == 2);
 }
 
-TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter else if - all false executes else") {
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter else if - all false executes else") {
     initMain(makeStatements(StatementNode(
         pos1, IfStmt{
                   .if_cond = ExprNode(pos1, BoolLiteral{false}),
