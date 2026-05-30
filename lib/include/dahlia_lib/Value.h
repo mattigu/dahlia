@@ -32,6 +32,8 @@ struct VecValue {
 
 using EvalResult = std::expected<Value, RuntimeErrorKind>;
 
+bool toBool(Value const& val) noexcept;
+
 constexpr Type typeFor(Value const& value) {
     return std::visit(
         Overloaded{
