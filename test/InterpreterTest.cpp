@@ -58,6 +58,12 @@ public:
         return makeVec<StatementNode>(std::forward<Args>(args)...);
     }
 
+    template <typename... Args>
+    std::vector<std::pair<ExprNode, BlockNode>> makeElseIfs(Args&&... args) {
+        return makeVec<std::pair<ExprNode, BlockNode>>(
+            std::forward<Args>(args)...);
+    }
+
     std::expected<Value, RuntimeError> run() {
         return interpreter_->run(*program_);
     }
@@ -78,6 +84,31 @@ public:
             pos0_, LetBinding{.identifier = "a",
                               .mut = true,
                               .value = ExprNode(pos1, IntLiteral{x})});
+    }
+
+    StatementNode return_val(Value val) {
+        auto expr = std::visit(
+            Overloaded{
+                [](std::int64_t val) -> Expr { return IntLiteral{val}; },
+                [](double val) -> Expr { return FloatLiteral{val}; },
+                [](bool val) -> Expr { return BoolLiteral{val}; },
+                [](std::string val) -> Expr {
+                    return StringLiteral{std::move(val)};
+                },
+                [](VecValue const&) -> Expr {
+                    throw std::runtime_error{
+                        "can't make vec literal from value"};
+                },
+                [](UninitVec) -> Expr {
+                    throw std::runtime_error{"can't make uninit vec literal"};
+                },
+                [](std::monostate) -> Expr {
+                    throw std::runtime_error{"can't return monostate"};
+                },
+            },
+            val);
+        return StatementNode(
+            pos1, ReturnStmt{.value = ExprNode(pos1, std::move(expr))});
     }
 
     // NOLINTBEGIN
@@ -375,4 +406,156 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter runs while loops") {
 
     auto const value = run();
     CHECK(value == Value{10});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter if - true executes block") {
+    initMain(makeStatements(
+        StatementNode(
+            pos1,
+            IfStmt{
+                .if_cond = ExprNode(pos1, BoolLiteral{true}),
+                .if_block = BlockNode(
+                    pos1, Block{.statements = makeStatements(return_val(1))}),
+            }),
+        return_val(2)));
+    CHECK(run() == 1);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter if - false skips block") {
+    initMain(makeStatements(
+        StatementNode(
+            pos1,
+            IfStmt{
+                .if_cond = ExprNode(pos1, BoolLiteral{false}),
+                .if_block = BlockNode(
+                    pos1, Block{.statements = makeStatements(return_val(1))}),
+            }),
+        return_val(2)));
+    CHECK(run() == 2);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter else if - first true") {
+    initMain(makeStatements(StatementNode(
+        pos1, IfStmt{
+                  .if_cond = ExprNode(pos1, BoolLiteral{true}),
+                  .if_block = BlockNode(
+                      pos1, Block{.statements = makeStatements(return_val(1))}),
+                  .else_if_branches = makeElseIfs(std::make_pair(
+                      ExprNode(pos1, BoolLiteral{true}),
+                      BlockNode(pos1, Block{.statements = makeStatements(
+                                                return_val(2))}))),
+              })));
+    CHECK(run() == 1);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter else if - first false second true") {
+    initMain(makeStatements(StatementNode(
+        pos1, IfStmt{
+                  .if_cond = ExprNode(pos1, BoolLiteral{false}),
+                  .if_block = BlockNode(
+                      pos1, Block{.statements = makeStatements(return_val(1))}),
+                  .else_if_branches = makeElseIfs(std::make_pair(
+                      ExprNode(pos1, BoolLiteral{true}),
+                      BlockNode(pos1, Block{.statements = makeStatements(
+                                                return_val(2))}))),
+              })));
+    CHECK(run() == 2);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter else if - all false executes else") {
+    initMain(makeStatements(StatementNode(
+        pos1, IfStmt{
+                  .if_cond = ExprNode(pos1, BoolLiteral{false}),
+                  .if_block = BlockNode(
+                      pos1, Block{.statements = makeStatements(return_val(1))}),
+                  .else_if_branches = makeElseIfs(std::make_pair(
+                      ExprNode(pos1, BoolLiteral{false}),
+                      BlockNode(pos1, Block{.statements = makeStatements(
+                                                return_val(2))}))),
+                  .else_block = BlockNode(
+                      pos1, Block{.statements = makeStatements(return_val(3))}),
+              })));
+    CHECK(run() == 3);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter else if - all false no else") {
+    initMain(makeStatements(
+        StatementNode(
+            pos1,
+            IfStmt{
+                .if_cond = ExprNode(pos1, BoolLiteral{false}),
+                .if_block = BlockNode(
+                    pos1, Block{.statements = makeStatements(return_val(1))}),
+                .else_if_branches = makeElseIfs(std::make_pair(
+                    ExprNode(pos1, BoolLiteral{false}),
+                    BlockNode(pos1, Block{.statements =
+                                              makeStatements(return_val(2))}))),
+            }),
+        return_val(4)));
+    CHECK(run() == 4);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter else if - first true") {
+    initMain(makeStatements(StatementNode(
+        pos1, IfStmt{
+                  .if_cond = ExprNode(pos1, BoolLiteral{true}),
+                  .if_block = BlockNode(
+                      pos1, Block{.statements = makeStatements(return_val(1))}),
+                  .else_if_branches = makeElseIfs(std::make_pair(
+                      ExprNode(pos1, BoolLiteral{true}),
+                      BlockNode(pos1, Block{.statements = makeStatements(
+                                                return_val(2))}))),
+              })));
+    CHECK(run() == 1);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter else if - first false second true") {
+    initMain(makeStatements(StatementNode(
+        pos1, IfStmt{
+                  .if_cond = ExprNode(pos1, BoolLiteral{false}),
+                  .if_block = BlockNode(
+                      pos1, Block{.statements = makeStatements(return_val(1))}),
+                  .else_if_branches = makeElseIfs(std::make_pair(
+                      ExprNode(pos1, BoolLiteral{true}),
+                      BlockNode(pos1, Block{.statements = makeStatements(
+                                                return_val(2))}))),
+              })));
+    CHECK(run() == 2);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter else if - all false executes else") {
+    initMain(makeStatements(StatementNode(
+        pos1, IfStmt{
+                  .if_cond = ExprNode(pos1, BoolLiteral{false}),
+                  .if_block = BlockNode(
+                      pos1, Block{.statements = makeStatements(return_val(1))}),
+                  .else_if_branches = makeElseIfs(std::make_pair(
+                      ExprNode(pos1, BoolLiteral{false}),
+                      BlockNode(pos1, Block{.statements = makeStatements(
+                                                return_val(2))}))),
+                  .else_block = BlockNode(
+                      pos1, Block{.statements = makeStatements(return_val(3))}),
+              })));
+    CHECK(run() == 3);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter else if - all false no else") {
+    initMain(makeStatements(
+        StatementNode(
+            pos1,
+            IfStmt{
+                .if_cond = ExprNode(pos1, BoolLiteral{false}),
+                .if_block = BlockNode(
+                    pos1, Block{.statements = makeStatements(return_val(1))}),
+                .else_if_branches = makeElseIfs(std::make_pair(
+                    ExprNode(pos1, BoolLiteral{false}),
+                    BlockNode(pos1, Block{.statements =
+                                              makeStatements(return_val(2))}))),
+            }),
+        return_val(4)));
+    CHECK(run() == 4);
 }

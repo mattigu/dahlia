@@ -121,6 +121,9 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 return Signal{};
             },
             [&](WhileLoop const& loop) { return visitWhileLoop(loop); },
+
+            [&](IfStmt const& stmt) { return visitIfStmt(stmt); },
+
             [&](AssignStmt const& assign) {
                 visitAssign(assign, statement.pos());
                 return Signal{};
@@ -162,6 +165,31 @@ Signal Interpreter::visitWhileLoop(WhileLoop const& loop) {
         }
     }
     return Signal{};
+}
+Signal Interpreter::visitIfStmt(IfStmt const& stmt) {
+    auto const eval_branch =
+        [&](ExprNode const& cond,
+            BlockNode const& block) -> std::optional<Signal> {
+        if (toBool(visitExpr(cond))) {
+            return visitBlock(block);
+        }
+        return std::nullopt;
+    };
+
+    if (auto const signal = eval_branch(stmt.if_cond, stmt.if_block)) {
+        return *signal;
+    }
+
+    for (auto const& [cond, block] : stmt.else_if_branches) {
+        if (auto const signal = eval_branch(cond, block)) {
+            return *signal;
+        }
+    }
+    if (stmt.else_block) {
+        return visitBlock(*stmt.else_block);
+    }
+
+    return {};
 }
 
 void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
