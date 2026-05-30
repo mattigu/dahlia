@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstddef>
 #include <variant>
 
+#include "dahlia_lib/Ast.h"
 #include "dahlia_lib/Position.h"
 
 struct UnexpectedContinue {
@@ -31,9 +33,15 @@ struct UseOfUndeclaredVariable {
     bool operator==(UseOfUndeclaredVariable const&) const noexcept = default;
 };
 
+struct VecTypeMismatch {
+    Type first;
+    Type other;
+    bool operator==(VecTypeMismatch const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
-                 UseOfUndeclaredVariable, ConstAssignment>;
+                 UseOfUndeclaredVariable, ConstAssignment, VecTypeMismatch>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

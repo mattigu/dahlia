@@ -192,7 +192,8 @@ EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) const {
     for (auto const& elem : lit.elements | std::views::drop(1)) {
         auto value = visitExpr(elem);
         if (typeFor(value) != expected_type) {
-            // Type error
+            return std::unexpected(VecTypeMismatch{.first = expected_type,
+                                                   .other = typeFor(value)});
         }
         elements.push_back(std::move(value));
     }

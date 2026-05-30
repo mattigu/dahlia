@@ -174,6 +174,21 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals simple vec literals") {
                                   .elements = {Value{1}, Value{2}}}});
 }
 
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter doesn't allow different types in vec literals") {
+    initExpr(
+        ExprNode(pos2, VecLiteral{.elements = makeVec<ExprNode>(
+                                      ExprNode(pos1, IntLiteral{1}),
+                                      ExprNode(pos1, FloatLiteral{2.0}))}));
+
+    auto const value = run();
+    CHECK(value ==
+          std::unexpected(RuntimeError{
+              .kind = VecTypeMismatch{.first = Type(PrimitiveType::Int),
+                                      .other = Type(PrimitiveType::Float)},
+              .pos = pos2}));
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals nested vec literal") {
     initExpr(ExprNode(
         pos1,
