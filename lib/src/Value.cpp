@@ -2,7 +2,9 @@
 
 #include <stdckdint.h>
 
+#include <compare>
 #include <expected>
+#include <functional>
 #include <limits>
 #include <string>
 #include <variant>
@@ -94,6 +96,114 @@ EvalResult add(Value lhs, Value rhs) {
         std::move(lhs), std::move(rhs));
 }
 
+std::partial_ordering operator<=>(Value const& lhs, Value const& rhs) {
+    return std::visit<std::partial_ordering>(
+        Overloaded{
+            [](bool lhs, bool rhs) { return lhs <=> rhs; },
+            [](std::int64_t lhs, std::int64_t rhs) { return lhs <=> rhs; },
+            [](double lhs, double rhs) { return lhs <=> rhs; },
+            [](std::string const& lhs, std::string const& rhs) {
+                return lhs <=> rhs;
+            },
+            [](VecValue const& lhs, VecValue const& rhs) {
+                return lhs <=> rhs;
+            },
+            [](std::int64_t lhs, double rhs) {
+                return static_cast<double>(lhs) <=> rhs;
+            },
+            [](double lhs, std::int64_t rhs) {
+                return lhs <=> static_cast<double>(rhs);
+            },
+            [](bool lhs, std::int64_t rhs) {
+                return static_cast<std::int64_t>(lhs) <=> rhs;
+            },
+            [](std::int64_t lhs, bool rhs) {
+                return lhs <=> static_cast<std::int64_t>(rhs);
+            },
+            [](bool lhs, double rhs) {
+                return static_cast<double>(lhs) <=> rhs;
+            },
+            [](double lhs, bool rhs) {
+                return lhs <=> static_cast<double>(rhs);
+            },
+            [](auto const&, auto const&) {
+                return std::partial_ordering::unordered;
+            },
+        },
+        lhs, rhs);
+}
+
+std::partial_ordering VecValue::operator<=>(VecValue const& other) const {
+    return elements <=> other.elements;
+}
+
+CmpResult valueCompare(Value const& lhs, Value const& rhs) {
+    return std::visit<CmpResult>(
+        Overloaded{
+            [](bool lhs, bool rhs) { return lhs <=> rhs; },
+            [](std::int64_t lhs, std::int64_t rhs) { return lhs <=> rhs; },
+            [](double lhs, double rhs) { return lhs <=> rhs; },
+            [](std::string const& lhs, std::string const& rhs) {
+                return lhs <=> rhs;
+            },
+            [](VecValue const& lhs, VecValue const& rhs) -> CmpResult {
+                if (lhs.type != rhs.type) {
+                    return std::unexpected(
+                        InvalidOperands{.lhs = Type::vec(lhs.type),
+                                        .rhs = Type::vec(rhs.type)});
+                }
+                return lhs <=> rhs;
+            },
+            [](std::int64_t lhs, double rhs) {
+                return static_cast<double>(lhs) <=> rhs;
+            },
+            [](double lhs, std::int64_t rhs) {
+                return lhs <=> static_cast<double>(rhs);
+            },
+            [](bool lhs, std::int64_t rhs) {
+                return static_cast<std::int64_t>(lhs) <=> rhs;
+            },
+            [](std::int64_t lhs, bool rhs) {
+                return lhs <=> static_cast<std::int64_t>(rhs);
+            },
+            [](bool lhs, double rhs) {
+                return static_cast<double>(lhs) <=> rhs;
+            },
+            [](double lhs, bool rhs) {
+                return lhs <=> static_cast<double>(rhs);
+            },
+            [](auto const& lhs, auto const& rhs) {
+                return std::unexpected(
+                    InvalidOperands{.lhs = typeFor(lhs), .rhs = typeFor(rhs)});
+            },
+        },
+        lhs, rhs);
+}
+
+EvalResult eq(const Value& lhs, const Value& rhs) {
+    return compareOp(lhs, rhs, std::is_eq);
+}
+
+EvalResult neq(const Value& lhs, const Value& rhs) {
+    return compareOp(lhs, rhs, std::is_neq);
+}
+
+EvalResult lt(const Value& lhs, const Value& rhs) {
+    return compareOp(lhs, rhs, std::is_lt);
+}
+
+EvalResult gt(const Value& lhs, const Value& rhs) {
+    return compareOp(lhs, rhs, std::is_gt);
+}
+
+EvalResult le(const Value& lhs, const Value& rhs) {
+    return compareOp(lhs, rhs, std::is_lteq);
+}
+
+EvalResult ge(const Value& lhs, const Value& rhs) {
+    return compareOp(lhs, rhs, std::is_gteq);
+}
+
 EvalResult checkedAdd(std::int64_t lhs, std::int64_t rhs) {
     std::int64_t res = 0;
     if (!ckd_add(&res, lhs, rhs)) {
@@ -136,6 +246,24 @@ EvalResult checkedDoubleDiv(double lhs, double rhs) {
         return std::unexpected(ArithmeticOverflow{});
     }
     return result;
+}
+
+Type typeFor(Value const& value) {
+    return std::visit(
+        Overloaded{
+            [](std::int64_t) -> Type { return PrimitiveType::Int; },
+            [](double) -> Type { return PrimitiveType::Float; },
+            [](bool) -> Type { return PrimitiveType::Bool; },
+            [](std::string const&) -> Type { return PrimitiveType::Str; },
+            [](VecValue const& vec) -> Type { return Type::vec(vec.type); },
+            [](UninitVec) -> Type {
+                return PrimitiveType::Int;
+            },  // placeholder
+            [](std::monostate) -> Type {
+                return PrimitiveType::Int;
+            },  // placeholder
+        },
+        value);
 }
 
 bool toBool(Value const& val) noexcept {

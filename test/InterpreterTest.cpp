@@ -220,12 +220,22 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals nested vec literal") {
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals add expressions") {
-    initExpr(ExprNode(
-        pos1, AddExpr(ExprNode(pos1, IntLiteral{1}), ExprNode(pos1, IntLiteral{2}))));
+    initExpr(ExprNode(pos1, AddExpr(ExprNode(pos1, IntLiteral{1}),
+                                    ExprNode(pos1, IntLiteral{2}))));
 
     auto const value = run();
 
     CHECK(value == Value{3});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter evals comparison expressions") {
+    initExpr(ExprNode(pos1, LeExpr(ExprNode(pos1, IntLiteral{1}),
+                                   ExprNode(pos1, IntLiteral{2}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{true});
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,

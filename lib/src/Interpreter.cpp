@@ -71,6 +71,24 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](AddExpr const& expr) -> EvalResult {
                 return add(visitExpr(*expr.left), visitExpr(*expr.right));
             },
+            [&](EqExpr const& expr) {
+                return eq(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](NeqExpr const& expr) {
+                return neq(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](LtExpr const& expr) {
+                return lt(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](GtExpr const& expr) {
+                return gt(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](LeExpr const& expr) {
+                return le(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](GeExpr const& expr) {
+                return ge(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
 
             [](auto const& value) -> EvalResult { return Value{}; }
 

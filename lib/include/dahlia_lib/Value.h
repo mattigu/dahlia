@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <compare>
 #include <cstdint>
 #include <expected>
 #include <format>
@@ -29,19 +30,37 @@ struct VecValue {
     std::vector<Value> elements;
 
     bool operator==(VecValue const& other) const = default;
+    std::partial_ordering operator<=>(VecValue const& other) const;
 };
+
+Type typeFor(Value const& value);
 
 using EvalResult = std::expected<Value, RuntimeErrorKind>;
 
 EvalResult add(Value lhs, Value rhs);
-
 EvalResult checkedAdd(std::int64_t lhs, std::int64_t rhs);
 EvalResult checkedMul(std::int64_t lhs, std::int64_t rhs);
 EvalResult checkedSub(std::int64_t lhs, std::int64_t rhs);
 EvalResult checkedDiv(std::int64_t lhs, std::int64_t rhs);
-
 EvalResult checkedDoubleDiv(double lhs, double rhs);
 
+using CmpResult = std::expected<std::partial_ordering, InvalidOperands>;
+
+std::partial_ordering operator<=>(Value const& lhs, Value const& rhs);
+CmpResult valueCompare(Value const& lhs, Value const& rhs);
+
+template <typename Pred>
+EvalResult compareOp(Value const& lhs, Value const& rhs, Pred pred) {
+    return valueCompare(lhs, rhs).transform(
+        [pred](std::partial_ordering ord) -> Value { return pred(ord); });
+}
+
+EvalResult eq(Value const& lhs, Value const& rhs);
+EvalResult neq(Value const& lhs, Value const& rhs);
+EvalResult lt(Value const& lhs, Value const& rhs);
+EvalResult gt(Value const& lhs, Value const& rhs);
+EvalResult le(Value const& lhs, Value const& rhs);
+EvalResult ge(Value const& lhs, Value const& rhs);
 
 template <typename Op>
 std::expected<double, RuntimeErrorKind> checkedDoubleOp(double lhs, double rhs,
@@ -54,24 +73,6 @@ std::expected<double, RuntimeErrorKind> checkedDoubleOp(double lhs, double rhs,
 }
 
 bool toBool(Value const& val) noexcept;
-
-constexpr Type typeFor(Value const& value) {
-    return std::visit(
-        Overloaded{
-            [](std::int64_t) -> Type { return PrimitiveType::Int; },
-            [](double) -> Type { return PrimitiveType::Float; },
-            [](bool) -> Type { return PrimitiveType::Bool; },
-            [](std::string const&) -> Type { return PrimitiveType::Str; },
-            [](VecValue const& vec) -> Type { return Type::vec(vec.type); },
-            [](UninitVec) -> Type {
-                return PrimitiveType::Int;
-            },  // placeholder
-            [](std::monostate) -> Type {
-                return PrimitiveType::Int;
-            },  // placeholder
-        },
-        value);
-}
 
 std::string toString(VecValue const& vec);
 std::string toString(Value const& value);
@@ -92,4 +93,3 @@ struct std::formatter<VecValue> : std::formatter<std::string> {
 
 std::ostream& operator<<(std::ostream& oss, Value const& value);
 std::ostream& operator<<(std::ostream& oss, VecValue const& value);
-
