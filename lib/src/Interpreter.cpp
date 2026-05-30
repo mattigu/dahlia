@@ -2,6 +2,7 @@
 
 #include <expected>
 #include <ranges>
+#include <variant>
 
 #include "dahlia_lib/Ast.h"
 #include "dahlia_lib/Position.h"
@@ -66,6 +67,9 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             },
             [&](Identifier const& ident) -> EvalResult {
                 return visitIdentifier(ident);
+            },
+            [&](AddExpr const& expr) -> EvalResult {
+                return add(visitExpr(*expr.left), visitExpr(*expr.right));
             },
 
             [](auto const& value) -> EvalResult { return Value{}; }

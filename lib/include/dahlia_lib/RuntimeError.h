@@ -39,9 +39,25 @@ struct VecTypeMismatch {
     bool operator==(VecTypeMismatch const&) const noexcept = default;
 };
 
+struct ArithmeticOverflow {
+    bool operator==(ArithmeticOverflow const&) const noexcept = default;
+};
+
+struct DivisionByZero {
+    bool operator==(DivisionByZero const&) const noexcept = default;
+};
+
+struct InvalidOperands {
+    Type lhs;
+    Type rhs;
+
+    bool operator==(InvalidOperands const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
-                 UseOfUndeclaredVariable, ConstAssignment, VecTypeMismatch>;
+                 UseOfUndeclaredVariable, ConstAssignment, VecTypeMismatch,
+                 ArithmeticOverflow, DivisionByZero, InvalidOperands>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

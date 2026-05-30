@@ -73,6 +73,12 @@ public:
                               .mut = false,
                               .value = ExprNode(pos1, IntLiteral{x})});
     }
+    StatementNode let_mut_a_eq(std::int64_t x) {  // NOLINT
+        return StatementNode(
+            pos0_, LetBinding{.identifier = "a",
+                              .mut = true,
+                              .value = ExprNode(pos1, IntLiteral{x})});
+    }
 
     // NOLINTBEGIN
 
@@ -213,6 +219,15 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals nested vec literal") {
                                         .elements = {Value{2}, Value{3}}}}}}});
 }
 
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals add expressions") {
+    initExpr(ExprNode(
+        pos1, AddExpr(ExprNode(pos1, IntLiteral{1}), ExprNode(pos1, IntLiteral{2}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{3});
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter returns from nested blocks") {
     initMain(makeStatements(StatementNode(
@@ -303,10 +318,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter assigns values to variables") {
     initMain(makeStatements(
-        StatementNode(pos1, LetBinding{.identifier = "a",
-                                       .mut = true,
-                                       .value = ExprNode(pos1, IntLiteral{1})}),
-
+        let_mut_a_eq(1),
         StatementNode(pos1, AssignStmt(LValue{.identifier = "a"},
                                        ExprNode(pos1, IntLiteral{2}))),
         return_a()));
