@@ -26,6 +26,7 @@ private:
     [[nodiscard]] Value visitExpr(ExprNode const& expr) const;
 
     Signal visitStatement(StatementNode const& statement);
+    void visitAssign(AssignStmt const& statement, Position pos);
 
     void visitLetBinding(LetBinding const& let, Position pos);
 

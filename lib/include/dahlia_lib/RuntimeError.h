@@ -22,13 +22,18 @@ struct VariableRedefinition {
     bool operator==(VariableRedefinition const&) const noexcept = default;
 };
 
+struct ConstAssignment {
+    std::string identifier;
+    bool operator==(ConstAssignment const&) const noexcept = default;
+};
+
 struct UseOfUndeclaredVariable {
     bool operator==(UseOfUndeclaredVariable const&) const noexcept = default;
 };
 
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
-                 UseOfUndeclaredVariable>;
+                 UseOfUndeclaredVariable, ConstAssignment>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

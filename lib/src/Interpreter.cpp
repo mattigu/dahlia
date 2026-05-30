@@ -57,7 +57,6 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
 [[nodiscard]] Value Interpreter::visitExpr(ExprNode const& expr) const {
     auto const res = std::visit(
         Overloaded{
-
             [](IntLiteral const& lit) -> EvalResult { return lit.value; },
             [](BoolLiteral const& lit) -> EvalResult { return lit.value; },
             [](FloatLiteral const& lit) -> EvalResult { return lit.value; },
@@ -99,10 +98,31 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 visitLetBinding(let, statement.pos());
                 return Signal{};
             },
+            [&](AssignStmt const& assign) {
+                visitAssign(assign, statement.pos());
+                return Signal{};
+            },
             [](auto const& value) { return Signal{}; },
 
         },
         *statement);
+}
+
+void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
+    auto const ident = statement.target.identifier;
+
+    auto* const var = stack_.current().lookupVariable(ident);
+    if (var == nullptr) {
+        throw RuntimeError{.kind = UseOfUndeclaredVariable{}, .pos = pos};
+    }
+    if (!var->mut()) {
+        throw RuntimeError{.kind = ConstAssignment{.identifier = ident},
+                           .pos = pos};
+    }
+    // Do indices here later
+    auto value = visitExpr(statement.value);
+
+    var->data() = std::move(value);
 }
 
 void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {

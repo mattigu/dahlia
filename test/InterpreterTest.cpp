@@ -62,6 +62,18 @@ public:
         return interpreter_->run(*program_);
     }
 
+    StatementNode return_a() {  // NOLINT
+        return StatementNode(
+            pos0_, ReturnStmt{.value = ExprNode(pos1, Identifier{"a"})});
+    }
+
+    StatementNode let_a_eq(std::int64_t x) {  // NOLINT
+        return StatementNode(
+            pos0_, LetBinding{.identifier = "a",
+                              .mut = false,
+                              .value = ExprNode(pos1, IntLiteral{x})});
+    }
+
     // NOLINTBEGIN
 
     Position const pos1 = Position{.line = 0, .column = 0, .offset = 3};
@@ -222,7 +234,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
     initMain(makeStatements(
         StatementNode(pos1, LetBinding{.identifier = "a",
                                        .value = ExprNode(pos1, IntLiteral{1})}),
-        StatementNode(pos1, ReturnStmt{ExprNode(pos1, Identifier{"a"})})));
+        return_a()));
 
     auto const value = run();
     CHECK(value == Value{1});
@@ -241,18 +253,9 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter allows shadowing variables in inner scopes") {
     initMain(makeStatements(
-        StatementNode(pos1, LetBinding{.identifier = "a",
-                                       .value = ExprNode(pos1, IntLiteral{1})}),
-        StatementNode(
-            pos1,
-            BlockNode(
-                pos1,
-                Block{makeStatements(
-                    StatementNode(pos1, LetBinding{.identifier = "a",
-                                                   .value = ExprNode(
-                                                       pos1, IntLiteral{2})}),
-                    StatementNode(pos1, ReturnStmt{ExprNode(
-                                            pos1, Identifier{"a"})}))}))));
+        let_a_eq(1),
+        StatementNode(pos1, BlockNode(pos1, Block{makeStatements(
+                                                let_a_eq(2), return_a())}))));
 
     auto const value = run();
     CHECK(value == Value{2});
@@ -262,15 +265,10 @@ TEST_CASE_FIXTURE(
     InterpreterFixture,
     "Interpreter restores shadowed variable value once block ends") {
     initMain(makeStatements(
-        StatementNode(pos1, LetBinding{.identifier = "a",
-                                       .value = ExprNode(pos1, IntLiteral{1})}),
-        StatementNode(
-            pos1,
-            BlockNode(pos1, Block{makeStatements(StatementNode(
-                                pos1, LetBinding{.identifier = "a",
-                                                 .value = ExprNode(
-                                                     pos1, IntLiteral{2})}))})),
-        StatementNode(pos1, ReturnStmt{ExprNode(pos1, Identifier{"a"})})));
+        let_a_eq(1),
+        StatementNode(pos1,
+                      BlockNode(pos1, Block{makeStatements(let_a_eq(0))})),
+        return_a()));
 
     auto const value = run();
     CHECK(value == Value{1});
@@ -279,13 +277,39 @@ TEST_CASE_FIXTURE(
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter sees variables in scopes above itself") {
     initMain(makeStatements(
-        StatementNode(pos1, LetBinding{.identifier = "a",
-                                       .value = ExprNode(pos1, IntLiteral{1})}),
-        StatementNode(
-            pos1, BlockNode(pos1, Block{makeStatements(StatementNode(
-                                      pos1, ReturnStmt{ExprNode(
-                                                pos1, Identifier{"a"})}))}))));
+        let_a_eq(1),
+        StatementNode(pos1,
+                      BlockNode(pos1, Block{makeStatements(return_a())}))));
 
     auto const value = run();
     CHECK(value == Value{1});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter assigns values to variables") {
+    initMain(makeStatements(
+        StatementNode(pos1, LetBinding{.identifier = "a",
+                                       .mut = true,
+                                       .value = ExprNode(pos1, IntLiteral{1})}),
+
+        StatementNode(pos1, AssignStmt(LValue{.identifier = "a"},
+                                       ExprNode(pos1, IntLiteral{2}))),
+        return_a()));
+
+    auto const value = run();
+    CHECK(value == Value{2});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter doesn't allow assignment to non mut variables") {
+    initMain(makeStatements(
+        let_a_eq(1),
+        StatementNode(pos2, AssignStmt(LValue{.identifier = "a"},
+                                       ExprNode(pos1, IntLiteral{2}))),
+        return_a()));
+
+    auto const value = run();
+    CHECK(value ==
+          std::unexpected(RuntimeError{
+              .kind = ConstAssignment{.identifier = "a"}, .pos = pos2}));
 }
