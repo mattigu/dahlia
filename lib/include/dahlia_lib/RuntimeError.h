@@ -18,7 +18,6 @@ struct MissingMainFunction {
 };
 
 struct VariableRedefinition {
-    std::string identifier;
     Position original_pos;
     bool operator==(VariableRedefinition const&) const noexcept = default;
 };
@@ -36,6 +35,10 @@ struct VecTypeMismatch {
     Type first;
     Type other;
     bool operator==(VecTypeMismatch const&) const noexcept = default;
+};
+
+struct AssignmentTypeMismatch {
+    bool operator==(AssignmentTypeMismatch const&) const noexcept = default;
 };
 
 struct ArithmeticOverflow {
@@ -75,7 +78,8 @@ using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
                  UseOfUndeclaredVariable, ConstAssignment, VecTypeMismatch,
                  ArithmeticOverflow, DivisionByZero, InvalidOperands,
-                 UnparsableString, InvalidConversion, InvalidForRange>;
+                 UnparsableString, InvalidConversion, InvalidForRange,
+                 AssignmentTypeMismatch, VariableRedefinition>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

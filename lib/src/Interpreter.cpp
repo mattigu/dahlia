@@ -147,6 +147,7 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
         throw RuntimeError{.kind = ConstAssignment{.identifier = ident},
                            .pos = pos};
     }
+
     // Do indices here later
     auto value = visitExpr(statement.value);
 
@@ -252,11 +253,18 @@ Signal Interpreter::visitIfStmt(IfStmt const& stmt) {
 
 void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
     auto val = visitExpr(let.value);
+
+    if (let.type && **let.type != typeFor(val)) {
+        throw RuntimeError{.kind = AssignmentTypeMismatch{}, .pos = pos};
+    }
+
     auto const duplicate_pos = stack_.current().declareVariable(
         let.identifier, Variable(std::move(val), let.mut, pos));
-    // Not yet sure how I want to handle redefinition in the same scope yet.
+
     if (duplicate_pos) {
-        // throw RuntimeError{.kind = VariableRedefinition{}, .pos = *pos};
+        throw RuntimeError{
+            .kind = VariableRedefinition{.original_pos = *duplicate_pos},
+            .pos = pos};
     }
 }
 

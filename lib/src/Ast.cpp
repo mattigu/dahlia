@@ -61,10 +61,17 @@ VecType::VecType(Type inner)
     : inner{std::make_unique<Type>(std::move(inner))} {}
 
 VecType::VecType(VecType const& other)
-    : inner{std::make_unique<Type>(*other.inner)} {}
+    : inner(other.inner ? std::make_unique<Type>(*other.inner) : nullptr) {}
 
 bool VecType::operator==(VecType const& other) const {
     return *inner == *other.inner;
+}
+
+VecType& VecType::operator=(VecType const& other) {
+    if (this != &other) {
+        inner = other.inner ? std::make_unique<Type>(*other.inner) : nullptr;
+    }
+    return *this;
 }
 
 Type::Type(PrimitiveType primitive) : value_(primitive) {}

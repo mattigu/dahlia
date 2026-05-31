@@ -77,10 +77,10 @@ public:
                                         .value = expr_from_val(std::move(x))});
     }
     StatementNode let_mut_a_eq(Value x) {  // NOLINT
-        return StatementNode(
-            pos0_, LetBinding{.identifier = "a",
-                              .mut = true,
-                              .value = expr_from_val(std::move(x))});
+        return StatementNode(pos0_,
+                             LetBinding{.identifier = "a",
+                                        .mut = true,
+                                        .value = expr_from_val(std::move(x))});
     }
 
     RangeNode range_in_0_5(Position pos) {  // NOLINT
@@ -354,6 +354,47 @@ TEST_CASE_FIXTURE(InterpreterFixture,
     CHECK(value == Value{1});
 }
 
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter doesn't allow variable redefinition in the same scope") {
+    initMain(makeStatements(
+        StatementNode(pos2, LetBinding{.identifier = "a",
+                                       .value = ExprNode(pos1, IntLiteral{1})}),
+        StatementNode(pos3,
+                      LetBinding{.identifier = "a",
+                                 .value = ExprNode(pos1, IntLiteral{1})})));
+
+    auto const value = run();
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = VariableRedefinition{.original_pos = pos2},
+                       .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter let assignment with type") {
+    initMain(makeStatements(
+        StatementNode(pos2,
+                      LetBinding{.identifier = "a",
+                                 .type = TypeNode(pos1, PrimitiveType::Int),
+                                 .value = ExprNode(pos1, IntLiteral{1})}),
+        return_a()));
+
+    auto const value = run();
+    CHECK(value == 1);
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter let assignement with type, requires types to match") {
+    initMain(makeStatements(StatementNode(
+        pos2, LetBinding{.identifier = "a",
+                         .type = TypeNode(pos1, PrimitiveType::Str),
+                         .value = ExprNode(pos1, IntLiteral{1})})));
+
+    auto const value = run();
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = AssignmentTypeMismatch{}, .pos = pos2}));
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter throws on usage of an undeclared variable") {
     initMain(makeStatements(
@@ -508,7 +549,6 @@ TEST_CASE_FIXTURE(InterpreterFixture,
         return_a()));
     CHECK(run() == "024");
 }
-
 
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter runs for loop reverse default step") {
