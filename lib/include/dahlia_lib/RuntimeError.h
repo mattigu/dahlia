@@ -54,10 +54,25 @@ struct InvalidOperands {
     bool operator==(InvalidOperands const&) const noexcept = default;
 };
 
+struct UnparsableString {
+    std::string val;
+    Type targetType;
+
+    bool operator==(UnparsableString const&) const noexcept = default;
+};
+
+struct InvalidConversion {
+    Type from;
+    Type to;
+
+    bool operator==(InvalidConversion const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
                  UseOfUndeclaredVariable, ConstAssignment, VecTypeMismatch,
-                 ArithmeticOverflow, DivisionByZero, InvalidOperands>;
+                 ArithmeticOverflow, DivisionByZero, InvalidOperands,
+                 UnparsableString, InvalidConversion>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

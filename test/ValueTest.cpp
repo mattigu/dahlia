@@ -192,3 +192,75 @@ TEST_CASE("lt - invalid operands") {
         std::unexpected(InvalidOperands{.lhs = Type::vec(PrimitiveType::Int),
                                         .rhs = Type::vec(PrimitiveType::Str)}));
 }
+
+TEST_CASE("toFloat") {
+    CHECK(toFloat(1) == 1.0);
+    CHECK(toFloat(1.5) == 1.5);
+    CHECK(toFloat("1.5") == 1.5);
+    CHECK(toFloat("1e355") == std::unexpected(ArithmeticOverflow{}));
+    CHECK(toFloat("1abc") ==
+          std::unexpected(UnparsableString{
+              .val = "1abc", .targetType = PrimitiveType::Float}));
+    CHECK(toFloat(true) == 1.0);
+    CHECK(
+        toFloat(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}}) ==
+        std::unexpected(InvalidConversion{.from = Type::vec(PrimitiveType::Int),
+                                          .to = Type(PrimitiveType::Float)}));
+}
+
+TEST_CASE("toInt") {
+    CHECK(toInt(1) == 1);
+    CHECK(toInt(1.9) == 1);  // truncates
+    CHECK(toInt("42") == 42);
+    CHECK(toInt("9999999999999999999") ==
+          std::unexpected(ArithmeticOverflow{}));
+    CHECK(toInt("abc") == std::unexpected(UnparsableString{
+                              .val = "abc", .targetType = PrimitiveType::Int}));
+    CHECK(toInt(static_cast<double>(std::numeric_limits<std::int64_t>::max()) *
+                2.0) == std::unexpected(ArithmeticOverflow{}));
+    CHECK(toInt(true) == 1);
+
+    CHECK(
+        toInt(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}}) ==
+        std::unexpected(InvalidConversion{.from = Type::vec(PrimitiveType::Int),
+                                          .to = Type(PrimitiveType::Int)}));
+}
+
+TEST_CASE("toBool") {
+    CHECK(toBool(true) == true);
+    CHECK(toBool(false) == false);
+    CHECK(toBool(1) == true);
+    CHECK(toBool(0) == false);
+    CHECK(toBool(-1) == true);
+    CHECK(toBool(1.0) == true);
+    CHECK(toBool(0.0) == false);
+    CHECK(toBool("hello") == true);
+    CHECK(toBool("") == false);
+    CHECK(toBool(VecValue{.type = PrimitiveType::Int, .elements = {1}}) ==
+          true);
+    CHECK(toBool(VecValue{.type = PrimitiveType::Int, .elements = {}}) ==
+          false);
+}
+
+TEST_CASE("toString") {
+    CHECK(toString(true) == "true");
+    CHECK(toString(false) == "false");
+    CHECK(toString(1) == "1");
+    CHECK(toString(-42) == "-42");
+    CHECK(toString(1.0) == "1");
+    CHECK(toString(1.5) == "1.5");
+    CHECK(toString(1.23456) == "1.235");
+    CHECK(toString("hello") == "hello");
+    CHECK(toString("") == "");
+    CHECK(toString(VecValue{.type = PrimitiveType::Int,
+                            .elements = {1, 2, 3}}) == "[1, 2, 3]");
+    CHECK(toString(VecValue{.type = PrimitiveType::Int, .elements = {}}) ==
+          "[]");
+    CHECK(
+        toString(VecValue{
+            .type = Type::vec(PrimitiveType::Int),
+            .elements = {
+                Value{VecValue{.type = PrimitiveType::Int, .elements = {1, 2}}},
+                Value{VecValue{.type = PrimitiveType::Int,
+                               .elements = {3, 4}}}}}) == "[[1, 2], [3, 4]]");
+}

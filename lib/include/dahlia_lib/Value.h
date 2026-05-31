@@ -72,7 +72,12 @@ std::expected<double, RuntimeErrorKind> checkedDoubleOp(double lhs, double rhs,
     return result;
 }
 
+EvalResult coerce(Value const& val, Type const& target) noexcept;
+
 bool toBool(Value const& val) noexcept;
+
+std::expected<double, RuntimeErrorKind> toFloat(Value const& val) noexcept;
+std::expected<std::int64_t, RuntimeErrorKind> toInt(Value const& val) noexcept;
 
 std::string toString(VecValue const& vec);
 std::string toString(Value const& value);

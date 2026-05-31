@@ -2,10 +2,12 @@
 
 #include <stdckdint.h>
 
+#include <charconv>
 #include <compare>
 #include <expected>
 #include <functional>
 #include <limits>
+#include <ranges>
 #include <string>
 #include <variant>
 
@@ -180,27 +182,27 @@ CmpResult valueCompare(Value const& lhs, Value const& rhs) {
         lhs, rhs);
 }
 
-EvalResult eq(const Value& lhs, const Value& rhs) {
+EvalResult eq(Value const& lhs, Value const& rhs) {
     return compareOp(lhs, rhs, std::is_eq);
 }
 
-EvalResult neq(const Value& lhs, const Value& rhs) {
+EvalResult neq(Value const& lhs, Value const& rhs) {
     return compareOp(lhs, rhs, std::is_neq);
 }
 
-EvalResult lt(const Value& lhs, const Value& rhs) {
+EvalResult lt(Value const& lhs, Value const& rhs) {
     return compareOp(lhs, rhs, std::is_lt);
 }
 
-EvalResult gt(const Value& lhs, const Value& rhs) {
+EvalResult gt(Value const& lhs, Value const& rhs) {
     return compareOp(lhs, rhs, std::is_gt);
 }
 
-EvalResult le(const Value& lhs, const Value& rhs) {
+EvalResult le(Value const& lhs, Value const& rhs) {
     return compareOp(lhs, rhs, std::is_lteq);
 }
 
-EvalResult ge(const Value& lhs, const Value& rhs) {
+EvalResult ge(Value const& lhs, Value const& rhs) {
     return compareOp(lhs, rhs, std::is_gteq);
 }
 
@@ -266,6 +268,94 @@ Type typeFor(Value const& value) {
         value);
 }
 
+EvalResult coerce(Value const& value, Type const& target) noexcept {
+    if (target == Type(PrimitiveType::Bool)) {
+        return toBool(value);
+    }
+    if (target == Type(PrimitiveType::Str)) {
+        return toString(value);
+    }
+    if (target == Type(PrimitiveType::Float)) {
+        return toFloat(value);
+    }
+    if (target == Type(PrimitiveType::Int)) {
+        return toInt(value);
+    }
+    return std::unexpected(
+        InvalidConversion{.from = typeFor(value), .to = target});
+}
+
+using floatParseRes = std::expected<double, RuntimeErrorKind>;
+floatParseRes toFloat(Value const& val) noexcept {
+    return std::visit(
+        Overloaded{
+            [](std::int64_t num) -> floatParseRes {
+                return static_cast<double>(num);
+            },
+            [](bool num) -> floatParseRes { return static_cast<double>(num); },
+            [](double num) -> floatParseRes { return num; },
+            [](std::string const& num) -> floatParseRes {
+                double result{};
+                auto const [ptr, ec] = std::from_chars(
+                    num.data(), num.data() + num.size(), result);
+
+                if (ec == std::errc() && ptr == num.data() + num.size()) {
+                    return result;
+                }
+                if (ec == std::errc::result_out_of_range) {
+                    return std::unexpected(ArithmeticOverflow{});
+                }
+
+                return std::unexpected(UnparsableString{
+                    .val = num, .targetType = Type(PrimitiveType::Float)});
+            },
+            [](auto const& num) -> floatParseRes {
+                return std::unexpected(InvalidConversion{
+                    .from = typeFor(num), .to = Type(PrimitiveType::Float)});
+            }},
+        val);
+}
+
+using intParseRes = std::expected<std::int64_t, RuntimeErrorKind>;
+intParseRes toInt(Value const& val) noexcept {
+    return std::visit(
+        Overloaded{
+            [](std::int64_t num) -> intParseRes { return num; },
+            [](bool num) -> intParseRes {
+                return static_cast<std::int64_t>(num);
+            },
+            [](double num) -> intParseRes {
+                if (num > static_cast<double>(
+                              std::numeric_limits<std::int64_t>::max()) ||
+                    num < static_cast<double>(
+                              std::numeric_limits<std::int64_t>::min())) {
+                    return std::unexpected(ArithmeticOverflow{});
+                }
+                return static_cast<std::int64_t>(num);
+            },
+            [](std::string const& num) -> intParseRes {
+                std::int64_t result{};
+                auto const [ptr, ec] = std::from_chars(
+                    num.data(), num.data() + num.size(), result);
+
+                if (ec == std::errc() && ptr == num.data() + num.size()) {
+                    return result;
+                }
+                if (ec == std::errc::invalid_argument) {
+                    return std::unexpected(UnparsableString{
+                        .val = num, .targetType = Type(PrimitiveType::Int)});
+                }
+                if (ec == std::errc::result_out_of_range) {
+                    return std::unexpected(ArithmeticOverflow{});
+                }
+            },
+            [](auto const& num) -> intParseRes {
+                return std::unexpected(InvalidConversion{
+                    .from = typeFor(num), .to = Type(PrimitiveType::Int)});
+            }},
+        val);
+}
+
 bool toBool(Value const& val) noexcept {
     return std::visit(
         Overloaded{
@@ -291,7 +381,9 @@ std::ostream& operator<<(std::ostream& oss, VecValue const& value) {
 inline std::string toString(Value const& value) {
     return std::visit(
         Overloaded{
-            [](std::monostate) -> std::string { return "None"; },
+            [](std::monostate) -> std::string {
+                return "None";
+            },  // Never happens
             [](bool val) -> std::string { return val ? "true" : "false"; },
             [](std::int64_t val) -> std::string { return std::to_string(val); },
             [](double val) -> std::string {
@@ -305,11 +397,14 @@ inline std::string toString(Value const& value) {
 
 inline std::string toString(VecValue const& vec) {
     std::string out = "[";
-    out.reserve(vec.elements.size() * 2);
+    out.reserve(vec.elements.size() * 3);
 
-    for (auto const& element : vec.elements) {
-        out += toString(element);
+    if (vec.elements.size() > 0) {
+        out.append(toString(vec.elements[0]));
+    }
+    for (auto const& element : vec.elements | std::views::drop(1)) {
         out += ", ";
+        out += toString(element);
     }
     out += "]";
     return out;
