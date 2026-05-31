@@ -370,7 +370,7 @@ TEST_CASE_FIXTURE(
                        .pos = pos3}));
 }
 
-TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter let assignment with type") {
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter  with type") {
     initMain(makeStatements(
         StatementNode(pos2,
                       LetBinding{.identifier = "a",
@@ -384,7 +384,7 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter let assignment with type") {
 
 TEST_CASE_FIXTURE(
     InterpreterFixture,
-    "Interpreter let assignement with type, requires types to match") {
+    "Interpreter let declaration with type, requires types to match") {
     initMain(makeStatements(StatementNode(
         pos2, LetBinding{.identifier = "a",
                          .type = TypeNode(pos1, PrimitiveType::Str),
@@ -438,6 +438,34 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 
     auto const value = run();
     CHECK(value == Value{1});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter converts to variable type on assignment") {
+    initMain(makeStatements(
+        let_mut_a_eq(1),
+        StatementNode(pos1, AssignStmt(LValue{.identifier = "a"},
+                                       ExprNode(pos1, StringLiteral{"2"}))),
+        return_a()));
+
+    auto const value = run();
+    CHECK(value == Value{2});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter throws error when assignment converion fails") {
+    initMain(makeStatements(
+        let_mut_a_eq(1),
+        StatementNode(pos1, AssignStmt(LValue{.identifier = "a"},
+                                       ExprNode(pos2, StringLiteral{"a"}))),
+        return_a()));
+
+    auto const value = run();
+    CHECK(value ==
+          std::unexpected(RuntimeError{
+              .kind = UnparsableString{.val = "a",
+                                       .targetType = PrimitiveType::Int},
+              .pos = pos2}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,

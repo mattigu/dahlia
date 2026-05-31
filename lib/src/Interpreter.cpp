@@ -151,6 +151,18 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
     // Do indices here later
     auto value = visitExpr(statement.value);
 
+    auto const val_type = typeFor(value);
+    auto const var_type = typeFor(var->data());
+
+    if (val_type != var_type) {
+        auto coerced = coerce(value, var_type);
+        if (!coerced) {
+            throw RuntimeError{.kind = coerced.error(),
+                               .pos = statement.value.pos()};
+        }
+        value = std::move(coerced.value());
+    }
+
     var->data() = std::move(value);
 }
 
