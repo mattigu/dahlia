@@ -206,7 +206,7 @@ EvalResult ge(Value const& lhs, Value const& rhs) {
     return compareOp(lhs, rhs, std::is_gteq);
 }
 
-EvalResult checkedAdd(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedAdd(std::int64_t lhs, std::int64_t rhs) {
     std::int64_t res = 0;
     if (!ckd_add(&res, lhs, rhs)) {
         return res;
@@ -214,7 +214,7 @@ EvalResult checkedAdd(std::int64_t lhs, std::int64_t rhs) {
     return std::unexpected(ArithmeticOverflow{});
 }
 
-EvalResult checkedMul(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedMul(std::int64_t lhs, std::int64_t rhs) {
     std::int64_t res = 0;
     if (!ckd_mul(&res, lhs, rhs)) {
         return res;
@@ -222,14 +222,14 @@ EvalResult checkedMul(std::int64_t lhs, std::int64_t rhs) {
     return std::unexpected(ArithmeticOverflow{});
 }
 
-EvalResult checkedSub(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedSub(std::int64_t lhs, std::int64_t rhs) {
     std::int64_t res = 0;
     if (!ckd_sub(&res, lhs, rhs)) {
         return res;
     }
     return std::unexpected(ArithmeticOverflow{});
 }
-EvalResult checkedDiv(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs) {
     if (rhs == 0) {
         return std::unexpected(DivisionByZero{});
     }
@@ -239,7 +239,7 @@ EvalResult checkedDiv(std::int64_t lhs, std::int64_t rhs) {
     return lhs / rhs;
 }
 
-EvalResult checkedDoubleDiv(double lhs, double rhs) {
+DoubleResult checkedDoubleDiv(double lhs, double rhs) {
     if (rhs == 0.0) {
         return std::unexpected(DivisionByZero{});
     }

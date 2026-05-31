@@ -83,7 +83,8 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](GtExpr const& expr) {
                 return gt(visitExpr(*expr.left), visitExpr(*expr.right));
             },
-            [&](LeExpr const& expr) {                return le(visitExpr(*expr.left), visitExpr(*expr.right));
+            [&](LeExpr const& expr) {
+                return le(visitExpr(*expr.left), visitExpr(*expr.right));
             },
             [&](GeExpr const& expr) {
                 return ge(visitExpr(*expr.left), visitExpr(*expr.right));
@@ -120,7 +121,9 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 return Signal{};
             },
             [&](WhileLoop const& loop) { return visitWhileLoop(loop); },
-
+            [&](ForLoop const& loop) {
+                return visitForLoop(loop, statement.pos());
+            },
             [&](IfStmt const& stmt) { return visitIfStmt(stmt); },
 
             [&](AssignStmt const& assign) {
@@ -156,15 +159,71 @@ Signal Interpreter::visitWhileLoop(WhileLoop const& loop) {
         if (std::holds_alternative<BreakSignal>(signal)) {
             break;
         }
-        if (std::holds_alternative<ContinueSignal>(signal)) {
-            continue;
-        }
         if (std::holds_alternative<ReturnSignal>(signal)) {
             return signal;
         }
     }
     return Signal{};
 }
+
+Signal Interpreter::visitForLoop(ForLoop const& loop, Position pos) {
+    auto const extract_int = [&](Value const& val) -> std::int64_t {
+        auto const res = toInt(val);
+        if (!res) {
+            throw res.error();
+        }
+        return res.value();
+    };
+    auto const start = extract_int(visitExpr(loop.range->start));
+    auto const end = extract_int(visitExpr(loop.range->end));
+    auto const step = extract_int(
+        loop.range->step
+            .transform([this](ExprNode const& expr) { return visitExpr(expr); })
+            .value_or((start < end) ? Value{1} : Value{-1}));
+    auto const inclusive = loop.range->inclusive;
+
+    // Validate range
+    if (start < end && step < 0 || start > end && step > 0 || step == 0 ||
+        start == end) {
+        throw RuntimeError{.kind = InvalidForRange{}, .pos = loop.range.pos()};
+    }
+    auto const continue_loop = [&](std::int64_t loop_var) -> bool {
+        if (start < end) {
+            return inclusive ? loop_var <= end : loop_var < end;
+        }
+        return inclusive ? loop_var >= end : loop_var > end;
+    };
+
+    auto loop_val = start;
+
+    stack_.current().pushScope();
+    stack_.current().declareVariable(loop.loop_var,
+                                     Variable(loop_val, loop.mut, Position{}));
+    auto* const loop_var = stack_.current().lookupVariable(loop.loop_var);
+
+    while (continue_loop(loop_val)) {
+        loop_var->data() = loop_val;
+
+        auto const signal = visitBlock(loop.block);
+        if (std::holds_alternative<BreakSignal>(signal)) {
+            break;
+        }
+        if (std::holds_alternative<ReturnSignal>(signal)) {
+            stack_.current().popScope();
+            return signal;
+        }
+
+        auto const res = checkedAdd(loop_val, step);
+        if (!res) {
+            throw RuntimeError{.kind = res.error(), .pos = pos};
+        }
+        loop_val = res.value();
+    }
+
+    stack_.current().popScope();
+    return Signal{};
+}
+
 Signal Interpreter::visitIfStmt(IfStmt const& stmt) {
     auto const eval_branch =
         [&](ExprNode const& cond,

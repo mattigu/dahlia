@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <variant>
 
 #include "dahlia_lib/Ast.h"
@@ -68,11 +67,15 @@ struct InvalidConversion {
     bool operator==(InvalidConversion const&) const noexcept = default;
 };
 
+struct InvalidForRange {
+    bool operator==(InvalidForRange const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
                  UseOfUndeclaredVariable, ConstAssignment, VecTypeMismatch,
                  ArithmeticOverflow, DivisionByZero, InvalidOperands,
-                 UnparsableString, InvalidConversion>;
+                 UnparsableString, InvalidConversion, InvalidForRange>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

@@ -29,6 +29,7 @@ private:
 
     void visitAssign(AssignStmt const& statement, Position pos);
     Signal visitWhileLoop(WhileLoop const& loop);
+    Signal visitForLoop(ForLoop const& loop, Position pos);
     Signal visitIfStmt(IfStmt const& stmt);
 
     void visitLetBinding(LetBinding const& let, Position pos);

@@ -1,4 +1,6 @@
 #include <expected>
+#include <optional>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -48,11 +50,6 @@ public:
         return vec;
     }
 
-    static Value makeVecValue(Type element_type, std::vector<Value> elements) {
-        return Value{VecValue{.type = std::move(element_type),
-                              .elements = std::move(elements)}};
-    }
-
     template <typename... Args>
     std::vector<StatementNode> makeStatements(Args&&... args) {
         return makeVec<StatementNode>(std::forward<Args>(args)...);
@@ -73,20 +70,45 @@ public:
             pos0_, ReturnStmt{.value = ExprNode(pos0_, Identifier{"a"})});
     }
 
-    StatementNode let_a_eq(std::int64_t x) {  // NOLINT
-        return StatementNode(
-            pos0_, LetBinding{.identifier = "a",
-                              .mut = false,
-                              .value = ExprNode(pos0_, IntLiteral{x})});
+    StatementNode let_a_eq(Value x) {  // NOLINT
+        return StatementNode(pos0_,
+                             LetBinding{.identifier = "a",
+                                        .mut = false,
+                                        .value = expr_from_val(std::move(x))});
     }
-    StatementNode let_mut_a_eq(std::int64_t x) {  // NOLINT
+    StatementNode let_mut_a_eq(Value x) {  // NOLINT
         return StatementNode(
             pos0_, LetBinding{.identifier = "a",
                               .mut = true,
-                              .value = ExprNode(pos0_, IntLiteral{x})});
+                              .value = expr_from_val(std::move(x))});
     }
 
-    StatementNode return_val(Value val) {
+    RangeNode range_in_0_5(Position pos) {  // NOLINT
+        return RangeNode(pos, Range{.start = ExprNode(pos0_, IntLiteral{0}),
+                                    .inclusive = false,
+                                    .end = ExprNode(pos0_, IntLiteral{5}),
+                                    .step = std::nullopt});
+    }
+
+    StatementNode a_plus_eq_1() {  // NOLINT
+        return StatementNode(
+            pos0_,
+            AssignStmt(
+                LValue{.identifier = "a", .indices = {}},
+                ExprNode(pos0_, AddExpr(ExprNode(pos0_, Identifier{"a"}),
+                                        ExprNode(pos0_, IntLiteral{1})))));
+    }
+
+    StatementNode a_plus_eq_b() {  // NOLINT
+        return StatementNode(
+            pos0_,
+            AssignStmt(
+                LValue{.identifier = "a", .indices = {}},
+                ExprNode(pos0_, AddExpr(ExprNode(pos0_, Identifier{"a"}),
+                                        ExprNode(pos0_, Identifier{"b"})))));
+    }
+
+    ExprNode expr_from_val(Value val) {  // NOLINT
         auto expr = std::visit(
             Overloaded{
                 [](std::int64_t val) -> Expr { return IntLiteral{val}; },
@@ -107,8 +129,12 @@ public:
                 },
             },
             val);
+        return {pos0_, std::move(expr)};
+    }
+
+    StatementNode return_val(Value val) {  // NOLINT
         return StatementNode(
-            pos0_, ReturnStmt{.value = ExprNode(pos0_, std::move(expr))});
+            pos0_, ReturnStmt{.value = expr_from_val(std::move(val))});
     }
 
     StatementNode whileALt5(std::vector<StatementNode> extra_statements = {}) {
@@ -409,16 +435,7 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter runs while loops") {
                     ExprNode(pos1, LtExpr(ExprNode(pos1, Identifier{"a"}),
                                           ExprNode(pos1, IntLiteral{5}))),
                 .block = BlockNode(
-                    pos1,
-                    Block{.statements = makeStatements(StatementNode(
-                              pos1,
-                              AssignStmt(
-                                  LValue{.identifier = "a", .indices = {}},
-                                  ExprNode(
-                                      pos1,
-                                      AddExpr(ExprNode(pos1, Identifier{"a"}),
-                                              ExprNode(pos1,
-                                                       IntLiteral{1}))))))})}),
+                    pos1, Block{.statements = makeStatements(a_plus_eq_1())})}),
         return_a()));
 
     auto const value = run();
@@ -447,26 +464,291 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter continue works in while") {
         let_mut_a_eq(0),
         StatementNode(
             pos1,
-            WhileLoop{
-                .condition =
-                    ExprNode(pos1, LtExpr(ExprNode(pos1, Identifier{"a"}),
-                                          ExprNode(pos1, IntLiteral{3}))),
-                .block = BlockNode(
-                    pos1,
-                    Block{.statements = makeStatements(
-                              StatementNode(
-                                  pos1,
-                                  AssignStmt(
-                                      LValue{.identifier = "a", .indices = {}},
-                                      ExprNode(
-                                          pos1,
-                                          AddExpr(
-                                              ExprNode(pos1, Identifier{"a"}),
-                                              ExprNode(pos1, IntLiteral{1}))))),
-                              StatementNode(pos1, ContinueStmt{}),
-                              return_val(99))})}),
+            WhileLoop{.condition =
+                          ExprNode(pos1, LtExpr(ExprNode(pos1, Identifier{"a"}),
+                                                ExprNode(pos1, IntLiteral{3}))),
+                      .block = BlockNode(
+                          pos1, Block{.statements = makeStatements(
+                                          a_plus_eq_1(),
+                                          StatementNode(pos1, ContinueStmt{}),
+                                          return_val(99))})}),
         return_a()));
     CHECK(run() == 3);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter runs for loop base case") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = range_in_0_5(pos1),
+                    .block = BlockNode(pos1, Block{.statements = makeStatements(
+                                                       a_plus_eq_b())})}),
+        return_a()));
+    CHECK(run() == "01234");
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter runs for loop with custom step") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = RangeNode(
+                        pos1, Range{.start = ExprNode(pos1, IntLiteral{0}),
+                                    .inclusive = true,
+                                    .end = ExprNode(pos1, IntLiteral{5}),
+                                    .step = ExprNode(pos1, IntLiteral{2})}),
+                    .block = BlockNode(pos1, Block{.statements = makeStatements(
+                                                       a_plus_eq_b())})}),
+        return_a()));
+    CHECK(run() == "024");
+}
+
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter runs for loop reverse default step") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = RangeNode(
+                        pos1, Range{.start = ExprNode(pos1, IntLiteral{5}),
+                                    .inclusive = false,
+                                    .end = ExprNode(pos1, IntLiteral{0}),
+                                    .step = std::nullopt}),
+                    .block = BlockNode(pos1, Block{.statements = makeStatements(
+                                                       a_plus_eq_b())})}),
+        return_a()));
+    CHECK(run() == "54321");
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter runs for loop reverse custom step") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = RangeNode(
+                        pos1, Range{.start = ExprNode(pos1, IntLiteral{5}),
+                                    .inclusive = false,
+                                    .end = ExprNode(pos1, IntLiteral{0}),
+                                    .step = ExprNode(pos1, IntLiteral{-2})}),
+                    .block = BlockNode(pos1, Block{.statements = makeStatements(
+                                                       a_plus_eq_b())})}),
+        return_a()));
+    CHECK(run() == "531");
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter for loop range inclusive") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = RangeNode(
+                        pos1, Range{.start = ExprNode(pos1, IntLiteral{0}),
+                                    .inclusive = true,
+                                    .end = ExprNode(pos1, IntLiteral{5}),
+                                    .step = std::nullopt}),
+                    .block = BlockNode(pos1, Block{.statements = makeStatements(
+                                                       a_plus_eq_b())})}),
+        return_a()));
+    CHECK(run() == "012345");
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter runs for loop continue") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = range_in_0_5(pos1),
+                    .block = BlockNode(
+                        pos1, Block{.statements = makeStatements(
+                                        a_plus_eq_b(),
+                                        StatementNode(pos1, ContinueStmt{}),
+                                        return_val(99))})}),
+        return_a()));
+    auto const value = run();
+    CHECK(value == "01234");
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter for loop break") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{
+                .loop_var = "b",
+                .mut = false,
+                .range = range_in_0_5(pos1),
+                .block = BlockNode(
+                    pos1,
+                    Block{
+                        .statements = makeStatements(
+                            StatementNode(
+                                pos1,
+                                IfStmt{
+                                    .if_cond = ExprNode(
+                                        pos1,
+                                        EqExpr(ExprNode(pos1, Identifier{"b"}),
+                                               ExprNode(pos1, IntLiteral{2}))),
+                                    .if_block = BlockNode(
+                                        pos1,
+                                        Block{.statements =
+                                                  makeStatements(StatementNode(
+                                                      pos1, BreakStmt{}))}),
+                                }),
+                            a_plus_eq_b())})}),
+        return_a()));
+    auto const value = run();
+    CHECK(value == "01");
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter for loop, return exists loop") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1, ForLoop{.loop_var = "b",
+                          .mut = false,
+                          .range = range_in_0_5(pos1),
+                          .block = BlockNode(
+                              pos1, Block{.statements = makeStatements(
+                                              a_plus_eq_b(), return_a())})})));
+    auto const value = run();
+    CHECK(value == "0");
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter for loop, loop variable requires mut to be modified") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{
+                .loop_var = "b",
+                .mut = false,
+                .range = range_in_0_5(pos1),
+                .block = BlockNode(
+                    pos1, Block{makeStatements(StatementNode(
+                              pos3, AssignStmt(
+                                        LValue{.identifier = "b"},
+                                        ExprNode(pos1, IntLiteral{99}))))})})));
+    auto const value = run();
+    CHECK(value ==
+          std::unexpected(RuntimeError{
+              .kind = ConstAssignment{.identifier = "b"}, .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter for loop, loop variable not modified next iteration") {
+    initMain(makeStatements(
+        let_mut_a_eq(""),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = true,
+                    .range = range_in_0_5(pos1),
+                    .block = BlockNode(
+                        pos1,
+                        Block{.statements = makeStatements(
+                                  a_plus_eq_b(),
+                                  StatementNode(
+                                      pos1,
+                                      AssignStmt(
+                                          LValue{.identifier = "b"},
+                                          ExprNode(pos1, IntLiteral{99}))))})}),
+        return_a()));
+    auto const value = run();
+    CHECK(value == "01234");
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter for loop invalid range - start > stop, step positive") {
+    initMain(makeStatements(
+        let_mut_a_eq(0),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = RangeNode(
+                        pos3, Range{.start = ExprNode(pos1, IntLiteral{4}),
+                                    .inclusive = false,
+                                    .end = ExprNode(pos1, IntLiteral{0}),
+                                    .step = ExprNode(pos1, IntLiteral{1})}),
+                    .block = BlockNode(pos1, Block{})})));
+    CHECK(run() == std::unexpected(
+                       RuntimeError{.kind = InvalidForRange{}, .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter for loop invalid range - start < stop, step negative") {
+    initMain(makeStatements(
+        let_mut_a_eq(0),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = RangeNode(
+                        pos3, Range{.start = ExprNode(pos1, IntLiteral{0}),
+                                    .inclusive = false,
+                                    .end = ExprNode(pos1, IntLiteral{4}),
+                                    .step = ExprNode(pos1, IntLiteral{-1})}),
+                    .block = BlockNode(pos1, Block{})})));
+    CHECK(run() == std::unexpected(
+                       RuntimeError{.kind = InvalidForRange{}, .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter for loop invalid range - step 0") {
+    initMain(makeStatements(
+        let_mut_a_eq(0),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = RangeNode(
+                        pos3, Range{.start = ExprNode(pos1, IntLiteral{0}),
+                                    .inclusive = false,
+                                    .end = ExprNode(pos1, IntLiteral{4}),
+                                    .step = ExprNode(pos1, IntLiteral{0})}),
+                    .block = BlockNode(pos1, Block{})})));
+    CHECK(run() == std::unexpected(
+                       RuntimeError{.kind = InvalidForRange{}, .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter for loop invalid range - start and end equal") {
+    initMain(makeStatements(
+        let_mut_a_eq(0),
+        StatementNode(
+            pos1,
+            ForLoop{.loop_var = "b",
+                    .mut = false,
+                    .range = RangeNode(
+                        pos3, Range{.start = ExprNode(pos1, IntLiteral{4}),
+                                    .inclusive = false,
+                                    .end = ExprNode(pos1, IntLiteral{4}),
+                                    .step = ExprNode(pos1, IntLiteral{1})}),
+                    .block = BlockNode(pos1, Block{})})));
+    CHECK(run() == std::unexpected(
+                       RuntimeError{.kind = InvalidForRange{}, .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter if - true executes block") {

@@ -38,11 +38,15 @@ Type typeFor(Value const& value);
 using EvalResult = std::expected<Value, RuntimeErrorKind>;
 
 EvalResult add(Value lhs, Value rhs);
-EvalResult checkedAdd(std::int64_t lhs, std::int64_t rhs);
-EvalResult checkedMul(std::int64_t lhs, std::int64_t rhs);
-EvalResult checkedSub(std::int64_t lhs, std::int64_t rhs);
-EvalResult checkedDiv(std::int64_t lhs, std::int64_t rhs);
-EvalResult checkedDoubleDiv(double lhs, double rhs);
+
+using IntResult = std::expected<std::int64_t, RuntimeErrorKind>;
+using DoubleResult = std::expected<double, RuntimeErrorKind>;
+
+IntResult checkedAdd(std::int64_t lhs, std::int64_t rhs);
+IntResult checkedSub(std::int64_t lhs, std::int64_t rhs);
+IntResult checkedMul(std::int64_t lhs, std::int64_t rhs);
+IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs);
+DoubleResult checkedDoubleDiv(double lhs, double rhs);
 
 using CmpResult = std::expected<std::partial_ordering, InvalidOperands>;
 
