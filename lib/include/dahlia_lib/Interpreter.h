@@ -9,21 +9,27 @@
 #include "Value.h"
 #include "dahlia_lib/RuntimeError.h"
 
+struct InterpreterOpts {
+    int max_call_depth;
+};
+
 class Interpreter {
 public:
-    explicit Interpreter() : pos_{} {}
+    explicit Interpreter(InterpreterOpts opts = InterpreterOpts{
+                             .max_call_depth = 100});
 
     std::expected<Value, RuntimeError> run(ProgramNode const& program);
 
 private:
     Stack stack_;
-    Position pos_;
+    InterpreterOpts options_;
+    Program const* program_ = nullptr;
 
     Value visitProgram(ProgramNode const& program);
 
     Value visitFunctionDefinition(FunctionNode const& fun);
 
-    [[nodiscard]] Value visitExpr(ExprNode const& expr) const;
+    [[nodiscard]] Value visitExpr(ExprNode const& expr);
 
     Signal visitStatement(StatementNode const& statement);
 
@@ -36,9 +42,9 @@ private:
 
     Signal visitBlock(BlockNode const& block);
 
-    Value visitFunctionCall(FunctionCall const& fun_call);
+    Value visitFunctionCall(FunctionCall const& fun_call, Position pos);
 
     [[nodiscard]] EvalResult visitIdentifier(Identifier const& ident) const;
 
-    [[nodiscard]] EvalResult visitVecLiteral(VecLiteral const& lit) const;
+    [[nodiscard]] EvalResult visitVecLiteral(VecLiteral const& lit);
 };

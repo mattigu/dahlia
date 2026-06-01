@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -38,6 +39,8 @@ public:
 
     [[nodiscard]] CallContext& current() noexcept;
     [[nodiscard]] CallContext const& current() const noexcept;
+
+    [[nodiscard]] std::size_t callDepth() const noexcept;
 
 private:
     std::vector<CallContext> callContexts_;

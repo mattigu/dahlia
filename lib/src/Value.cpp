@@ -124,7 +124,7 @@ EvalResult modulo(Value lhs, Value rhs) {
                         [](double lhs, double rhs) -> DoubleResult {
                             if (rhs == 0) {
                                 return std::unexpected(DivisionByZero{});
-}
+                            }
                             return std::fmod(lhs, rhs);
                         });
 }

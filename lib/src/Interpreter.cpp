@@ -1,5 +1,6 @@
 #include "dahlia_lib/Interpreter.h"
 
+#include <cassert>
 #include <expected>
 #include <ranges>
 #include <variant>
@@ -12,8 +13,13 @@
 #include "dahlia_lib/Value.h"
 #include "dahlia_lib/Variable.h"
 
+Interpreter::Interpreter(InterpreterOpts opts) : options_(opts) {
+    assert(opts.max_call_depth > 0);
+}
+
 std::expected<Value, RuntimeError> Interpreter::run(
     ProgramNode const& program) {
+    program_ = &(*program);
     try {
         return visitProgram(program);
     } catch (RuntimeError const& err) {
@@ -22,17 +28,13 @@ std::expected<Value, RuntimeError> Interpreter::run(
 }
 
 Value Interpreter::visitProgram(ProgramNode const& program) {
-    // parse builtins
     auto const main = program->functions.find("main");
 
     if (main == program->functions.cend()) {
         throw RuntimeError{.kind = MissingMainFunction{}, .pos = program.pos()};
     }
-    // Verify main params/return type?
-    // Create global call context
-    stack_.pushContext();
-    auto const main_res = visitFunctionDefinition(main->second);
-    stack_.popContext();
+    auto const main_res =
+        visitFunctionCall(FunctionCall{.identifier = "main"}, program.pos());
     return main_res;
 }
 
@@ -40,22 +42,42 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
     // Verify args and param types
     auto signal = visitBlock(fun->block);
 
-    return std::visit(Overloaded{
-                          [](ReturnSignal const& sig) { return sig.value; },
-                          [](std::monostate) { return Value{}; },
-                          [](BreakSignal const& sig) -> Value {
-                              throw RuntimeError{.kind = UnexpectedBreak{},
-                                                 .pos = sig.pos};
-                          },
-                          [](ContinueSignal const& sig) -> Value {
-                              throw RuntimeError{.kind = UnexpectedContinue{},
-                                                 .pos = sig.pos};
-                          },
-                      },
-                      signal);
+    auto return_val = std::visit(
+        Overloaded{
+            [](ReturnSignal const& sig) { return sig.value; },
+            [](std::monostate) { return Value{}; },
+            [](BreakSignal const& sig) -> Value {
+                throw RuntimeError{.kind = UnexpectedBreak{}, .pos = sig.pos};
+            },
+            [](ContinueSignal const& sig) -> Value {
+                throw RuntimeError{.kind = UnexpectedContinue{},
+                                   .pos = sig.pos};
+            },
+        },
+        signal);
+
+    if (fun->return_type) {
+        if (std::holds_alternative<std::monostate>(return_val)) {
+            throw RuntimeError{.kind = MissingReturnValue{}, .pos = fun.pos()};
+        }
+        auto const type = typeFor(return_val);
+
+        if (type == **fun->return_type) {
+            return return_val;
+        }
+        auto const coerced = coerce(return_val, **fun->return_type);
+
+        if (!coerced) {
+            throw RuntimeError{
+                .kind = coerced.error(),
+                .pos = fun.pos()};  // Could give better position here
+        }
+        return *coerced;
+    }
+    return Value{};
 }
 
-[[nodiscard]] Value Interpreter::visitExpr(ExprNode const& expr) const {
+[[nodiscard]] Value Interpreter::visitExpr(ExprNode const& expr) {
     auto const res = std::visit(
         Overloaded{
             [](IntLiteral const& lit) -> EvalResult { return lit.value; },
@@ -67,6 +89,9 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             },
             [&](Identifier const& ident) -> EvalResult {
                 return visitIdentifier(ident);
+            },
+            [&](FunctionCall const& call) -> EvalResult {
+                return visitFunctionCall(call, expr.pos());
             },
             [&](AddExpr const& expr) -> EvalResult {
                 return add(visitExpr(*expr.left), visitExpr(*expr.right));
@@ -107,6 +132,11 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
 
         },
         *expr);
+    // Every expression error except function call goes through this.
+    if (res == Value{std::monostate{}}) {
+        throw RuntimeError{.kind = VoidTypeInExpression{}, .pos = expr.pos()};
+    }
+
     if (res) {
         return res.value();
     }
@@ -116,11 +146,12 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
 Signal Interpreter::visitStatement(StatementNode const& statement) {
     return std::visit(
         Overloaded{
-            [this](ReturnStmt const& stmt) {
+            [&](ReturnStmt const& stmt) {
                 if (stmt.value) {
-                    return Signal{ReturnSignal{visitExpr(*stmt.value)}};
+                    return Signal{ReturnSignal{.value = visitExpr(*stmt.value),
+                                               .pos = statement.pos()}};
                 }
-                return Signal{ReturnSignal{}};
+                return Signal{ReturnSignal{.pos = statement.pos()}};
             },
             [&](BreakStmt const& stmt) {
                 return Signal{BreakSignal{statement.pos()}};
@@ -129,6 +160,11 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 return Signal{ContinueSignal{statement.pos()}};
             },
             [this](BlockNode const& block) { return visitBlock(block); },
+            [&](FunctionCall const& call) {
+                visitFunctionCall(call, statement.pos());
+                return Signal{};
+            },
+
             [&](LetBinding const& let) {
                 visitLetBinding(let, statement.pos());
                 return Signal{};
@@ -154,11 +190,10 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
 
     auto* const var = stack_.current().lookupVariable(ident);
     if (var == nullptr) {
-        throw RuntimeError{.kind = UseOfUndeclaredVariable{}, .pos = pos};
+        throw RuntimeError{.kind = UseOfUnkownIdentifier{}, .pos = pos};
     }
     if (!var->mut()) {
-        throw RuntimeError{.kind = ConstAssignment{.identifier = ident},
-                           .pos = pos};
+        throw RuntimeError{.kind = MutViolation{}, .pos = pos};
     }
 
     // Do indices here later
@@ -208,7 +243,6 @@ Signal Interpreter::visitForLoop(ForLoop const& loop, Position pos) {
             .value_or((start < end) ? Value{1} : Value{-1}));
     auto const inclusive = loop.range->inclusive;
 
-    // Validate range
     if (start < end && step < 0 || start > end && step > 0 || step == 0 ||
         start == end) {
         throw RuntimeError{.kind = InvalidForRange{}, .pos = loop.range.pos()};
@@ -308,34 +342,73 @@ Signal Interpreter::visitBlock(BlockNode const& block) {
     return Signal{};
 }
 
-Value Interpreter::visitFunctionCall(FunctionCall const& fun_call) {
-    stack_.pushContext();
-    // evaluate args
-
-    std::vector<Value> args;
-    args.reserve(fun_call.args.size());
-    for (auto const& arg : fun_call.args) {
-        args.push_back(visitExpr(arg));
+Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
+                                     Position pos) {
+    if (stack_.callDepth() >= options_.max_call_depth) {
+        throw RuntimeError{.kind = CallDepthExceeded{}, .pos = pos};
     }
 
-    // verify args to params
+    auto const iter = program_->functions.find(fun_call.identifier);
+    if (iter == program_->functions.cend()) {
+        throw RuntimeError{.kind = UseOfUnkownIdentifier{}, .pos = pos};
+    }
+    auto const& fun = iter->second;
 
-    // push new context
+    if (fun->params.size() != fun_call.args.size()) {
+        throw RuntimeError{.kind = ArgumentCountMismatch{}, .pos = pos};
+    }
 
-    // Visit definition
+    std::vector<Variable> args_vars;
+    args_vars.reserve(fun_call.args.size());
 
+    for (auto const& [param, arg] :
+         std::views::zip(fun->params, fun_call.args)) {
+        if (param->mut) {
+            auto const* ident = std::get_if<Identifier>(&*arg);
+            if (ident == nullptr) {
+                throw RuntimeError{.kind = MutArgExpression{},
+                                   .pos = arg.pos()};
+            }
+            auto* var = stack_.current().lookupVariable(ident->identifier);
+            if (!var->mut()) {
+                throw RuntimeError{.kind = MutViolation{}, .pos = arg.pos()};
+            }
+            args_vars.emplace_back(&var->data(), true, arg.pos());
+        } else {
+            auto const val = visitExpr(arg);
+
+            auto coerced = coerce(val, *param->type);
+            if (!coerced) {
+                // Failed to coerce to argument
+            }
+            args_vars.emplace_back(std::move(*coerced), false, arg.pos());
+        }
+    }
+
+    stack_.pushContext();
+    stack_.current().pushScope();
+
+    for (auto const& [param, var] : std::views::zip(fun->params, args_vars)) {
+        stack_.current().declareVariable(param->identifier, std::move(var));
+    }
+
+    auto res = visitFunctionDefinition(fun);
+
+    stack_.current().pushScope();
     stack_.popContext();
+
+    return res;
 }
 
 EvalResult Interpreter::visitIdentifier(Identifier const& ident) const {
     auto const* val = stack_.current().lookupValue(ident.identifier);
     if (val == nullptr) {
-        return std::unexpected(UseOfUndeclaredVariable{});
+        return std::unexpected(UseOfUnkownIdentifier{});
     }
     return *val;
 }
 
-EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) const {
+EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) {
     if (lit.elements.empty()) {
         return UninitVec{};
     }

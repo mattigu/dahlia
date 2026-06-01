@@ -70,3 +70,5 @@ std::optional<Position> CallContext::declareVariable(std::string identifier,
     }
     return std::nullopt;
 }
+
+std::size_t Stack::callDepth() const noexcept { return callContexts_.size(); };

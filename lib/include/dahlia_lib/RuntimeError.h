@@ -22,13 +22,8 @@ struct VariableRedefinition {
     bool operator==(VariableRedefinition const&) const noexcept = default;
 };
 
-struct ConstAssignment {
-    std::string identifier;
-    bool operator==(ConstAssignment const&) const noexcept = default;
-};
-
-struct UseOfUndeclaredVariable {
-    bool operator==(UseOfUndeclaredVariable const&) const noexcept = default;
+struct UseOfUnkownIdentifier {
+    bool operator==(UseOfUnkownIdentifier const&) const noexcept = default;
 };
 
 struct VecTypeMismatch {
@@ -74,12 +69,38 @@ struct InvalidForRange {
     bool operator==(InvalidForRange const&) const noexcept = default;
 };
 
+struct CallDepthExceeded {
+    bool operator==(CallDepthExceeded const&) const noexcept = default;
+};
+
+struct VoidTypeInExpression {
+    bool operator==(VoidTypeInExpression const&) const noexcept = default;
+};
+
+struct MutViolation {
+    bool operator==(MutViolation const&) const noexcept = default;
+};
+
+struct MutArgExpression {
+    bool operator==(MutArgExpression const&) const noexcept = default;
+};
+
+struct ArgumentCountMismatch {
+    bool operator==(ArgumentCountMismatch const&) const noexcept = default;
+};
+
+struct MissingReturnValue {
+    bool operator==(MissingReturnValue const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
-                 UseOfUndeclaredVariable, ConstAssignment, VecTypeMismatch,
-                 ArithmeticOverflow, DivisionByZero, InvalidOperands,
-                 UnparsableString, InvalidConversion, InvalidForRange,
-                 AssignmentTypeMismatch, VariableRedefinition>;
+                 UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow,
+                 DivisionByZero, InvalidOperands, UnparsableString,
+                 InvalidConversion, InvalidForRange, AssignmentTypeMismatch,
+                 VariableRedefinition, CallDepthExceeded, VoidTypeInExpression,
+                 MutViolation, MutArgExpression, ArgumentCountMismatch,
+                 MissingReturnValue>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;
