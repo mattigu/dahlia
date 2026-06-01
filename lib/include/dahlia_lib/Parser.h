@@ -614,6 +614,7 @@ private:
     std::optional<ExprNode> tryParseMultiplicativeExpr() {
         return tryParseBinaryExpr(&ParserTemplate::tryParseUnaryExpr,
                                   binOp<MulExpr>(TokenKind::Asterisk),
+                                  binOp<ModExpr>(TokenKind::Percent),
                                   binOp<DivExpr>(TokenKind::Slash));
     }
 

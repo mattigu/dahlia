@@ -1161,6 +1161,15 @@ TEST_CASE_FIXTURE(ParserFixture, "Parser parses division expression") {
                                    ExprNode(pos[2], IntLiteral{.value = 2}))));
 }
 
+TEST_CASE_FIXTURE(ParserFixture, "Parser parses modulo expression") {
+    auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 6},
+                                              {TokenKind::Percent},
+                                              {TokenKind::IntLiteral, 2}});
+    CHECK(expr ==
+          ExprNode(pos[1], ModExpr(ExprNode(pos[0], IntLiteral{.value = 6}),
+                                   ExprNode(pos[2], IntLiteral{.value = 2}))));
+}
+
 TEST_CASE_FIXTURE(ParserFixture,
                   "Parser parses multiplicative left associativity") {
     auto const [expr, pos] = parseExpression({{TokenKind::IntLiteral, 2},

@@ -105,6 +105,7 @@ struct MulExpr;
 struct DivExpr;
 struct AddExpr;
 struct SubExpr;
+struct ModExpr;
 struct IntersectExpr;
 struct InExpr;
 struct EqExpr;
@@ -122,8 +123,8 @@ using Expr =
     std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
                  VecLiteral, Identifier, FunctionCall, IndexExpr, NegExpr,
                  LengthExpr, NotExpr, MulExpr, DivExpr, AddExpr, SubExpr,
-                 IntersectExpr, InExpr, EqExpr, NeqExpr, LtExpr, GtExpr, LeExpr,
-                 GeExpr, AndExpr, OrExpr, FilterExpr, MapExpr>;
+                 ModExpr, IntersectExpr, InExpr, EqExpr, NeqExpr, LtExpr, GtExpr,
+                 LeExpr, GeExpr, AndExpr, OrExpr, FilterExpr, MapExpr>;
 using ExprNode = Node<Expr>;
 
 struct FunctionCall {
@@ -180,6 +181,9 @@ struct AddExpr : BinaryBase {
     using BinaryBase::BinaryBase;
 };
 struct SubExpr : BinaryBase {
+    using BinaryBase::BinaryBase;
+};
+struct ModExpr : BinaryBase {
     using BinaryBase::BinaryBase;
 };
 struct IntersectExpr : BinaryBase {
