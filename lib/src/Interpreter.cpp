@@ -71,6 +71,19 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](AddExpr const& expr) -> EvalResult {
                 return add(visitExpr(*expr.left), visitExpr(*expr.right));
             },
+            [&](SubExpr const& expr) -> EvalResult {
+                return subtract(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](DivExpr const& expr) -> EvalResult {
+                return divide(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](MulExpr const& expr) -> EvalResult {
+                return multiply(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](ModExpr const& expr) -> EvalResult {
+                return modulo(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+
             [&](EqExpr const& expr) {
                 return eq(visitExpr(*expr.left), visitExpr(*expr.right));
             },

@@ -38,6 +38,10 @@ Type typeFor(Value const& value);
 using EvalResult = std::expected<Value, RuntimeErrorKind>;
 
 EvalResult add(Value lhs, Value rhs);
+EvalResult subtract(Value lhs, Value rhs);
+EvalResult multiply(Value lhs, Value rhs);
+EvalResult divide(Value lhs, Value rhs);
+EvalResult modulo(Value lhs, Value rhs);
 
 using IntResult = std::expected<std::int64_t, RuntimeErrorKind>;
 using DoubleResult = std::expected<double, RuntimeErrorKind>;
@@ -46,6 +50,8 @@ IntResult checkedAdd(std::int64_t lhs, std::int64_t rhs);
 IntResult checkedSub(std::int64_t lhs, std::int64_t rhs);
 IntResult checkedMul(std::int64_t lhs, std::int64_t rhs);
 IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs);
+IntResult checkedMod(std::int64_t lhs, std::int64_t rhs);
+
 DoubleResult checkedDoubleDiv(double lhs, double rhs);
 
 using CmpResult = std::expected<std::partial_ordering, InvalidOperands>;
@@ -85,6 +91,117 @@ std::expected<std::int64_t, RuntimeErrorKind> toInt(Value const& val) noexcept;
 
 std::string toString(VecValue const& vec);
 std::string toString(Value const& value);
+
+std::string repeat(std::string const& str, std::int64_t n);
+
+template <typename Op>
+concept IntBinaryOp =
+    std::invocable<Op, std::int64_t, std::int64_t> &&
+    std::same_as<std::invoke_result_t<Op, std::int64_t, std::int64_t>,
+                 IntResult>;
+
+template <typename Op>
+concept DoubleBinaryOp =
+    std::invocable<Op, double, double> &&
+    std::same_as<std::invoke_result_t<Op, double, double>, DoubleResult>;
+
+enum class StringIntPolicy : std::uint8_t { Repeat, ParseAsFloat };
+
+template <IntBinaryOp IntOp, DoubleBinaryOp DoubleOp>
+EvalResult arithmeticOp(
+    Value left, Value right, IntOp int_op, DoubleOp double_op,
+    StringIntPolicy str_int = StringIntPolicy::ParseAsFloat) {
+    return std::visit(
+        Overloaded{
+
+            [&](std::int64_t lhs, std::int64_t rhs) -> EvalResult {
+                return int_op(lhs, rhs);
+            },
+            [&](std::int64_t lhs, double rhs) -> EvalResult {
+                return double_op(static_cast<double>(lhs), rhs);
+            },
+            [&](std::int64_t lhs, std::string const& rhs) -> EvalResult {
+                if (str_int == StringIntPolicy::ParseAsFloat) {
+                    auto str_as_int = toInt(rhs);
+                    if (!str_as_int) {
+                        return str_as_int;
+                    }
+                    return int_op(lhs, *str_as_int);
+                }
+                return repeat(rhs, lhs);
+            },
+            [&](std::int64_t lhs, bool rhs) -> EvalResult {
+                return int_op(lhs, static_cast<std::int64_t>(rhs));
+            },
+            [&](double lhs, std::int64_t rhs) -> EvalResult {
+                return double_op(lhs, static_cast<double>(rhs));
+            },
+            [&](double lhs, double rhs) -> EvalResult {
+                return double_op(lhs, rhs);
+            },
+            [&](double lhs, std::string const& rhs) -> EvalResult {
+                auto str_as_float = toFloat(rhs);
+                if (!str_as_float) {
+                    return str_as_float;
+                }
+                return double_op(lhs, str_as_float.value());
+            },
+            [&](double lhs, bool rhs) -> EvalResult {
+                return double_op(lhs, static_cast<double>(rhs));
+            },
+            [&](std::string const& lhs, std::string const& rhs) -> EvalResult {
+                auto lhs_as_float = toFloat(lhs);
+                if (!lhs_as_float.has_value()) {
+                    return lhs_as_float;
+                }
+                auto rhs_as_float = toFloat(rhs);
+                if (!rhs_as_float.has_value()) {
+                    return rhs_as_float;
+                }
+                return double_op(lhs_as_float.value(), rhs_as_float.value());
+            },
+            [&](std::string const& lhs, double rhs) -> EvalResult {
+                auto str_as_float = toFloat(lhs);
+                if (!str_as_float) {
+                    return str_as_float;
+                }
+                return double_op(str_as_float.value(), rhs);
+            },
+
+            [&](std::string const& lhs, std::int64_t rhs) -> EvalResult {
+                if (str_int == StringIntPolicy::ParseAsFloat) {
+                    auto str_as_int = toInt(lhs);
+                    if (!str_as_int) {
+                        return str_as_int;
+                    }
+                    return int_op(*str_as_int, rhs);
+                }
+                return repeat(lhs, rhs);
+            },
+            [&](std::string const& lhs, bool rhs) -> EvalResult {
+                auto str_as_int = toInt(lhs);
+                if (!str_as_int) {
+                    return str_as_int;
+                }
+
+                return int_op(*str_as_int, static_cast<std::int64_t>(rhs));
+            },
+            [&](bool lhs, bool rhs) -> EvalResult {
+                return int_op(static_cast<std::int64_t>(lhs),
+                              static_cast<std::int64_t>(rhs));
+            },
+            [&](bool lhs, double rhs) -> EvalResult {
+                return double_op(static_cast<double>(lhs), rhs);
+            },
+            [&](bool lhs, std::int64_t rhs) -> EvalResult {
+                return int_op(static_cast<std::int64_t>(lhs), rhs);
+            },
+            [&](auto const& lhs, auto const& rhs) -> EvalResult {
+                return std::unexpected(
+                    InvalidOperands{.lhs = typeFor(lhs), .rhs = typeFor(rhs)});
+            }},
+        std::move(left), std::move(right));
+}
 
 template <>
 struct std::formatter<Value> : std::formatter<std::string> {

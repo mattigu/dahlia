@@ -302,6 +302,42 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals add expressions") {
     CHECK(value == Value{3});
 }
 
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals sub expressions") {
+    initExpr(ExprNode(pos1, SubExpr(ExprNode(pos1, IntLiteral{1}),
+                                    ExprNode(pos1, IntLiteral{2}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{-1});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals mul expressions") {
+    initExpr(ExprNode(pos1, MulExpr(ExprNode(pos1, IntLiteral{1}),
+                                    ExprNode(pos1, IntLiteral{2}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{2});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals div expressions") {
+    initExpr(ExprNode(pos1, DivExpr(ExprNode(pos1, IntLiteral{4}),
+                                    ExprNode(pos1, IntLiteral{2}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{2});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals mod expressions") {
+    initExpr(ExprNode(pos1, ModExpr(ExprNode(pos1, IntLiteral{5}),
+                                    ExprNode(pos1, IntLiteral{2}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{1});
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter evals comparison expressions") {
     initExpr(ExprNode(pos1, LeExpr(ExprNode(pos1, IntLiteral{1}),

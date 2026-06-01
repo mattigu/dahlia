@@ -26,7 +26,7 @@ EvalResult add(Value lhs, Value rhs) {
                                        std::plus<>{});
             },
             [](std::int64_t lhs, std::string rhs) -> EvalResult {
-                rhs.insert_range(rhs.cbegin(), std::to_string(lhs));
+                rhs.insert_range(rhs.cbegin(), toString(lhs));
                 return rhs;
             },
             [](std::int64_t lhs, bool rhs) -> EvalResult {
@@ -40,7 +40,7 @@ EvalResult add(Value lhs, Value rhs) {
                 return checkedDoubleOp(lhs, rhs, std::plus<>{});
             },
             [](double lhs, std::string rhs) -> EvalResult {
-                rhs.insert_range(rhs.cbegin(), std::to_string(lhs));
+                rhs.insert_range(rhs.cbegin(), toString(lhs));
                 return rhs;
             },
             [](double lhs, bool rhs) -> EvalResult {
@@ -96,6 +96,37 @@ EvalResult add(Value lhs, Value rhs) {
                     InvalidOperands{.lhs = typeFor(lhs), .rhs = typeFor(rhs)});
             }},
         std::move(lhs), std::move(rhs));
+}
+
+EvalResult subtract(Value lhs, Value rhs) {
+    return arithmeticOp(std::move(lhs), std::move(rhs), checkedSub,
+                        [](double lhs, double rhs) {
+                            return checkedDoubleOp(lhs, rhs, std::minus<>{});
+                        });
+}
+
+EvalResult multiply(Value lhs, Value rhs) {
+    return arithmeticOp(
+        std::move(lhs), std::move(rhs), checkedMul,
+        [](double lhs, double rhs) {
+            return checkedDoubleOp(lhs, rhs, std::multiplies<>{});
+        },
+        StringIntPolicy::Repeat);
+}
+
+EvalResult divide(Value lhs, Value rhs) {
+    return arithmeticOp(std::move(lhs), std::move(rhs), checkedDiv,
+                        checkedDoubleDiv);
+}
+
+EvalResult modulo(Value lhs, Value rhs) {
+    return arithmeticOp(std::move(lhs), std::move(rhs), checkedMod,
+                        [](double lhs, double rhs) -> DoubleResult {
+                            if (rhs == 0) {
+                                return std::unexpected(DivisionByZero{});
+}
+                            return std::fmod(lhs, rhs);
+                        });
 }
 
 std::partial_ordering operator<=>(Value const& lhs, Value const& rhs) {
@@ -237,6 +268,16 @@ IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs) {
         return std::unexpected(ArithmeticOverflow{});
     }
     return lhs / rhs;
+}
+
+IntResult checkedMod(std::int64_t lhs, std::int64_t rhs) {
+    if (rhs == 0) {
+        return std::unexpected(DivisionByZero{});
+    }
+    if (lhs == std::numeric_limits<std::int64_t>::min() && rhs == -1) {
+        return 0;
+    }
+    return lhs % rhs;
 }
 
 DoubleResult checkedDoubleDiv(double lhs, double rhs) {
@@ -408,4 +449,16 @@ inline std::string toString(VecValue const& vec) {
     }
     out += "]";
     return out;
+}
+
+std::string repeat(std::string const& str, std::int64_t n) {
+    if (n <= 0) {
+        return {};
+    }
+    std::string result;
+    result.reserve(str.size() * n);
+    for (std::int64_t i = 0; i < n; ++i) {
+        result.append(str);
+    }
+    return result;
 }
