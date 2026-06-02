@@ -1406,13 +1406,15 @@ TEST_CASE_FIXTURE(
                       pos1, FunctionCall{.identifier = "ret_test"})})),
 
         FunctionNode(
-            pos3, Function{.identifier = "ret_test",
-                           .return_type = TypeNode(pos1, PrimitiveType::Int),
-                           .block = BlockNode(
-                               pos1, Block{makeStatements(return_val("a"))})}));
+            pos1,
+            Function{.identifier = "ret_test",
+                     .return_type = TypeNode(pos1, PrimitiveType::Int),
+                     .block = BlockNode(
+                         pos1, Block{makeStatements(StatementNode(
+                                   pos3, ReturnStmt{ExprNode(
+                                             pos1, StringLiteral{"a"})}))})}));
 
     auto const value = run();
-    // Once return signal gets it's position, change the pos here
     CHECK(value ==
           std::unexpected(RuntimeError{
               .kind = UnparsableString{.val = "a",
@@ -1424,14 +1426,14 @@ TEST_CASE_FIXTURE(
     InterpreterFixture,
     "Interpreter throws when a value is not returned but it's expected") {
     initMain(
-        {},
+        {.return_type = std::nullopt},
         makeStatements(
             StatementNode(pos1, FunctionCall{.identifier = "ret_test"})),
 
         FunctionNode(
-            pos3, Function{.identifier = "ret_test",
+            pos1, Function{.identifier = "ret_test",
                            .return_type = TypeNode(pos1, PrimitiveType::Int),
-                           .block = BlockNode(pos1, Block{makeStatements()})}));
+                           .block = BlockNode(pos3, Block{makeStatements()})}));
 
     auto const value = run();
     CHECK(value == std::unexpected(RuntimeError{.kind = MissingReturnValue{},

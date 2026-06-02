@@ -42,23 +42,24 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
     // Verify args and param types
     auto signal = visitBlock(fun->block);
 
-    auto return_val = std::visit(
-        Overloaded{
-            [](ReturnSignal const& sig) { return sig.value; },
-            [](std::monostate) { return Value{}; },
-            [](BreakSignal const& sig) -> Value {
-                throw RuntimeError{.kind = UnexpectedBreak{}, .pos = sig.pos};
-            },
-            [](ContinueSignal const& sig) -> Value {
-                throw RuntimeError{.kind = UnexpectedContinue{},
-                                   .pos = sig.pos};
-            },
-        },
-        signal);
+    auto return_val =
+        std::visit(Overloaded{
+                       [](ReturnSignal const& sig) { return sig.value; },
+                       [](std::monostate) { return Value{}; },
+                       [&](BreakSignal const& sig) -> Value {
+                           throw RuntimeError{.kind = UnexpectedBreak{},
+                                              .pos = signal.pos};
+                       },
+                       [&](ContinueSignal const& sig) -> Value {
+                           throw RuntimeError{.kind = UnexpectedContinue{},
+                                              .pos = signal.pos};
+                       },
+                   },
+                   signal.kind);
 
     if (fun->return_type) {
         if (std::holds_alternative<std::monostate>(return_val)) {
-            throw RuntimeError{.kind = MissingReturnValue{}, .pos = fun.pos()};
+            throw RuntimeError{.kind = MissingReturnValue{}, .pos = signal.pos};
         }
         auto const type = typeFor(return_val);
 
@@ -68,9 +69,7 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
         auto const coerced = coerce(return_val, **fun->return_type);
 
         if (!coerced) {
-            throw RuntimeError{
-                .kind = coerced.error(),
-                .pos = fun.pos()};  // Could give better position here
+            throw RuntimeError{.kind = coerced.error(), .pos = signal.pos};
         }
         return *coerced;
     }
@@ -148,16 +147,17 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
         Overloaded{
             [&](ReturnStmt const& stmt) {
                 if (stmt.value) {
-                    return Signal{ReturnSignal{.value = visitExpr(*stmt.value),
-                                               .pos = statement.pos()}};
+                    return Signal{
+                        .kind = ReturnSignal{.value = visitExpr(*stmt.value)},
+                        .pos = statement.pos()};
                 }
-                return Signal{ReturnSignal{.pos = statement.pos()}};
+                return Signal{.pos = statement.pos()};
             },
             [&](BreakStmt const& stmt) {
-                return Signal{BreakSignal{statement.pos()}};
+                return Signal{.kind = BreakSignal{}, .pos = statement.pos()};
             },
             [&](ContinueStmt const& stmt) {
-                return Signal{ContinueSignal{statement.pos()}};
+                return Signal{.kind = ContinueSignal{}, .pos = statement.pos()};
             },
             [this](BlockNode const& block) { return visitBlock(block); },
             [&](FunctionCall const& call) {
@@ -217,10 +217,10 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
 Signal Interpreter::visitWhileLoop(WhileLoop const& loop) {
     while (toBool(visitExpr(loop.condition))) {
         auto const signal = visitBlock(loop.block);
-        if (std::holds_alternative<BreakSignal>(signal)) {
+        if (std::holds_alternative<BreakSignal>(signal.kind)) {
             break;
         }
-        if (std::holds_alternative<ReturnSignal>(signal)) {
+        if (std::holds_alternative<ReturnSignal>(signal.kind)) {
             return signal;
         }
     }
@@ -265,10 +265,10 @@ Signal Interpreter::visitForLoop(ForLoop const& loop, Position pos) {
         loop_var->data() = loop_val;
 
         auto const signal = visitBlock(loop.block);
-        if (std::holds_alternative<BreakSignal>(signal)) {
+        if (std::holds_alternative<BreakSignal>(signal.kind)) {
             break;
         }
-        if (std::holds_alternative<ReturnSignal>(signal)) {
+        if (std::holds_alternative<ReturnSignal>(signal.kind)) {
             stack_.current().popScope();
             return signal;
         }
@@ -332,14 +332,14 @@ Signal Interpreter::visitBlock(BlockNode const& block) {
 
     for (auto const& statement : block->statements) {
         auto signal = visitStatement(statement);
-        if (signal != Signal{std::monostate{}}) {
+        if (!std::holds_alternative<std::monostate>(signal.kind)) {
             stack_.current().popScope();
             return signal;
         }
     }
 
     stack_.current().popScope();
-    return Signal{};
+    return Signal{.pos = block.pos()};
 }
 
 Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
