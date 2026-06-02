@@ -25,6 +25,8 @@ private:
     InterpreterOpts options_;
     Program const* program_ = nullptr;
 
+    static EvalResult coerceIfNeeded(Value val, Type const& target);
+
     Value visitProgram(ProgramNode const& program);
 
     Value visitFunctionDefinition(FunctionNode const& fun);

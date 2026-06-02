@@ -202,16 +202,13 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
     auto const val_type = typeFor(value);
     auto const var_type = typeFor(var->data());
 
-    if (val_type != var_type) {
-        auto coerced = coerce(value, var_type);
-        if (!coerced) {
-            throw RuntimeError{.kind = coerced.error(),
-                               .pos = statement.value.pos()};
-        }
-        value = std::move(coerced.value());
+    auto coerced = coerceIfNeeded(value, var_type);
+    if (!coerced) {
+        throw RuntimeError{.kind = coerced.error(),
+                           .pos = statement.value.pos()};
     }
 
-    var->data() = std::move(value);
+    var->data() = std::move(*coerced);
 }
 
 Signal Interpreter::visitWhileLoop(WhileLoop const& loop) {
@@ -375,12 +372,11 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
             }
             args_vars.emplace_back(&var->data(), true, arg.pos());
         } else {
-            auto const val = visitExpr(arg);
-
-            auto coerced = coerce(val, *param->type);
+            auto coerced = coerceIfNeeded(visitExpr(arg), *param->type);
             if (!coerced) {
                 throw RuntimeError{.kind = coerced.error(), .pos = arg.pos()};
             }
+
             args_vars.emplace_back(std::move(*coerced), false, arg.pos());
         }
     }
@@ -431,4 +427,11 @@ EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) {
 
     return VecValue{.type = std::move(expected_type),
                     .elements = std::move(elements)};
+}
+
+EvalResult Interpreter::coerceIfNeeded(Value val, Type const& target) {
+    if (typeFor(val) == target) {
+        return val;
+    }
+    return coerce(val, target);
 }
