@@ -326,16 +326,16 @@ EvalResult coerce(Value const& value, Type const& target) noexcept {
         InvalidConversion{.from = typeFor(value), .to = target});
 }
 
-using floatParseRes = std::expected<double, RuntimeErrorKind>;
-floatParseRes toFloat(Value const& val) noexcept {
+using DoubleResult = std::expected<double, RuntimeErrorKind>;
+DoubleResult toFloat(Value const& val) noexcept {
     return std::visit(
         Overloaded{
-            [](std::int64_t num) -> floatParseRes {
+            [](std::int64_t num) -> DoubleResult {
                 return static_cast<double>(num);
             },
-            [](bool num) -> floatParseRes { return static_cast<double>(num); },
-            [](double num) -> floatParseRes { return num; },
-            [](std::string const& num) -> floatParseRes {
+            [](bool num) -> DoubleResult { return static_cast<double>(num); },
+            [](double num) -> DoubleResult { return num; },
+            [](std::string const& num) -> DoubleResult {
                 double result{};
                 auto const [ptr, ec] = std::from_chars(
                     num.data(), num.data() + num.size(), result);
@@ -350,22 +350,22 @@ floatParseRes toFloat(Value const& val) noexcept {
                 return std::unexpected(UnparsableString{
                     .val = num, .targetType = Type(PrimitiveType::Float)});
             },
-            [](auto const& num) -> floatParseRes {
+            [](auto const& num) -> DoubleResult {
                 return std::unexpected(InvalidConversion{
                     .from = typeFor(num), .to = Type(PrimitiveType::Float)});
             }},
         val);
 }
 
-using intParseRes = std::expected<std::int64_t, RuntimeErrorKind>;
-intParseRes toInt(Value const& val) noexcept {
+using IntResult = std::expected<std::int64_t, RuntimeErrorKind>;
+IntResult toInt(Value const& val) noexcept {
     return std::visit(
         Overloaded{
-            [](std::int64_t num) -> intParseRes { return num; },
-            [](bool num) -> intParseRes {
+            [](std::int64_t num) -> IntResult { return num; },
+            [](bool num) -> IntResult {
                 return static_cast<std::int64_t>(num);
             },
-            [](double num) -> intParseRes {
+            [](double num) -> IntResult {
                 if (num > static_cast<double>(
                               std::numeric_limits<std::int64_t>::max()) ||
                     num < static_cast<double>(
@@ -374,7 +374,7 @@ intParseRes toInt(Value const& val) noexcept {
                 }
                 return static_cast<std::int64_t>(num);
             },
-            [](std::string const& num) -> intParseRes {
+            [](std::string const& num) -> IntResult {
                 std::int64_t result{};
                 auto const [ptr, ec] = std::from_chars(
                     num.data(), num.data() + num.size(), result);
@@ -390,7 +390,7 @@ intParseRes toInt(Value const& val) noexcept {
                     return std::unexpected(ArithmeticOverflow{});
                 }
             },
-            [](auto const& num) -> intParseRes {
+            [](auto const& num) -> IntResult {
                 return std::unexpected(InvalidConversion{
                     .from = typeFor(num), .to = Type(PrimitiveType::Int)});
             }},

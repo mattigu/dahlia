@@ -379,7 +379,7 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
 
             auto coerced = coerce(val, *param->type);
             if (!coerced) {
-                // Failed to coerce to argument
+                throw RuntimeError{.kind = coerced.error(), .pos = arg.pos()};
             }
             args_vars.emplace_back(std::move(*coerced), false, arg.pos());
         }
