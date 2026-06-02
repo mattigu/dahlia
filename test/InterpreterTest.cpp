@@ -452,6 +452,33 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals mod expressions") {
     CHECK(value == Value{1});
 }
 
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals length expressions") {
+    initExpr({},
+             ExprNode(pos1, LengthExpr(ExprNode(pos1, StringLiteral{"123"}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{3});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter evals negation expressions") {
+    initExpr({}, ExprNode(pos1, NegExpr(ExprNode(pos1, IntLiteral{1}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{-1});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals not expressions") {
+    initExpr({.return_type = PrimitiveType::Bool},
+             ExprNode(pos1, NotExpr(ExprNode(pos1, BoolLiteral{true}))));
+
+    auto const value = run();
+
+    CHECK(value == Value{false});
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter evals comparison expressions") {
     initExpr({.return_type = PrimitiveType::Bool},

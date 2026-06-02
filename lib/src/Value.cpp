@@ -291,6 +291,50 @@ DoubleResult checkedDoubleDiv(double lhs, double rhs) {
     return result;
 }
 
+EvalResult length(Value const& val) {
+    return std::visit(
+        Overloaded{[](std::string const& str) -> EvalResult {
+                       return static_cast<std::int64_t>(str.length());
+                   },
+                   [](VecValue const& vec) -> EvalResult {
+                       return static_cast<std::int64_t>(vec.elements.size());
+                   },
+                   [](auto const& type) -> EvalResult {
+                       return std::unexpected(
+                           InvalidOperand{.type = typeFor(type)});
+                   }},
+        val);
+}
+
+EvalResult negation(Value const& val) {
+    return std::visit(
+        Overloaded{
+            [](std::string const& str) -> EvalResult {
+                auto as_int = toInt(str);
+                if (!as_int) {
+                    return as_int;
+                }
+                return -*as_int;
+            },
+            [](std::int64_t val) -> EvalResult { return checkedSub(0, val); },
+            [](double val) -> EvalResult { return -val; },
+            [](bool val) -> EvalResult {
+                return -static_cast<std::int64_t>(val);
+            },
+
+            [](auto const& type) -> EvalResult {
+                return std::unexpected(InvalidOperand{.type = typeFor(type)});
+            }},
+        val);
+}
+
+EvalResult logicalNot(Value const& val) {
+    return std::visit(Overloaded{[](auto const& type) -> EvalResult {
+                          return !toBool(type);
+                      }},
+                      val);
+}
+
 Type typeFor(Value const& value) {
     return std::visit(
         Overloaded{

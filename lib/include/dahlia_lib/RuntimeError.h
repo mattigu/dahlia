@@ -51,6 +51,13 @@ struct InvalidOperands {
     bool operator==(InvalidOperands const&) const noexcept = default;
 };
 
+struct InvalidOperand {
+    Type type;
+
+    bool operator==(InvalidOperand const&) const noexcept = default;
+};
+
+
 struct UnparsableString {
     std::string val;
     Type targetType;
@@ -97,14 +104,18 @@ struct UnexpectedReturnValue {
     bool operator==(UnexpectedReturnValue const&) const noexcept = default;
 };
 
+struct CannotInferEmptyVec {
+    bool operator==(CannotInferEmptyVec const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
                  UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow,
-                 DivisionByZero, InvalidOperands, UnparsableString,
+                 DivisionByZero, InvalidOperands, InvalidOperand, UnparsableString,
                  InvalidConversion, InvalidForRange, AssignmentTypeMismatch,
                  VariableRedefinition, CallDepthExceeded, VoidTypeInExpression,
                  MutViolation, MutArgExpression, ArgumentCountMismatch,
-                 MissingReturnValue, UnexpectedReturnValue>;
+                 MissingReturnValue, UnexpectedReturnValue, CannotInferEmptyVec>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

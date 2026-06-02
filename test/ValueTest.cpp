@@ -1,4 +1,5 @@
 #include "dahlia_lib/Ast.h"
+#include "dahlia_lib/RuntimeError.h"
 #include "dahlia_lib/Value.h"
 #include "doctest.h"
 
@@ -461,6 +462,77 @@ TEST_CASE("modulo - invalid operands") {
     CHECK(modulo(VecValue{.type = PrimitiveType::Int, .elements = {1}}, 1) ==
           std::unexpected(InvalidOperands{.lhs = Type::vec(PrimitiveType::Int),
                                           .rhs = PrimitiveType::Int}));
+}
+
+TEST_CASE("length - string") {
+    CHECK(length("") == 0);
+    CHECK(length("12") == 2);
+}
+
+TEST_CASE("length - vec") {
+    CHECK(length(VecValue{.type = PrimitiveType::Int, .elements = {}}) == 0);
+    CHECK(length(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}}) ==
+          2);
+}
+
+TEST_CASE("length - invalid operand") {
+    CHECK(length(1) ==
+          std::unexpected(InvalidOperand{.type = PrimitiveType::Int}));
+    CHECK(length(1.4) ==
+          std::unexpected(InvalidOperand{.type = PrimitiveType::Float}));
+}
+
+TEST_CASE("negation - int") {
+    CHECK(negation(1) == Value{-1});
+    CHECK(negation(-1) == Value{1});
+    CHECK(negation(0) == Value{0});
+    CHECK(negation(INT_MIN) == std::unexpected(ArithmeticOverflow{}));
+}
+
+TEST_CASE("negation - bool") {
+    CHECK(negation(true) == Value{-1});
+    CHECK(negation(false) == Value{0});
+}
+
+TEST_CASE("negation - float") {
+    CHECK(negation(1.0) == Value{-1.0});
+    CHECK(negation(-1.0) == Value{1.0});
+    CHECK(negation(0.0) == Value{-0.0});
+}
+
+TEST_CASE("negation - string as int") {
+    CHECK(negation(std::string{"5"}) == Value{-5});
+    CHECK(negation(std::string{"-5"}) == Value{5});
+    CHECK(negation(std::string{"foo"}) ==
+          std::unexpected(UnparsableString{.val = "foo",
+                                           .targetType = PrimitiveType::Int}));
+}
+
+TEST_CASE("negation - invalid operands") {
+    CHECK(
+        negation(VecValue{.type = PrimitiveType::Int, .elements = {}}) ==
+        std::unexpected(InvalidOperand{.type = Type::vec(PrimitiveType::Int)}));
+}
+
+TEST_CASE("logical not - bool") {
+    CHECK(logicalNot(true) == Value{false});
+    CHECK(logicalNot(false) == Value{true});
+}
+
+TEST_CASE("logical not - int") {
+    CHECK(logicalNot(0) == Value{true});
+    CHECK(logicalNot(1) == Value{false});
+    CHECK(logicalNot(-1) == Value{false});
+}
+
+TEST_CASE("logical not - float") {
+    CHECK(logicalNot(0.0) == Value{true});
+    CHECK(logicalNot(1.0) == Value{false});
+}
+
+TEST_CASE("logical not - string") {
+    CHECK(logicalNot(std::string{""}) == Value{true});
+    CHECK(logicalNot(std::string{"foo"}) == Value{false});
 }
 
 TEST_CASE("toFloat") {

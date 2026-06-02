@@ -95,6 +95,8 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](FunctionCall const& call) -> EvalResult {
                 return visitFunctionCall(call, expr.pos());
             },
+
+            // Arithmetic
             [&](AddExpr const& expr) -> EvalResult {
                 return add(visitExpr(*expr.left), visitExpr(*expr.right));
             },
@@ -110,7 +112,7 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](ModExpr const& expr) -> EvalResult {
                 return modulo(visitExpr(*expr.left), visitExpr(*expr.right));
             },
-
+            // Comparison
             [&](EqExpr const& expr) {
                 return eq(visitExpr(*expr.left), visitExpr(*expr.right));
             },
@@ -128,6 +130,17 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             },
             [&](GeExpr const& expr) {
                 return ge(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+
+            // Special
+            [&](LengthExpr const& expr) {
+                return length(visitExpr(*expr.operand));
+            },
+            [&](NegExpr const& expr) {
+                return negation(visitExpr(*expr.operand));
+            },
+            [&](NotExpr const& expr) {
+                return logicalNot(visitExpr(*expr.operand));
             },
 
             [](auto const& value) -> EvalResult { return Value{}; }
