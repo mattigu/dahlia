@@ -530,6 +530,33 @@ TEST_CASE("logical not - float") {
     CHECK(logicalNot(1.0) == Value{false});
 }
 
+TEST_CASE("contains - int") {
+    CHECK(contains(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}},
+                   1) == true);
+    CHECK(contains(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}},
+                   3) == false);
+}
+
+TEST_CASE("contains - nested int") {
+    CHECK(contains(VecValue{.type = Type::vec(PrimitiveType::Int),
+                            .elements = {VecValue{.type = PrimitiveType::Int,
+                                                  .elements = {1, 2}}}},
+                   VecValue{.type = PrimitiveType::Int, .elements = {1, 2}}) ==
+          true);
+
+    CHECK(contains(VecValue{.type = Type::vec(PrimitiveType::Int),
+                            .elements = {VecValue{.type = PrimitiveType::Int,
+                                                  .elements = {1, 2}}}},
+                   VecValue{.type = PrimitiveType::Int, .elements = {1, 3}}) ==
+          false);
+}
+
+TEST_CASE("contains - invalid operands") {
+    CHECK(contains("abc", 1) ==
+          std::unexpected(InvalidOperands{.lhs = PrimitiveType::Str,
+                                          .rhs = PrimitiveType::Int}));
+}
+
 TEST_CASE("logical not - string") {
     CHECK(logicalNot(std::string{""}) == Value{true});
     CHECK(logicalNot(std::string{"foo"}) == Value{false});

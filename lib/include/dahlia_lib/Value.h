@@ -87,6 +87,11 @@ EvalResult logicalNot(Value const& val);
 EvalResult length(Value const& val);
 EvalResult negation(Value const& val);
 
+EvalResult contains(Value const& lhs, Value const& rhs);
+
+
+
+
 EvalResult coerce(Value const& val, Type const& target) noexcept;
 
 bool toBool(Value const& val) noexcept;

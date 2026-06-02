@@ -2,6 +2,7 @@
 
 #include <stdckdint.h>
 
+#include <algorithm>
 #include <charconv>
 #include <compare>
 #include <expected>
@@ -329,6 +330,19 @@ EvalResult negation(Value const& val) {
 }
 
 EvalResult logicalNot(Value const& val) { return !toBool(val); }
+
+EvalResult contains(Value const& lhs, Value const& rhs) {
+    // Maybe it should cast to the vec type and ignore conversion errors?
+    return std::visit(
+        Overloaded{[](VecValue const& lhs, auto const& rhs) -> EvalResult {
+                       return std::ranges::contains(lhs.elements, Value{rhs});
+                   },
+                   [](auto const& lhs, auto const& rhs) -> EvalResult {
+                       return std::unexpected(InvalidOperands{
+                           .lhs = typeFor(lhs), .rhs = typeFor(rhs)});
+                   }},
+        lhs, rhs);
+}
 
 Type typeFor(Value const& value) {
     return std::visit(
