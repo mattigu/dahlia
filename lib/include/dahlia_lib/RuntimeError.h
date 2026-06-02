@@ -93,6 +93,10 @@ struct MissingReturnValue {
     bool operator==(MissingReturnValue const&) const noexcept = default;
 };
 
+struct UnexpectedReturnValue {
+    bool operator==(UnexpectedReturnValue const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
                  UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow,
@@ -100,7 +104,7 @@ using RuntimeErrorKind =
                  InvalidConversion, InvalidForRange, AssignmentTypeMismatch,
                  VariableRedefinition, CallDepthExceeded, VoidTypeInExpression,
                  MutViolation, MutArgExpression, ArgumentCountMismatch,
-                 MissingReturnValue>;
+                 MissingReturnValue, UnexpectedReturnValue>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

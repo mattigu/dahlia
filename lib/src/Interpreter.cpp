@@ -73,6 +73,9 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
         }
         return *coerced;
     }
+    if (!std::holds_alternative<std::monostate>(return_val)) {
+        throw RuntimeError{.kind = UnexpectedReturnValue{}, .pos = signal.pos};
+    }
     return Value{};
 }
 

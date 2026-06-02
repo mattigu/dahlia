@@ -1440,6 +1440,28 @@ TEST_CASE_FIXTURE(
                                                 .pos = pos3}));
 }
 
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter throws when a value returned but it's not expected") {
+    initMain(
+        {.return_type = std::nullopt},
+        makeStatements(
+            StatementNode(pos1, FunctionCall{.identifier = "ret_test"})),
+
+        FunctionNode(
+            pos1,
+            Function{
+                .identifier = "ret_test",
+                .block = BlockNode(
+                    pos1, Block{makeStatements(StatementNode(
+                              pos3, ReturnStmt{.value = ExprNode(
+                                                   pos1, IntLiteral{1})}))})}));
+
+    auto const value = run();
+    CHECK(value == std::unexpected(RuntimeError{.kind = UnexpectedReturnValue{},
+                                                .pos = pos3}));
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter recursion just below depth limit") {
     initMain({.opts = {.max_call_depth = 4}},
