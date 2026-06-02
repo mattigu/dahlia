@@ -343,6 +343,29 @@ EvalResult contains(Value const& lhs, Value const& rhs) {
                    }},
         lhs, rhs);
 }
+EvalResult intersect(Value lhs, Value rhs) {
+    return std::visit(
+        Overloaded{[](VecValue lhs, VecValue rhs) -> EvalResult {
+                       if (lhs.type != rhs.type) {
+                           return std::unexpected(InvalidOperands{
+                               .lhs = lhs.type, .rhs = rhs.type});
+                       }
+                       std::vector<Value> intersection;
+
+                       for (auto& elem1 : lhs.elements) {
+                           if (std::ranges::contains(rhs.elements, elem1)) {
+                               intersection.push_back(std::move(elem1));
+                           }
+                       }
+                       return VecValue{.type = lhs.type,
+                                       .elements = std::move(intersection)};
+                   },
+                   [](auto const& lhs, auto const& rhs) -> EvalResult {
+                       return std::unexpected(InvalidOperands{
+                           .lhs = typeFor(lhs), .rhs = typeFor(rhs)});
+                   }},
+        std::move(lhs), std::move(rhs));
+}
 
 Type typeFor(Value const& value) {
     return std::visit(

@@ -562,6 +562,23 @@ TEST_CASE("logical not - string") {
     CHECK(logicalNot(std::string{"foo"}) == Value{false});
 }
 
+TEST_CASE("insersect - int") {
+    CHECK(intersect(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}},
+                    VecValue{.type = PrimitiveType::Int, .elements = {1, 3}}) ==
+          VecValue{.type = PrimitiveType::Int, .elements = {1}});
+
+    CHECK(intersect(VecValue{.type = PrimitiveType::Int, .elements = {2}},
+                    VecValue{.type = PrimitiveType::Int, .elements = {1, 3}}) ==
+          VecValue{.type = PrimitiveType::Int, .elements = {}});
+}
+
+TEST_CASE("insersect - invalid operands") {
+    CHECK(intersect(VecValue{.type = PrimitiveType::Int, .elements = {2}},
+                    Value{1}) ==
+          std::unexpected(InvalidOperands{.lhs = Type::vec(PrimitiveType::Int),
+                                          .rhs = PrimitiveType::Int}));
+}
+
 TEST_CASE("toFloat") {
     CHECK(toFloat(1) == 1.0);
     CHECK(toFloat(1.5) == 1.5);

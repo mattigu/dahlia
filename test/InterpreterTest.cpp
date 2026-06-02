@@ -500,16 +500,34 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals not expressions") {
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals in expression") {
-    initExpr(
-        {.return_type=PrimitiveType::Bool}, ExprNode(
-                pos1,
-                InExpr(ExprNode(pos1, VecLiteral{.elements = makeExprs(ExprNode(
+    initExpr({.return_type = PrimitiveType::Bool},
+             ExprNode(pos1,
+                      InExpr(ExprNode(pos1,
+                                      VecLiteral{.elements = makeExprs(ExprNode(
                                                      pos1, IntLiteral{1}))}),
-                       ExprNode(pos1, IntLiteral{1}))));
+                             ExprNode(pos1, IntLiteral{1}))));
 
     auto const value = run();
 
     CHECK(value == true);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter evals intersect expressions") {
+    initExpr(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        ExprNode(pos1,
+                 IntersectExpr(
+                     ExprNode(pos1, VecLiteral{.elements = makeExprs(ExprNode(
+                                                   pos1, IntLiteral{1}))}),
+                     ExprNode(pos1, VecLiteral{
+                                        .elements = makeExprs(
+                                            ExprNode(pos1, IntLiteral{1}),
+                                            ExprNode(pos1, IntLiteral{2}))}))));
+
+    auto const value = run();
+
+    CHECK(value == VecValue{.type = PrimitiveType::Int, .elements = {1}});
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,

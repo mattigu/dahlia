@@ -154,9 +154,10 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](NegExpr const& expr) {
                 return negation(visitExpr(*expr.operand));
             },
-            // [&](MapExpr const& expr) {
-            //     return negation(visitExpr(*expr.operand));
-            // },
+            [&](IntersectExpr const& expr) {
+                return intersect(visitExpr(*expr.left), visitExpr(*expr.right));
+
+            },
             [&](InExpr const& expr) {
                 return contains(visitExpr(*expr.left), visitExpr(*expr.right));
             },

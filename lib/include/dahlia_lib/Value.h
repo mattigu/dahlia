@@ -87,6 +87,7 @@ EvalResult logicalNot(Value const& val);
 EvalResult length(Value const& val);
 EvalResult negation(Value const& val);
 
+EvalResult intersect(Value lhs, Value rhs);
 EvalResult contains(Value const& lhs, Value const& rhs);
 
 
