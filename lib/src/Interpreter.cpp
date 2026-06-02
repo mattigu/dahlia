@@ -156,7 +156,6 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             },
             [&](IntersectExpr const& expr) {
                 return intersect(visitExpr(*expr.left), visitExpr(*expr.right));
-
             },
             [&](InExpr const& expr) {
                 return contains(visitExpr(*expr.left), visitExpr(*expr.right));
@@ -404,6 +403,10 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
             auto* var = stack_.current().lookupVariable(ident->identifier);
             if (!var->mut()) {
                 throw RuntimeError{.kind = MutViolation{}, .pos = arg.pos()};
+            }
+            if (*param->type != typeFor(var->data())) {
+                throw RuntimeError{.kind = MutArgTypeMismatch{},
+                                   .pos = arg.pos()};
             }
             args_vars.emplace_back(&var->data(), true, arg.pos());
         } else {

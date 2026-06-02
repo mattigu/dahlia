@@ -1457,6 +1457,32 @@ TEST_CASE_FIXTURE(
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter throws when passing a non matching type into a "
+                  "mut parameter") {
+    initMain(
+        {},
+        makeStatements(
+            let_mut_a_eq(1),
+            StatementNode(
+                pos1, FunctionCall{.identifier = "ref_test",
+                                   .args = makeExprs(ExprNode(
+                                       pos3, Identifier{.identifier = "a"}))})),
+
+        FunctionNode(
+            pos1,
+            Function{.identifier = "ref_test",
+                     .params = makeParams(ParamNode(
+                         pos1, Param{.type = TypeNode(pos1, PrimitiveType::Str),
+                                     .identifier = "a",
+                                     .mut = true})),
+                     .block = BlockNode(pos1, Block{makeStatements()})}));
+
+    auto const value = run();
+    CHECK(value == std::unexpected(RuntimeError{.kind = MutArgTypeMismatch{},
+                                                .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter converts return value if possible") {
     initMain(
         {},
