@@ -328,12 +328,7 @@ EvalResult negation(Value const& val) {
         val);
 }
 
-EvalResult logicalNot(Value const& val) {
-    return std::visit(Overloaded{[](auto const& type) -> EvalResult {
-                          return !toBool(type);
-                      }},
-                      val);
-}
+EvalResult logicalNot(Value const& val) { return !toBool(val); }
 
 Type typeFor(Value const& value) {
     return std::visit(

@@ -470,6 +470,26 @@ TEST_CASE_FIXTURE(InterpreterFixture,
     CHECK(value == Value{-1});
 }
 
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals or expressions") {
+    initExpr({.return_type = PrimitiveType::Bool},
+             ExprNode(pos1, OrExpr(ExprNode(pos1, BoolLiteral{false}),
+                                    ExprNode(pos1, BoolLiteral(true)))));
+
+    auto const value = run();
+
+    CHECK(value == Value{true});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals and expressions") {
+    initExpr({.return_type = PrimitiveType::Bool},
+             ExprNode(pos1, AndExpr(ExprNode(pos1, BoolLiteral{false}),
+                                    ExprNode(pos1, BoolLiteral(true)))));
+
+    auto const value = run();
+
+    CHECK(value == Value{false});
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals not expressions") {
     initExpr({.return_type = PrimitiveType::Bool},
              ExprNode(pos1, NotExpr(ExprNode(pos1, BoolLiteral{true}))));

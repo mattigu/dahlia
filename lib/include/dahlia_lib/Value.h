@@ -82,11 +82,10 @@ std::expected<double, RuntimeErrorKind> checkedDoubleOp(double lhs, double rhs,
     return result;
 }
 
-EvalResult length(Value const& val);
-EvalResult negation(Value const& val);
 EvalResult logicalNot(Value const& val);
 
-
+EvalResult length(Value const& val);
+EvalResult negation(Value const& val);
 
 EvalResult coerce(Value const& val, Type const& target) noexcept;
 

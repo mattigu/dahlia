@@ -132,15 +132,27 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
                 return ge(visitExpr(*expr.left), visitExpr(*expr.right));
             },
 
+            // Logic
+            [&](NotExpr const& expr) {
+                return logicalNot(visitExpr(*expr.operand));
+            },
+
+            // Short circuiting
+            [&](AndExpr const& expr) -> EvalResult {
+                return toBool(visitExpr(*expr.left)) &&
+                       toBool(visitExpr(*expr.right));
+            },
+            [&](OrExpr const& expr) -> EvalResult {
+                return toBool(visitExpr(*expr.left)) ||
+                       toBool(visitExpr(*expr.right));
+            },
+
             // Special
             [&](LengthExpr const& expr) {
                 return length(visitExpr(*expr.operand));
             },
             [&](NegExpr const& expr) {
                 return negation(visitExpr(*expr.operand));
-            },
-            [&](NotExpr const& expr) {
-                return logicalNot(visitExpr(*expr.operand));
             },
 
             [](auto const& value) -> EvalResult { return Value{}; }
