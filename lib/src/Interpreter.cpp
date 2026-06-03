@@ -164,6 +164,14 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](LengthExpr const& expr) {
                 return length(visitExpr(*expr.operand));
             },
+            [&](IndexExpr const& expr) -> EvalResult{
+                auto lhs =  visitExpr(*expr.object);
+                auto const res = index(lhs, visitExpr(*expr.index));
+                if (!res) {
+                    return std::unexpected(res.error());
+                }
+                return *res.value();
+            },
             [&](NegExpr const& expr) {
                 return negation(visitExpr(*expr.operand));
             },
@@ -258,6 +266,11 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
 
     var->data() = std::move(*coerced);
 }
+
+// void visitLValue(LValue const& lval, Position pos) {
+//     lval.
+
+// }
 
 Signal Interpreter::visitWhileLoop(WhileLoop const& loop) {
     while (toBool(visitExpr(loop.condition))) {

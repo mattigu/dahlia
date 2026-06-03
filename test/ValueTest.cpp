@@ -578,6 +578,84 @@ TEST_CASE("insersect - invalid operands") {
           std::unexpected(InvalidOperands{.lhs = Type::vec(PrimitiveType::Int),
                                           .rhs = PrimitiveType::Int}));
 }
+TEST_CASE("index - valid indexing") {
+    Value vec = VecValue{.type = PrimitiveType::Int, .elements = {1, 2, 3}};
+
+    auto res0 = index(vec, 0L);
+    REQUIRE(res0.has_value());
+    CHECK(*res0.value() == Value{1});
+
+    auto res1 = index(vec, 1L);
+    REQUIRE(res1.has_value());
+    CHECK(*res1.value() == Value{2});
+
+    auto res2 = index(vec, 2L);
+    REQUIRE(res2.has_value());
+    CHECK(*res2.value() == Value{3});
+}
+
+TEST_CASE("index - float index gets floored(example conversion)") {
+    Value vec = VecValue{.type = PrimitiveType::Int, .elements = {10, 20, 30}};
+
+    auto res0 = index(vec, 0.9);
+    REQUIRE(res0.has_value());
+    CHECK(*res0.value() == Value{10});
+
+    auto res1 = index(vec, 1.7);
+    REQUIRE(res1.has_value());
+    CHECK(*res1.value() == Value{20});
+}
+
+TEST_CASE("index - nested indexing") {
+    Value inner =
+        VecValue{.type = PrimitiveType::Int, .elements = {10, 20, 30}};
+    Value outer =
+        VecValue{.type = Type::vec(PrimitiveType::Int), .elements = {inner}};
+
+    auto outer_result = index(outer, 0);
+    REQUIRE(outer_result.has_value());
+
+    auto& inner_vec = *outer_result.value();
+    auto inner_result = index(inner_vec, 1);
+    REQUIRE(inner_result.has_value());
+    CHECK(*inner_result.value() == Value{20});
+}
+
+TEST_CASE("index - out of bounds") {
+    Value vec = VecValue{.type = PrimitiveType::Int, .elements = {1, 2, 3}};
+    CHECK(index(vec, 3) == std::unexpected(IndexOutOfBounds{.index = 3}));
+    CHECK(index(vec, -1) == std::unexpected(IndexOutOfBounds{.index = -1}));
+    CHECK(index(vec, 99) == std::unexpected(IndexOutOfBounds{.index = 99}));
+}
+
+TEST_CASE("index - bad index type (unparsable string)") {
+    Value vec = VecValue{.type = PrimitiveType::Int, .elements = {1, 2, 3}};
+    CHECK(index(vec, "foo") ==
+          std::unexpected(UnparsableString{.val = "foo",
+                                           .targetType = PrimitiveType::Int}));
+}
+
+TEST_CASE("index - mutate value through pointer") {
+    Value vec = VecValue{.type = PrimitiveType::Int, .elements = {1, 2, 3}};
+
+    auto result = index(vec, 1);
+    REQUIRE(result.has_value());
+    *result.value() = Value{617};
+    CHECK(Value{VecValue{.type = PrimitiveType::Int,
+                         .elements = {1, 617, 3}}} == vec);
+}
+
+TEST_CASE("index - invalid operands") {
+    Value lhs_int = 10;
+    CHECK(index(lhs_int, 0) ==
+          std::unexpected(InvalidOperands{.lhs = PrimitiveType::Int,
+                                          .rhs = PrimitiveType::Int}));
+
+    Value lhs_float = 3.14;
+    CHECK(index(lhs_float, 0) ==
+          std::unexpected(InvalidOperands{.lhs = PrimitiveType::Float,
+                                          .rhs = PrimitiveType::Int}));
+}
 
 TEST_CASE("toFloat") {
     CHECK(toFloat(1) == 1.0);

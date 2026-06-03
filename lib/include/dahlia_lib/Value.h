@@ -46,13 +46,13 @@ EvalResult modulo(Value lhs, Value rhs);
 using IntResult = std::expected<std::int64_t, RuntimeErrorKind>;
 using DoubleResult = std::expected<double, RuntimeErrorKind>;
 
-IntResult checkedAdd(std::int64_t lhs, std::int64_t rhs);
-IntResult checkedSub(std::int64_t lhs, std::int64_t rhs);
-IntResult checkedMul(std::int64_t lhs, std::int64_t rhs);
-IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs);
-IntResult checkedMod(std::int64_t lhs, std::int64_t rhs);
+IntResult checkedAdd(std::int64_t lhs, std::int64_t rhs) noexcept;
+IntResult checkedSub(std::int64_t lhs, std::int64_t rhs) noexcept;
+IntResult checkedMul(std::int64_t lhs, std::int64_t rhs) noexcept;
+IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs) noexcept;
+IntResult checkedMod(std::int64_t lhs, std::int64_t rhs) noexcept;
 
-DoubleResult checkedDoubleDiv(double lhs, double rhs);
+DoubleResult checkedDoubleDiv(double lhs, double rhs) noexcept;
 
 using CmpResult = std::expected<std::partial_ordering, InvalidOperands>;
 
@@ -82,13 +82,17 @@ std::expected<double, RuntimeErrorKind> checkedDoubleOp(double lhs, double rhs,
     return result;
 }
 
-EvalResult logicalNot(Value const& val);
+EvalResult logicalNot(Value const& val) noexcept;
 
-EvalResult length(Value const& val);
+EvalResult length(Value const& val) noexcept;
 EvalResult negation(Value const& val);
 
 EvalResult intersect(Value lhs, Value rhs);
-EvalResult contains(Value const& lhs, Value const& rhs);
+EvalResult contains(Value const& lhs, Value const& rhs) noexcept;
+
+using IndexResult = std::expected<Value*, RuntimeErrorKind>;
+IndexResult index(Value& lhs, Value const& rhs) noexcept;
+
 
 
 

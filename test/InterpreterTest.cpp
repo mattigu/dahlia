@@ -1,4 +1,5 @@
 #include <expected>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <utility>
@@ -496,10 +497,12 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 
     auto const value = run();
 
-    CHECK(value == std::unexpected(RuntimeError{
-                       .kind = VecTypeMismatch{
-                           .first = Type::vec(PrimitiveType::Int),
-                           .other = Type::vec(PrimitiveType::EmptyVec)}, .pos=pos3}));
+    CHECK(value ==
+          std::unexpected(RuntimeError{
+              .kind =
+                  VecTypeMismatch{.first = Type::vec(PrimitiveType::Int),
+                                  .other = Type::vec(PrimitiveType::EmptyVec)},
+              .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals add expressions") {
@@ -605,6 +608,23 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals in expression") {
     auto const value = run();
 
     CHECK(value == true);
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals index expression") {
+    initExpr(
+        {},
+        ExprNode(pos1,
+                 IndexExpr{
+                     .object = std::make_unique<ExprNode>(ExprNode(
+                         pos1, VecLiteral{.elements = makeExprs(
+                                              ExprNode(pos1, IntLiteral{1}),
+                                              ExprNode(pos1, IntLiteral{2}))})),
+                     .index = std::make_unique<ExprNode>(
+                         ExprNode(pos1, IntLiteral{1}))}));
+
+    auto const value = run();
+
+    CHECK(value == 2);
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,

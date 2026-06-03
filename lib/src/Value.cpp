@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <charconv>
 #include <compare>
+#include <cstddef>
 #include <expected>
 #include <functional>
 #include <limits>
@@ -238,7 +239,7 @@ EvalResult ge(Value const& lhs, Value const& rhs) {
     return compareOp(lhs, rhs, std::is_gteq);
 }
 
-IntResult checkedAdd(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedAdd(std::int64_t lhs, std::int64_t rhs) noexcept {
     std::int64_t res = 0;
     if (!ckd_add(&res, lhs, rhs)) {
         return res;
@@ -246,7 +247,7 @@ IntResult checkedAdd(std::int64_t lhs, std::int64_t rhs) {
     return std::unexpected(ArithmeticOverflow{});
 }
 
-IntResult checkedMul(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedMul(std::int64_t lhs, std::int64_t rhs) noexcept {
     std::int64_t res = 0;
     if (!ckd_mul(&res, lhs, rhs)) {
         return res;
@@ -254,14 +255,14 @@ IntResult checkedMul(std::int64_t lhs, std::int64_t rhs) {
     return std::unexpected(ArithmeticOverflow{});
 }
 
-IntResult checkedSub(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedSub(std::int64_t lhs, std::int64_t rhs) noexcept {
     std::int64_t res = 0;
     if (!ckd_sub(&res, lhs, rhs)) {
         return res;
     }
     return std::unexpected(ArithmeticOverflow{});
 }
-IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs) noexcept {
     if (rhs == 0) {
         return std::unexpected(DivisionByZero{});
     }
@@ -271,7 +272,7 @@ IntResult checkedDiv(std::int64_t lhs, std::int64_t rhs) {
     return lhs / rhs;
 }
 
-IntResult checkedMod(std::int64_t lhs, std::int64_t rhs) {
+IntResult checkedMod(std::int64_t lhs, std::int64_t rhs) noexcept {
     if (rhs == 0) {
         return std::unexpected(DivisionByZero{});
     }
@@ -281,7 +282,7 @@ IntResult checkedMod(std::int64_t lhs, std::int64_t rhs) {
     return lhs % rhs;
 }
 
-DoubleResult checkedDoubleDiv(double lhs, double rhs) {
+DoubleResult checkedDoubleDiv(double lhs, double rhs) noexcept {
     if (rhs == 0.0) {
         return std::unexpected(DivisionByZero{});
     }
@@ -292,7 +293,7 @@ DoubleResult checkedDoubleDiv(double lhs, double rhs) {
     return result;
 }
 
-EvalResult length(Value const& val) {
+EvalResult length(Value const& val) noexcept {
     return std::visit(
         Overloaded{[](std::string const& str) -> EvalResult {
                        return static_cast<std::int64_t>(str.length());
@@ -329,9 +330,9 @@ EvalResult negation(Value const& val) {
         val);
 }
 
-EvalResult logicalNot(Value const& val) { return !toBool(val); }
+EvalResult logicalNot(Value const& val) noexcept { return !toBool(val); }
 
-EvalResult contains(Value const& lhs, Value const& rhs) {
+EvalResult contains(Value const& lhs, Value const& rhs) noexcept {
     // Maybe it should cast to the vec type and ignore conversion errors?
     return std::visit(
         Overloaded{[](VecValue const& lhs, auto const& rhs) -> EvalResult {
@@ -367,6 +368,26 @@ EvalResult intersect(Value lhs, Value rhs) {
         std::move(lhs), std::move(rhs));
 }
 
+IndexResult index(Value& lhs, Value const& rhs) noexcept {
+    return std::visit(
+        Overloaded{[](VecValue& lhs, auto const& rhs) -> IndexResult {
+                       auto const index = toInt(rhs);
+                       if (!index) {
+                           return std::unexpected(index.error());
+                       }
+                       if (*index >= lhs.elements.size() || *index < 0) {
+                           return std::unexpected(
+                               IndexOutOfBounds{.index = *index});
+                       }
+                       return &lhs.elements[static_cast<std::size_t>(*index)];
+                   },
+                   [](auto const& lhs, auto const& rhs) -> IndexResult {
+                       return std::unexpected(InvalidOperands{
+                           .lhs = typeFor(lhs), .rhs = typeFor(rhs)});
+                   }},
+        lhs, rhs);
+};
+
 Type typeFor(Value const& value) {
     return std::visit(
         Overloaded{
@@ -375,10 +396,9 @@ Type typeFor(Value const& value) {
             [](bool) -> Type { return PrimitiveType::Bool; },
             [](std::string const&) -> Type { return PrimitiveType::Str; },
             [](VecValue const& vec) -> Type { return Type::vec(vec.type); },
-            [](UninitVec) -> Type {
-                return PrimitiveType::Int;
-            },  // placeholder
+            [](UninitVec) -> Type { return PrimitiveType::EmptyVec; },
             [](std::monostate) -> Type {
+                assert(false);
                 return PrimitiveType::Int;
             },  // placeholder
         },

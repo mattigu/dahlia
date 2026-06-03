@@ -116,15 +116,21 @@ struct BuiltinRedifined {
     bool operator==(BuiltinRedifined const&) const noexcept = default;
 };
 
+struct IndexOutOfBounds {
+    std::int64_t index;
+    bool operator==(IndexOutOfBounds const&) const noexcept = default;
+};
 
-using RuntimeErrorKind = std::variant<
-    UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
-    UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow, DivisionByZero,
-    InvalidOperands, InvalidOperand, UnparsableString, InvalidConversion,
-    InvalidForRange, AssignmentTypeMismatch, VariableRedefinition,
-    CallDepthExceeded, VoidTypeInExpression, MutViolation, MutArgExpression,
-    ArgumentCountMismatch, MissingReturnValue, UnexpectedReturnValue,
-    CannotInferEmptyVec, MutArgTypeMismatch, BuiltinRedifined>;
+using RuntimeErrorKind =
+    std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
+                 UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow,
+                 DivisionByZero, InvalidOperands, InvalidOperand,
+                 UnparsableString, InvalidConversion, InvalidForRange,
+                 AssignmentTypeMismatch, VariableRedefinition,
+                 CallDepthExceeded, VoidTypeInExpression, MutViolation,
+                 MutArgExpression, ArgumentCountMismatch, MissingReturnValue,
+                 UnexpectedReturnValue, CannotInferEmptyVec, MutArgTypeMismatch,
+                 BuiltinRedifined, IndexOutOfBounds>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;
