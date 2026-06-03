@@ -687,8 +687,7 @@ TEST_CASE_FIXTURE(
                                                 .pos = pos1}));
 }
 
-TEST_CASE_FIXTURE(InterpreterFixture,
-                  "Interpreter assigns value to statements") {
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter binds value to variables") {
     initMain({}, makeStatements(
                      StatementNode(pos1, LetBinding{.identifier = "a",
                                                     .value = ExprNode(
@@ -804,6 +803,31 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 
     auto const value = run();
     CHECK(value == Value{2});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter assigns value to indexed vector variable") {
+    initMain(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        makeStatements(
+            StatementNode(
+                pos1,
+                LetBinding{
+                    .identifier = "a",
+                    .mut = true,
+                    .value = ExprNode(
+                        pos1,
+                        VecLiteral{.elements = {makeExprs(
+                                       ExprNode(pos1, IntLiteral{1}),
+                                       ExprNode(pos1, IntLiteral{2}))}})}),
+            StatementNode(pos1, AssignStmt(LValue{.identifier = "a",
+                                                  .indices = makeExprs(ExprNode(
+                                                      pos1, IntLiteral{1}))},
+                                           ExprNode(pos1, IntLiteral{3}))),
+            return_a()));
+
+    auto const value = run();
+    CHECK(value == VecValue{.type = PrimitiveType::Int, .elements = {1, 3}});
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,

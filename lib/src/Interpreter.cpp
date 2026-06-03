@@ -1,7 +1,6 @@
 #include "dahlia_lib/Interpreter.h"
 
 #include <cassert>
-#include <cmath>
 #include <expected>
 #include <ranges>
 #include <utility>
@@ -164,8 +163,8 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             [&](LengthExpr const& expr) {
                 return length(visitExpr(*expr.operand));
             },
-            [&](IndexExpr const& expr) -> EvalResult{
-                auto lhs =  visitExpr(*expr.object);
+            [&](IndexExpr const& expr) -> EvalResult {
+                auto lhs = visitExpr(*expr.object);
                 auto const res = index(lhs, visitExpr(*expr.index));
                 if (!res) {
                     return std::unexpected(res.error());
@@ -242,21 +241,13 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
 }
 
 void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
-    auto const ident = statement.target.identifier;
-
-    auto* const var = stack_.current().lookupVariable(ident);
-    if (var == nullptr) {
-        throw RuntimeError{.kind = UseOfUnkownIdentifier{}, .pos = pos};
-    }
-    if (!var->mut()) {
-        throw RuntimeError{.kind = MutViolation{}, .pos = pos};
-    }
+    auto& val_ref = visitLValue(statement.target, pos);
 
     // Do indices here later
     auto value = visitExpr(statement.value);
 
     auto const val_type = typeFor(value);
-    auto const var_type = typeFor(var->data());
+    auto const var_type = typeFor(val_ref);
 
     auto coerced = coerceIfNeeded(value, var_type);
     if (!coerced) {
@@ -264,13 +255,30 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
                            .pos = statement.value.pos()};
     }
 
-    var->data() = std::move(*coerced);
+    val_ref = std::move(*coerced);
 }
 
-// void visitLValue(LValue const& lval, Position pos) {
-//     lval.
+Value& Interpreter::visitLValue(LValue const& lval, Position pos) {
+    auto* const var = stack_.current().lookupVariable(lval.identifier);
+    if (var == nullptr) {
+        throw RuntimeError{.kind = UseOfUnkownIdentifier{}, .pos = pos};
+    }
+    if (!var->mut()) {
+        throw RuntimeError{.kind = MutViolation{}, .pos = pos};
+    }
 
-// }
+    Value* val = &var->data();
+    for (auto const& indice_expr : lval.indices) {
+        auto const indice = visitExpr(indice_expr);
+        auto indexed = index(*val, indice);
+        if (!indexed) {
+            throw RuntimeError{.kind = indexed.error(),
+                               .pos = indice_expr.pos()};
+        }
+        val = indexed.value();
+    }
+    return *val;
+}
 
 Signal Interpreter::visitWhileLoop(WhileLoop const& loop) {
     while (toBool(visitExpr(loop.condition))) {

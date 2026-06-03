@@ -38,12 +38,14 @@ private:
     // void visitFilterExpr(MapExpr const& expr);
 
     Value callBuiltin(BuiltinFunction const& builtin,
-                           std::vector<ExprNode> const& arg_exprs,
-                           Position pos);
+                      std::vector<ExprNode> const& arg_exprs, Position pos);
 
     Signal visitStatement(StatementNode const& statement);
 
     void visitAssign(AssignStmt const& statement, Position pos);
+
+    Value& visitLValue(LValue const& lval, Position pos);
+
     Signal visitWhileLoop(WhileLoop const& loop);
     Signal visitForLoop(ForLoop const& loop, Position pos);
     Signal visitIfStmt(IfStmt const& stmt);
