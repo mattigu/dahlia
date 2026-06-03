@@ -365,9 +365,11 @@ void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
 
     // For cases when:  let : [int] = []
     // Convert the EmptyVec into a vec of ints.
-    if (let.type && (**let.type).isVec() && val_type == PrimitiveType::EmptyVec ) {
-        val = VecValue{.type = (**let.type).element(), .elements = {}};
-        val_type = **let.type;
+    if (let.type && (**let.type).isVec()) {
+        if (auto coerced = coerceVec(std::move(val), **let.type)) {
+            val = std::move(*coerced);
+            val_type = **let.type;
+        }
     }
 
     if (let.type && **let.type != val_type) {
@@ -487,12 +489,14 @@ EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) {
         auto value = visitExpr(elem);
         auto elem_type = typeFor(value);
 
-        if (!expected_type && elem_type != PrimitiveType::EmptyVec) {
+        if (!expected_type && !isCoercibleEmptyVec(elem_type)) {
             expected_type = elem_type;
-        } else if (elem_type != *expected_type) {
+        } else if (expected_type && elem_type != *expected_type &&
+                   !isCoercibleEmptyVec(elem_type)) {
             return std::unexpected(
                 VecTypeMismatch{.first = *expected_type, .other = elem_type});
         }
+
         elements.push_back(std::move(value));
     }
 
@@ -502,25 +506,21 @@ EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) {
                         .elements = std::move(elements)};
     }
     // Now we one of these
-    // [[1,2], []] -> change the empty one to a real vec with the correct type
-    // [1, 2, []] -> throw
-    // [1, 2, 3] -> just return
+    // [[1,2], []] -> change the empty one to a real vec with the correct type.
+    // This [1, 2, []] -> throw [1, 2, 3] -> just return
 
-    if (!expected_type->isVec()) {
-        for (auto const& elem : elements) {
-            if (std::holds_alternative<UninitVec>(elem)) {
-                return std::unexpected(
-                    VecTypeMismatch{.first = *expected_type,
-                                    .other = Type{PrimitiveType::EmptyVec}});
-            }
+    for (auto& elem : elements) {
+        auto elem_type = typeFor(elem);
+        if (elem_type == *expected_type) {
+            continue;
         }
-    } else {
-        for (auto& elem : elements) {
-            if (std::holds_alternative<UninitVec>(elem)) {
-                elem =
-                    VecValue{.type = expected_type->element(), .elements = {}};
-            }
+
+        auto coerced = coerceVec(std::move(elem), *expected_type);
+        if (!coerced) {
+            return std::unexpected(VecTypeMismatch{
+                .first = *expected_type, .other = std::move(elem_type)});
         }
+        elem = std::move(*coerced);
     }
 
     return VecValue{.type = std::move(*expected_type),
@@ -596,4 +596,44 @@ Value Interpreter::callBuiltin(BuiltinFunction const& builtin,
         throw RuntimeError{.kind = res.error(), .pos = pos};
     }
     return *res;
+}
+
+std::optional<Value> Interpreter::coerceVec(Value value, Type const& target) {
+    if (!target.isVec()) {
+        return std::nullopt;
+    }
+
+    if (std::holds_alternative<UninitVec>(value)) {
+        return VecValue{.type = target.element(), .elements = {}};
+    }
+
+    auto* vec = std::get_if<VecValue>(&value);
+    if (vec == nullptr) {
+        return std::nullopt;
+    }
+
+    if (vec->type == target.element()) {
+        return value;
+    }
+
+    std::vector<Value> coerced;
+    coerced.reserve(vec->elements.size());
+    for (auto& elem : vec->elements) {
+        auto result = coerceVec(std::move(elem), target.element());
+        if (!result) {
+            return std::nullopt;
+        }
+        coerced.push_back(std::move(*result));
+    }
+    return VecValue{.type = target.element(), .elements = std::move(coerced)};
+}
+
+bool Interpreter::isCoercibleEmptyVec(Type const& type) {
+    if (type == PrimitiveType::EmptyVec) {
+        return true;
+    }
+    if (type.isVec()) {
+        return isCoercibleEmptyVec(type.element());
+    }
+    return false;
 }

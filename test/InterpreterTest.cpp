@@ -180,18 +180,16 @@ public:
                                                 FunctionCall{
                                                     .identifier =
                                                         "count",
-                                                    .args = makeVec<ExprNode>(
-                                                        ExprNode(
-                                                            pos0_,
-                                                            SubExpr(
-                                                                ExprNode(
-                                                                    pos0_,
-                                                                    Identifier{
-                                                                        "n"}),
-                                                                ExprNode(
-                                                                    pos0_,
-                                                                    IntLiteral{
-                                                                        1}))))}),
+                                                    .args = makeExprs(ExprNode(
+                                                        pos0_,
+                                                        SubExpr(
+                                                            ExprNode(pos0_,
+                                                                     Identifier{
+                                                                         "n"}),
+                                                            ExprNode(
+                                                                pos0_,
+                                                                IntLiteral{
+                                                                    1}))))}),
                                             ExprNode(pos0_,
                                                      IntLiteral{1})))}))})});
     }
@@ -349,7 +347,7 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals bool false literal") {
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals simple vec literals") {
     initExpr({.return_type = Type::vec(PrimitiveType::Int)},
-             ExprNode(pos1, VecLiteral{.elements = makeVec<ExprNode>(
+             ExprNode(pos1, VecLiteral{.elements = makeExprs(
                                            ExprNode(pos1, IntLiteral{1}),
                                            ExprNode(pos1, IntLiteral{2}))}));
 
@@ -361,7 +359,7 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals simple vec literals") {
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter doesn't allow different types in vec literals") {
     initExpr(
-        {}, ExprNode(pos2, VecLiteral{.elements = makeVec<ExprNode>(
+        {}, ExprNode(pos2, VecLiteral{.elements = makeExprs(
                                           ExprNode(pos1, IntLiteral{1}),
                                           ExprNode(pos1, FloatLiteral{2.0}))}));
 
@@ -402,18 +400,39 @@ TEST_CASE_FIXTURE(InterpreterFixture,
     CHECK(value == VecValue{.type = PrimitiveType::Int, .elements = {}});
 }
 
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter assigns double nested empty vec literal to variable") {
+    initMain(
+        {.return_type = Type::vec(Type::vec(PrimitiveType::Int))},
+        makeStatements(
+            StatementNode(
+                pos2,
+                LetBinding{.identifier = "a",
+                           .type = TypeNode(
+                               pos1, Type::vec(Type::vec(PrimitiveType::Int))),
+                           .value = ExprNode(
+                               pos1, VecLiteral{.elements = {makeExprs(ExprNode(
+                                                    pos1, VecLiteral{}))}})}),
+            return_a()));
+
+    auto const value = run();
+    CHECK(value ==
+          VecValue{.type = Type::vec(PrimitiveType::Int),
+                   .elements = {VecValue{.type = PrimitiveType::Int}}});
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals nested vec literal") {
     initExpr(
         {.return_type = Type::vec(Type::vec(PrimitiveType::Int))},
         ExprNode(
             pos1,
             VecLiteral{
-                .elements = makeVec<ExprNode>(
-                    ExprNode(pos1,
-                             VecLiteral{.elements = makeVec<ExprNode>(
-                                            ExprNode(pos1, IntLiteral{1}))}),
+                .elements = makeExprs(
+                    ExprNode(pos1, VecLiteral{.elements = makeExprs(ExprNode(
+                                                  pos1, IntLiteral{1}))}),
                     ExprNode(pos1, VecLiteral{
-                                       .elements = makeVec<ExprNode>(
+                                       .elements = makeExprs(
                                            ExprNode(pos1, IntLiteral{2}),
                                            ExprNode(pos1, IntLiteral{3}))}))}));
 
@@ -427,6 +446,60 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals nested vec literal") {
                                         .elements = {Value{1}}}},
                          Value{VecValue{.type = PrimitiveType::Int,
                                         .elements = {Value{2}, Value{3}}}}}}});
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter evals nested vec literals combined with empty ones") {
+    initExpr(
+        {.return_type = Type::vec(Type::vec(PrimitiveType::Int))},
+        ExprNode(
+            pos1,
+            VecLiteral{
+                .elements = makeExprs(
+                    ExprNode(pos1, VecLiteral{}),
+                    ExprNode(pos1, VecLiteral{
+                                       .elements = makeExprs(
+                                           ExprNode(pos1, IntLiteral{2}),
+                                           ExprNode(pos1, IntLiteral{3}))}))}));
+
+    auto const value = run();
+
+    CHECK(value ==
+          Value{VecValue{
+              .type = Type::vec(PrimitiveType::Int),
+              .elements = {
+                  Value{VecValue{.type = PrimitiveType::Int,  // Type inferred
+                                 .elements = {}}},
+                  Value{VecValue{.type = PrimitiveType::Int,
+                                 .elements = {Value{2}, Value{3}}}}}}});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter throws in nested vec literals with empty vecs "
+                  "but incompatible types") {
+    // [ [[]], [2,3]]
+    initExpr(
+        {.return_type = Type::vec(Type::vec(PrimitiveType::Int))},
+        ExprNode(
+            pos3,
+            VecLiteral{
+                .elements = makeExprs(
+                    ExprNode(
+                        pos1,
+                        VecLiteral{.elements = makeExprs(ExprNode(
+                                       pos1, VecLiteral{.elements = {}}))}),
+                    ExprNode(pos1, VecLiteral{
+                                       .elements = makeExprs(
+                                           ExprNode(pos1, IntLiteral{2}),
+                                           ExprNode(pos1, IntLiteral{3}))}))}));
+
+    auto const value = run();
+
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = VecTypeMismatch{
+                           .first = Type::vec(PrimitiveType::Int),
+                           .other = Type::vec(PrimitiveType::EmptyVec)}, .pos=pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals add expressions") {

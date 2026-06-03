@@ -57,4 +57,7 @@ private:
     [[nodiscard]] EvalResult visitIdentifier(Identifier const& ident) const;
 
     [[nodiscard]] EvalResult visitVecLiteral(VecLiteral const& lit);
+
+    static std::optional<Value> coerceVec(Value value, Type const& target);
+    static bool isCoercibleEmptyVec(Type const& type);
 };
