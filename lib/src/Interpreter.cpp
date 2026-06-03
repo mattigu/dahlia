@@ -3,6 +3,7 @@
 #include <cassert>
 #include <expected>
 #include <ranges>
+#include <utility>
 #include <variant>
 
 #include "dahlia_lib/Ast.h"
@@ -13,7 +14,8 @@
 #include "dahlia_lib/Value.h"
 #include "dahlia_lib/Variable.h"
 
-Interpreter::Interpreter(InterpreterOpts opts) : options_(opts) {
+Interpreter::Interpreter(BuiltinMap builtins, InterpreterOpts opts)
+    : options_(opts), builtins_(std::move(builtins)) {
     assert(opts.max_call_depth > 0);
 }
 
@@ -32,6 +34,16 @@ Value Interpreter::visitProgram(ProgramNode const& program) {
 
     if (main == program->functions.cend()) {
         throw RuntimeError{.kind = MissingMainFunction{}, .pos = program.pos()};
+    }
+
+    auto duplicate = std::ranges::find_if(
+        program->functions,
+        [&](auto const& val) { return builtins_.contains(val.first); });
+
+    if (duplicate != program->functions.end()) {
+        throw RuntimeError{
+            .kind = BuiltinRedifined{.identifier = duplicate->first},
+            .pos = duplicate->second.pos()};
     }
     auto const main_res =
         visitFunctionCall(FunctionCall{.identifier = "main"}, program.pos());
@@ -165,7 +177,8 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
 
         },
         *expr);
-    // Every expression error except function call goes through this.
+    // Every expression error except function call, MapExpr and Filter goes
+    // through this.
     if (res == Value{std::monostate{}}) {
         throw RuntimeError{.kind = VoidTypeInExpression{}, .pos = expr.pos()};
     }
@@ -306,7 +319,7 @@ Signal Interpreter::visitForLoop(ForLoop const& loop, Position pos) {
 
         auto const res = checkedAdd(loop_val, step);
         if (!res) {
-            throw RuntimeError{.kind = res.error(), .pos = pos};
+            throw RuntimeError{.kind = res.error(), .pos = loop.range.pos()};
         }
         loop_val = res.value();
     }
@@ -377,6 +390,11 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
                                      Position pos) {
     if (stack_.callDepth() >= options_.max_call_depth) {
         throw RuntimeError{.kind = CallDepthExceeded{}, .pos = pos};
+    }
+
+    auto builtin = builtins_.find(fun_call.identifier);
+    if (builtin != builtins_.cend()) {
+        return callBuiltin(builtin->second, fun_call.args, pos);
     }
 
     auto const iter = program_->functions.find(fun_call.identifier);
@@ -467,9 +485,73 @@ EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) {
                     .elements = std::move(elements)};
 }
 
+// void Interpreter::visitFilterExpr(MapExpr const& expr) {
+//     auto const lhs = visitExpr(*expr.left);
+
+//     auto const* const lhs_vec = std::get_if<VecValue>(&lhs);
+//     if (lhs_vec == nullptr) {
+//         // error
+//     }
+
+//     auto* const filter_func = std::get_if<Identifier>(&**expr.right);
+//     if (filter_func == nullptr) {
+//         // Error
+//     }
+
+//     for (auto const& val : lhs_vec->elements) {
+//         stack_.current().pushScope();
+//         stack_.current().declareVariable(filter_func->params[0]->identifier,
+//                                          Variable(val, false, pos));
+//         auto result = visitFunctionDefinition(*filter_func);
+//         stack_.current().popScope();
+//         // use result
+//     }
+// }
+
 EvalResult Interpreter::coerceIfNeeded(Value val, Type const& target) {
     if (typeFor(val) == target) {
         return val;
     }
     return coerce(val, target);
+}
+
+Value Interpreter::callBuiltin(BuiltinFunction const& builtin,
+                               std::vector<ExprNode> const& arg_exprs,
+                               Position pos) {
+    if (arg_exprs.size() != builtin.params.size()) {
+        throw RuntimeError{.kind = ArgumentCountMismatch{}, .pos = pos};
+    }
+
+    std::vector<Value> args;
+    args.reserve(builtin.params.size());
+    for (auto const& [param, arg] :
+         std::views::zip(builtin.params, arg_exprs)) {
+        if (param.mut) {
+            auto const* ident = std::get_if<Identifier>(&*arg);
+            if (ident == nullptr) {
+                throw RuntimeError{.kind = MutArgExpression{},
+                                   .pos = arg.pos()};
+            }
+            auto* var = stack_.current().lookupVariable(ident->identifier);
+            if (!var->mut()) {
+                throw RuntimeError{.kind = MutViolation{}, .pos = arg.pos()};
+            }
+            if (param.type != typeFor(var->data())) {
+                throw RuntimeError{.kind = MutArgTypeMismatch{},
+                                   .pos = arg.pos()};
+            }
+            args.push_back(var->data());
+        } else {
+            auto coerced = coerceIfNeeded(visitExpr(arg), param.type);
+            if (!coerced) {
+                throw RuntimeError{.kind = coerced.error(), .pos = arg.pos()};
+            }
+            args.emplace_back(std::move(*coerced));
+        }
+    }
+    auto res = builtin.fn(std::move(args));
+    if (!res) {
+        throw RuntimeError{.kind = res.error(), .pos = pos};
+    }
+    return *res;
 }

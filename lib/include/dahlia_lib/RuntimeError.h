@@ -111,6 +111,12 @@ struct MutArgTypeMismatch {
     bool operator==(MutArgTypeMismatch const&) const noexcept = default;
 };
 
+struct BuiltinRedifined {
+    std::string identifier;
+    bool operator==(BuiltinRedifined const&) const noexcept = default;
+};
+
+
 using RuntimeErrorKind = std::variant<
     UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
     UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow, DivisionByZero,
@@ -118,7 +124,7 @@ using RuntimeErrorKind = std::variant<
     InvalidForRange, AssignmentTypeMismatch, VariableRedefinition,
     CallDepthExceeded, VoidTypeInExpression, MutViolation, MutArgExpression,
     ArgumentCountMismatch, MissingReturnValue, UnexpectedReturnValue,
-    CannotInferEmptyVec, MutArgTypeMismatch>;
+    CannotInferEmptyVec, MutArgTypeMismatch, BuiltinRedifined>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

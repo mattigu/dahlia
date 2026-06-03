@@ -1,10 +1,12 @@
 #include <expected>
 #include <optional>
+#include <sstream>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "dahlia_lib/Ast.h"
+#include "dahlia_lib/Builtins.h"
 #include "dahlia_lib/Interpreter.h"
 #include "dahlia_lib/Position.h"
 #include "dahlia_lib/RuntimeError.h"
@@ -14,13 +16,15 @@
 struct TestOptions {
     std::optional<Type> return_type = PrimitiveType::Int;
     InterpreterOpts opts = InterpreterOpts{.max_call_depth = 10};
+    std::ostream* output = &std::cout;
 };
 
 class InterpreterFixture {
 public:
     void init(TestOptions const& opts, ProgramNode program) {
         program_ = std::move(program);
-        interpreter_.emplace(Interpreter(opts.opts));
+        interpreter_.emplace(
+            Interpreter(makeDefaultBuiltins(*opts.output), opts.opts));
     }
 
     template <typename... FunctionNodes>
@@ -1592,4 +1596,38 @@ TEST_CASE_FIXTURE(InterpreterFixture,
     auto const value = run();
     CHECK(value == std::unexpected(
                        RuntimeError{.kind = CallDepthExceeded{}, .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter throws on redefined builtin") {
+    init(
+        {.return_type = std::nullopt},
+        ProgramNode(
+            pos2,
+            makeProgram(
+                FunctionNode(pos3, Function{.identifier = "println",
+                                            .block = BlockNode(pos1, Block{})}),
+                FunctionNode(pos1,
+                             Function{.identifier = "main",
+                                      .block = BlockNode(pos1, Block{})}))));
+    auto const value = run();
+
+    CHECK(value == std::unexpected(
+                       RuntimeError{.kind = BuiltinRedifined{.identifier="println"}, .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter calls built in function") {
+    std::ostringstream out;
+    initMain({.return_type = std::nullopt,
+
+              .output = &out},
+             makeStatements(StatementNode(
+                 pos1, FunctionCall{.identifier = "println",
+                                    .args = makeExprs(
+                                        ExprNode(pos1, StringLiteral{"1"}))})));
+    auto const value = run();
+
+    CHECK(value == Value{});
+    auto const printed = out.str();
+    CHECK(printed == "1\n");
 }
