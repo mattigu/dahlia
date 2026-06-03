@@ -874,6 +874,94 @@ TEST_CASE_FIXTURE(InterpreterFixture,
               .pos = pos2}));
 }
 
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter runs add assignment statements") {
+    initMain({}, makeStatements(
+                     let_mut_a_eq(1),
+                     StatementNode(
+                         pos1, AddAssignStmt(LValue{.identifier = "a"},
+                                             ExprNode(pos1, IntLiteral{2}))),
+                     return_a()));
+
+    auto const value = run();
+    CHECK(value == Value{3});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter compound assignment fails if variable non mut") {
+    initMain({}, makeStatements(
+                     let_a_eq(1),
+                     StatementNode(
+                         pos3, AddAssignStmt(LValue{.identifier = "a"},
+                                             ExprNode(pos1, IntLiteral{2}))),
+                     return_a()));
+
+    auto const value = run();
+    CHECK(value ==
+          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter compound assignment modifies indexed vector variable") {
+    initMain(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        makeStatements(
+            StatementNode(
+                pos1,
+                LetBinding{.identifier = "a",
+                           .mut = true,
+                           .value = ExprNode(
+                               pos1, VecLiteral{.elements = {makeExprs(ExprNode(
+                                                    pos1, IntLiteral{1}))}})}),
+            StatementNode(pos1, AddAssignStmt(LValue{.identifier = "a"},
+                                              ExprNode(pos1, IntLiteral{2}))),
+            return_a()));
+
+    auto const value = run();
+    CHECK(value ==
+          VecValue{.type = PrimitiveType::Int, .elements = {1, 2}});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter runs mul assignment statements") {
+    initMain({}, makeStatements(
+                     let_mut_a_eq(2),
+                     StatementNode(
+                         pos1, MulAssignStmt(LValue{.identifier = "a"},
+                                             ExprNode(pos1, IntLiteral{2}))),
+                     return_a()));
+
+    auto const value = run();
+    CHECK(value == Value{4});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter runs sub assignment statements") {
+    initMain({}, makeStatements(
+                     let_mut_a_eq(3),
+                     StatementNode(
+                         pos1, SubAssignStmt(LValue{.identifier = "a"},
+                                             ExprNode(pos1, IntLiteral{2}))),
+                     return_a()));
+
+    auto const value = run();
+    CHECK(value == Value{1});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter runs mod assignment statements") {
+    initMain({}, makeStatements(
+                     let_mut_a_eq(5),
+                     StatementNode(
+                         pos1, ModAssignStmt(LValue{.identifier = "a"},
+                                             ExprNode(pos1, IntLiteral{3}))),
+                     return_a()));
+
+    auto const value = run();
+    CHECK(value == Value{2});
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter runs while loops") {
     initMain({},
              makeStatements(

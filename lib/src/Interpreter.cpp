@@ -234,6 +234,33 @@ Signal Interpreter::visitStatement(StatementNode const& statement) {
                 visitAssign(assign, statement.pos());
                 return Signal{};
             },
+
+            [&](AddAssignStmt const& assign) {
+                visitCompoundAssign(assign.value, assign.target,
+                                    statement.pos(), add);
+                return Signal{};
+            },
+            [&](SubAssignStmt const& assign) {
+                visitCompoundAssign(assign.value, assign.target,
+                                    statement.pos(), subtract);
+                return Signal{};
+            },
+            [&](DivAssignStmt const& assign) {
+                visitCompoundAssign(assign.value, assign.target,
+                                    statement.pos(), divide);
+                return Signal{};
+            },
+            [&](MulAssignStmt const& assign) {
+                visitCompoundAssign(assign.value, assign.target,
+                                    statement.pos(), multiply);
+                return Signal{};
+            },
+            [&](ModAssignStmt const& assign) {
+                visitCompoundAssign(assign.value, assign.target,
+                                    statement.pos(), modulo);
+                return Signal{};
+            },
+
             [](auto const& value) { return Signal{}; },
 
         },

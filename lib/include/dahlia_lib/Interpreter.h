@@ -43,7 +43,6 @@ private:
     Signal visitStatement(StatementNode const& statement);
 
     void visitAssign(AssignStmt const& statement, Position pos);
-
     Value& visitLValue(LValue const& lval, Position pos);
 
     Signal visitWhileLoop(WhileLoop const& loop);
@@ -62,4 +61,16 @@ private:
 
     static std::optional<Value> coerceVec(Value value, Type const& target);
     static bool isCoercibleEmptyVec(Type const& type);
+
+    template <typename Op>
+    void visitCompoundAssign(ExprNode const& value, LValue const& target,
+                             Position pos, Op op) {  // NOLINT
+        auto val = visitExpr(value);
+        auto& lval = visitLValue(target, pos);
+        auto const res = op(lval, std::move(val));
+        if (!res) {
+            throw RuntimeError{.kind = res.error(), .pos = pos};
+        }
+        lval = std::move(*res);
+    }
 };
