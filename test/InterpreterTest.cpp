@@ -358,17 +358,6 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals simple vec literals") {
                                   .elements = {Value{1}, Value{2}}}});
 }
 
-TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals simple vec literals") {
-    initExpr({.return_type = Type::vec(PrimitiveType::Int)},
-             ExprNode(pos1, VecLiteral{.elements = makeVec<ExprNode>(
-                                           ExprNode(pos1, IntLiteral{1}),
-                                           ExprNode(pos1, IntLiteral{2}))}));
-
-    auto const value = run();
-    CHECK(value == Value{VecValue{.type = Type{PrimitiveType::Int},
-                                  .elements = {Value{1}, Value{2}}}});
-}
-
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter doesn't allow different types in vec literals") {
     initExpr(
@@ -382,6 +371,35 @@ TEST_CASE_FIXTURE(InterpreterFixture,
               .kind = VecTypeMismatch{.first = Type(PrimitiveType::Int),
                                       .other = Type(PrimitiveType::Float)},
               .pos = pos2}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter let binding requires type when assigning a "
+                  "empty vec literal") {
+    initMain({}, makeStatements(StatementNode(
+                     pos2, LetBinding{.identifier = "a",
+                                      .value = ExprNode(
+                                          pos1, VecLiteral{.elements = {}})})));
+
+    auto const value = run();
+    CHECK(value == std::unexpected(RuntimeError{.kind = CannotInferEmptyVec{},
+                                                .pos = pos2}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter assigns empty vec literal to variable") {
+    initMain({.return_type = Type::vec(PrimitiveType::Int)},
+             makeStatements(
+                 StatementNode(
+                     pos2,
+                     LetBinding{
+                         .identifier = "a",
+                         .type = TypeNode(pos1, Type::vec(PrimitiveType::Int)),
+                         .value = ExprNode(pos1, VecLiteral{.elements = {}})}),
+                 return_a()));
+
+    auto const value = run();
+    CHECK(value == VecValue{.type = PrimitiveType::Int, .elements = {}});
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals nested vec literal") {
@@ -1612,8 +1630,9 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                                       .block = BlockNode(pos1, Block{})}))));
     auto const value = run();
 
-    CHECK(value == std::unexpected(
-                       RuntimeError{.kind = BuiltinRedifined{.identifier="println"}, .pos = pos3}));
+    CHECK(value ==
+          std::unexpected(RuntimeError{
+              .kind = BuiltinRedifined{.identifier = "println"}, .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter calls built in function") {

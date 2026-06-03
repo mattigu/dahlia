@@ -1,6 +1,7 @@
 #include "dahlia_lib/Interpreter.h"
 
 #include <cassert>
+#include <cmath>
 #include <expected>
 #include <ranges>
 #include <utility>
@@ -356,8 +357,20 @@ Signal Interpreter::visitIfStmt(IfStmt const& stmt) {
 
 void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
     auto val = visitExpr(let.value);
+    auto val_type = typeFor(val);
 
-    if (let.type && **let.type != typeFor(val)) {
+    if (!let.type && val_type == PrimitiveType::EmptyVec) {
+        throw RuntimeError{.kind = CannotInferEmptyVec{}, .pos = pos};
+    }
+
+    // For cases when:  let : [int] = []
+    // Convert the EmptyVec into a vec of ints.
+    if (let.type && (**let.type).isVec() && val_type == PrimitiveType::EmptyVec ) {
+        val = VecValue{.type = (**let.type).element(), .elements = {}};
+        val_type = **let.type;
+    }
+
+    if (let.type && **let.type != val_type) {
         throw RuntimeError{.kind = AssignmentTypeMismatch{}, .pos = pos};
     }
 
@@ -465,23 +478,52 @@ EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) {
         return UninitVec{};
     }
 
-    auto first_elem = visitExpr(lit.elements[0]);
-    auto expected_type = typeFor(first_elem);
-
     std::vector<Value> elements;
     elements.reserve(lit.elements.size());
-    elements.push_back(std::move(first_elem));
 
-    for (auto const& elem : lit.elements | std::views::drop(1)) {
+    std::optional<Type> expected_type;
+
+    for (auto const& elem : lit.elements) {
         auto value = visitExpr(elem);
-        if (typeFor(value) != expected_type) {
-            return std::unexpected(VecTypeMismatch{.first = expected_type,
-                                                   .other = typeFor(value)});
+        auto elem_type = typeFor(value);
+
+        if (!expected_type && elem_type != PrimitiveType::EmptyVec) {
+            expected_type = elem_type;
+        } else if (elem_type != *expected_type) {
+            return std::unexpected(
+                VecTypeMismatch{.first = *expected_type, .other = elem_type});
         }
         elements.push_back(std::move(value));
     }
 
-    return VecValue{.type = std::move(expected_type),
+    // [[], [], ...]
+    if (!expected_type) {
+        return VecValue{.type = Type{PrimitiveType::EmptyVec},
+                        .elements = std::move(elements)};
+    }
+    // Now we one of these
+    // [[1,2], []] -> change the empty one to a real vec with the correct type
+    // [1, 2, []] -> throw
+    // [1, 2, 3] -> just return
+
+    if (!expected_type->isVec()) {
+        for (auto const& elem : elements) {
+            if (std::holds_alternative<UninitVec>(elem)) {
+                return std::unexpected(
+                    VecTypeMismatch{.first = *expected_type,
+                                    .other = Type{PrimitiveType::EmptyVec}});
+            }
+        }
+    } else {
+        for (auto& elem : elements) {
+            if (std::holds_alternative<UninitVec>(elem)) {
+                elem =
+                    VecValue{.type = expected_type->element(), .elements = {}};
+            }
+        }
+    }
+
+    return VecValue{.type = std::move(*expected_type),
                     .elements = std::move(elements)};
 }
 

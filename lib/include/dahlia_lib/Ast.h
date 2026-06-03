@@ -37,7 +37,8 @@ private:
 class Type;
 using TypeNode = Node<Type>;
 
-enum class PrimitiveType : std::int8_t { Int, Float, Bool, Str };
+// EmptyVec is only used in the interpreter.
+enum class PrimitiveType : std::int8_t { Int, Float, Bool, Str, EmptyVec };
 
 struct VecType {
     std::unique_ptr<Type> inner;
@@ -123,8 +124,8 @@ using Expr =
     std::variant<IntLiteral, FloatLiteral, BoolLiteral, StringLiteral,
                  VecLiteral, Identifier, FunctionCall, IndexExpr, NegExpr,
                  LengthExpr, NotExpr, MulExpr, DivExpr, AddExpr, SubExpr,
-                 ModExpr, IntersectExpr, InExpr, EqExpr, NeqExpr, LtExpr, GtExpr,
-                 LeExpr, GeExpr, AndExpr, OrExpr, FilterExpr, MapExpr>;
+                 ModExpr, IntersectExpr, InExpr, EqExpr, NeqExpr, LtExpr,
+                 GtExpr, LeExpr, GeExpr, AndExpr, OrExpr, FilterExpr, MapExpr>;
 using ExprNode = Node<Expr>;
 
 struct FunctionCall {
