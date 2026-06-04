@@ -12,9 +12,16 @@ struct Scope {
     std::unordered_map<std::string, Variable> variables;
 };
 
+struct CallContextInfo {
+    std::string name;
+    Position pos;
+};
+
 class CallContext {
 public:
-    CallContext() noexcept = default;
+    CallContext(CallContextInfo info) noexcept;
+
+    [[nodiscard]] CallContextInfo info() const noexcept;
 
     void pushScope();
     void popScope();
@@ -30,12 +37,16 @@ public:
 
 private:
     std::vector<Scope> scopes_;
+    CallContextInfo info_;
 };
 
+using StackTrace = std::vector<CallContextInfo>;
 class Stack {
 public:
-    void pushContext();
+    void pushContext(CallContextInfo info);
     void popContext();
+
+    [[nodiscard]] StackTrace stackTrace() const;
 
     [[nodiscard]] CallContext& current() noexcept;
     [[nodiscard]] CallContext const& current() const noexcept;

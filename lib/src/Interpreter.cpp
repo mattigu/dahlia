@@ -31,6 +31,10 @@ std::expected<Value, RuntimeError> Interpreter::run(
     }
 }
 
+StackTrace Interpreter::stackTrace() const {
+    return stack_.stackTrace();
+}
+
 Value Interpreter::visitProgram(ProgramNode const& program) {
     auto const main = program->functions.find("main");
 
@@ -476,8 +480,10 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
 
     if (fun->params.size() != fun_call.args.size()) {
         throw RuntimeError{
-            .kind = ArgumentCountMismatch{.expected = static_cast<int>(fun->params.size()),
-                                          .got = static_cast<int>(fun_call.args.size())},
+            .kind =
+                ArgumentCountMismatch{
+                    .expected = static_cast<int>(fun->params.size()),
+                    .got = static_cast<int>(fun_call.args.size())},
             .pos = pos};
     }
 
@@ -511,7 +517,7 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
         }
     }
 
-    stack_.pushContext();
+    stack_.pushContext({.name = fun_call.identifier, .pos = pos});
     stack_.current().pushScope();
 
     for (auto const& [param, var] : std::views::zip(fun->params, args_vars)) {

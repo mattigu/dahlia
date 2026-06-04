@@ -22,6 +22,8 @@ public:
 
     std::expected<Value, RuntimeError> run(ProgramNode const& program);
 
+    StackTrace stackTrace() const;
+
 private:
     Stack stack_;
     InterpreterOpts options_;
@@ -37,7 +39,6 @@ private:
     [[nodiscard]] Value visitExpr(ExprNode const& expr);
     Value visitFilterExpr(FilterExpr const& expr, Position pos);
     Value visitMapExpr(MapExpr const& expr, Position pos);
-
 
     Value callBuiltin(BuiltinFunction const& builtin,
                       std::vector<ExprNode> const& arg_exprs, Position pos);

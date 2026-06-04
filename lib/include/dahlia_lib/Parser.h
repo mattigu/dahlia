@@ -12,7 +12,7 @@
 #include "Ast.h"
 #include "Diagnostics.hpp"
 #include "Lexer.h"
-#include "ParserDiagnostic.h"
+#include "ParserDiagnostics.h"
 #include "Position.h"
 #include "Token.h"
 

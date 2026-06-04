@@ -2,13 +2,32 @@
 
 #include <cassert>
 #include <ranges>
+#include <vector>
 
-void Stack::pushContext() { callContexts_.emplace_back(); }
+#include "dahlia_lib/Position.h"
+
+CallContext::CallContext(CallContextInfo info) noexcept
+    : info_(std::move(info)) {};
+
+void Stack::pushContext(CallContextInfo info) {
+    callContexts_.emplace_back(std::move(info));
+}
+
+[[nodiscard]] std::vector<CallContextInfo> Stack::stackTrace() const {
+    std::vector<CallContextInfo> infos{};
+    infos.reserve(callContexts_.size());
+
+    for (auto const& ctx : callContexts_) {
+        infos.push_back(ctx.info());
+    }
+    return infos;
+};
 
 void Stack::popContext() {
     assert(!callContexts_.empty());
     callContexts_.pop_back();
 }
+CallContextInfo CallContext::info() const noexcept { return info_; }
 
 CallContext& Stack::current() noexcept {
     assert(!callContexts_.empty());
