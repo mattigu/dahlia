@@ -35,7 +35,7 @@ private:
     Value visitFunctionDefinition(FunctionNode const& fun);
 
     [[nodiscard]] Value visitExpr(ExprNode const& expr);
-    // void visitFilterExpr(MapExpr const& expr);
+    Value visitFilterExpr(FilterExpr const& expr, Position pos);
 
     Value callBuiltin(BuiltinFunction const& builtin,
                       std::vector<ExprNode> const& arg_exprs, Position pos);
@@ -60,7 +60,7 @@ private:
     [[nodiscard]] EvalResult visitVecLiteral(VecLiteral const& lit);
 
     static std::optional<Value> coerceVec(Value value, Type const& target);
-    static bool isCoercibleEmptyVec(Type const& type);
+    static bool isCoercibleEmptyVec(Type const& type) noexcept;
 
     template <typename Op>
     void visitCompoundAssign(ExprNode const& value, LValue const& target,

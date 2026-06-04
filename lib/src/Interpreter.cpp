@@ -5,6 +5,7 @@
 #include <ranges>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "dahlia_lib/Ast.h"
 #include "dahlia_lib/Position.h"
@@ -179,6 +180,9 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             },
             [&](InExpr const& expr) {
                 return contains(visitExpr(*expr.left), visitExpr(*expr.right));
+            },
+            [&](FilterExpr const& filter) -> EvalResult {
+                return visitFilterExpr(filter, expr.pos());
             },
 
             [](auto const& value) -> EvalResult { return Value{}; }
@@ -575,28 +579,43 @@ EvalResult Interpreter::visitVecLiteral(VecLiteral const& lit) {
                     .elements = std::move(elements)};
 }
 
-// void Interpreter::visitFilterExpr(MapExpr const& expr) {
-//     auto const lhs = visitExpr(*expr.left);
+Value Interpreter::visitFilterExpr(FilterExpr const& expr, Position pos) {
+    auto lhs = visitExpr(*expr.left);
 
-//     auto const* const lhs_vec = std::get_if<VecValue>(&lhs);
-//     if (lhs_vec == nullptr) {
-//         // error
-//     }
+    auto const vec_pos = expr.left->pos();
+    auto const filter_pos = expr.right->pos();
 
-//     auto* const filter_func = std::get_if<Identifier>(&**expr.right);
-//     if (filter_func == nullptr) {
-//         // Error
-//     }
+    auto* const lhs_vec = std::get_if<VecValue>(&lhs);
+    if (lhs_vec == nullptr) {
+        throw RuntimeError{.kind = InvalidOperand{.type = typeFor(lhs)},
+                           .pos = vec_pos};
+    }
 
-//     for (auto const& val : lhs_vec->elements) {
-//         stack_.current().pushScope();
-//         stack_.current().declareVariable(filter_func->params[0]->identifier,
-//                                          Variable(val, false, pos));
-//         auto result = visitFunctionDefinition(*filter_func);
-//         stack_.current().popScope();
-//         // use result
-//     }
-// }
+    auto const* const func_ident = std::get_if<Identifier>(&**expr.right);
+    if (func_ident == nullptr) {
+        throw RuntimeError{.kind = ExpectedFunction{}, .pos = filter_pos};
+    }
+
+    std::vector<Value> filtered_vec{};
+
+    stack_.current().pushScope();
+    stack_.current().declareVariable("temp", Variable(Value{}, false, vec_pos));
+    auto* temp = stack_.current().lookupVariable("temp");
+
+    for (auto& elem : lhs_vec->elements) {
+        temp->data() = elem;
+        std::vector<ExprNode> args;
+        args.emplace_back(filter_pos, Identifier{.identifier = "temp"});
+        auto const fun_call = FunctionCall{.identifier = func_ident->identifier,
+                                           .args = std::move(args)};
+        auto res = visitFunctionCall(fun_call, filter_pos);
+        if (toBool(res)) {
+            filtered_vec.push_back(elem);
+        }
+    }
+    stack_.current().popScope();
+    return VecValue{.type = lhs_vec->type, .elements = std::move(filtered_vec)};
+}
 
 EvalResult Interpreter::coerceIfNeeded(Value val, Type const& target) {
     if (typeFor(val) == target) {
@@ -676,7 +695,7 @@ std::optional<Value> Interpreter::coerceVec(Value value, Type const& target) {
     return VecValue{.type = target.element(), .elements = std::move(coerced)};
 }
 
-bool Interpreter::isCoercibleEmptyVec(Type const& type) {
+bool Interpreter::isCoercibleEmptyVec(Type const& type) noexcept {
     if (type == PrimitiveType::EmptyVec) {
         return true;
     }

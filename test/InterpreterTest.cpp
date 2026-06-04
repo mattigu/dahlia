@@ -48,9 +48,13 @@ public:
                                       pos0_, Block{std::move(statements)})}))));
     }
 
-    void initExpr(TestOptions const& opts, ExprNode expr) {
-        initMain(opts, makeStatements(
-                           StatementNode(pos0_, ReturnStmt{std::move(expr)})));
+    template <typename... FunctionNodes>
+    void initExpr(TestOptions const& opts, ExprNode expr,
+                  FunctionNodes&&... fns) {
+        initMain(
+            opts,
+            makeStatements(StatementNode(pos0_, ReturnStmt{std::move(expr)})),
+            std::forward<FunctionNodes>(fns)...);
     }
 
     template <typename... FunctionNodes>
@@ -193,6 +197,54 @@ public:
                                                                     1}))))}),
                                             ExprNode(pos0_,
                                                      IntLiteral{1})))}))})});
+    }
+
+    FunctionNode is_even(Position pos) {  // NOLINT
+        // fn is_even(n : int) -> bool {
+        //     return n % 2 == 0;
+        // }
+        return FunctionNode(
+            pos,
+            Function{
+                .identifier = "is_even",
+                .params = makeVec<ParamNode>(ParamNode(
+                    pos, Param{.type = TypeNode(pos, PrimitiveType::Int),
+                               .identifier = "n",
+                               .mut = false})),
+                .return_type = TypeNode(pos, PrimitiveType::Bool),
+                .block = BlockNode(
+                    pos,
+                    Block{
+                        .statements = makeStatements(StatementNode(
+                            pos,
+                            ReturnStmt{
+                                .value = ExprNode(
+                                    pos,
+                                    EqExpr(
+                                        ExprNode(
+                                            pos,
+                                            ModExpr(
+                                                ExprNode(pos, Identifier{"n"}),
+                                                ExprNode(pos, IntLiteral{2}))),
+                                        ExprNode(pos, IntLiteral{0})))}))})});
+    }
+
+    FunctionNode add_one(Position pos) {  // NOLINT
+        // fn add_one(n : int) -> int {
+        //     return n + 1;
+        // }
+        return FunctionNode(
+            pos,
+            Function{.identifier = "add_one",
+                     .params = makeVec<ParamNode>(ParamNode(
+                         pos, Param{.type = TypeNode(pos, PrimitiveType::Int),
+                                    .identifier = "b",
+                                    .mut = false})),
+                     .return_type = TypeNode(pos, PrimitiveType::Int),
+                     .block = BlockNode(
+                         pos, Block{.statements = makeStatements(
+                                        let_mut_a_eq(1), a_plus_eq_b(),
+                                        return_a())})});
     }
 
     FunctionNode fun_void() {  // NOLINT
@@ -645,6 +697,82 @@ TEST_CASE_FIXTURE(InterpreterFixture,
     CHECK(value == VecValue{.type = PrimitiveType::Int, .elements = {1}});
 }
 
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals filter expression") {
+    initExpr(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        ExprNode(
+            pos1,
+            FilterExpr(
+                ExprNode(pos1, VecLiteral{.elements = makeExprs(
+                                              ExprNode(pos1, IntLiteral{1}),
+                                              ExprNode(pos1, IntLiteral{2}),
+                                              ExprNode(pos1, IntLiteral{3}),
+                                              ExprNode(pos1, IntLiteral{4}))}),
+                ExprNode(pos1, Identifier{"is_even"}))),
+        is_even(pos1));
+
+    auto const value = run();
+
+    CHECK(value == VecValue{.type = PrimitiveType::Int, .elements = {2, 4}});
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter throws normal function errors in filter expressions") {
+    initExpr(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        ExprNode(
+            pos1,
+            FilterExpr(ExprNode(pos1, VecLiteral{.elements = makeExprs(ExprNode(
+                                                     pos1, IntLiteral{4}))}),
+                       ExprNode(pos3, Identifier{"test"}))),
+        FunctionNode(
+            pos1,
+            Function{.identifier = "test",
+                     .params = makeVec<ParamNode>(ParamNode(
+                         pos1, Param{.type = TypeNode(pos1, PrimitiveType::Int),
+                                     .identifier = "b",
+                                     .mut = true})),
+                     .block = BlockNode(pos1, Block{})}));
+
+    auto const value = run();
+
+    CHECK(value == std::unexpected(RuntimeError{.kind=MutViolation{}, .pos=pos3}));
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter, filter expression throws when a function is not given/found") {
+    initExpr(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        ExprNode(
+            pos1,
+            FilterExpr(ExprNode(pos1, VecLiteral{.elements = makeExprs(ExprNode(
+                                                     pos1, IntLiteral{4}))}),
+                       ExprNode(pos3, IntLiteral{1})))
+);
+
+    auto const value = run();
+
+    CHECK(value == std::unexpected(RuntimeError{.kind=ExpectedFunction{}, .pos=pos3}));
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter, filter expression throws when a vector is not given") {
+    initExpr(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        ExprNode(
+            pos1,
+            FilterExpr(ExprNode(pos3, IntLiteral{2}),
+                       ExprNode(pos1, IntLiteral{1})))
+);
+
+    auto const value = run();
+
+    CHECK(value == std::unexpected(RuntimeError{.kind=InvalidOperand{.type=PrimitiveType::Int}, .pos=pos3}));
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter evals comparison expressions") {
     initExpr({.return_type = PrimitiveType::Bool},
@@ -919,8 +1047,7 @@ TEST_CASE_FIXTURE(
             return_a()));
 
     auto const value = run();
-    CHECK(value ==
-          VecValue{.type = PrimitiveType::Int, .elements = {1, 2}});
+    CHECK(value == VecValue{.type = PrimitiveType::Int, .elements = {1, 2}});
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,

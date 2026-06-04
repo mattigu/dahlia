@@ -121,6 +121,10 @@ struct IndexOutOfBounds {
     bool operator==(IndexOutOfBounds const&) const noexcept = default;
 };
 
+struct ExpectedFunction {
+    bool operator==(ExpectedFunction const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
                  UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow,
@@ -130,7 +134,7 @@ using RuntimeErrorKind =
                  CallDepthExceeded, VoidTypeInExpression, MutViolation,
                  MutArgExpression, ArgumentCountMismatch, MissingReturnValue,
                  UnexpectedReturnValue, CannotInferEmptyVec, MutArgTypeMismatch,
-                 BuiltinRedifined, IndexOutOfBounds>;
+                 BuiltinRedifined, IndexOutOfBounds, ExpectedFunction>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;
