@@ -6,6 +6,7 @@
 
 #include "CLI/CLI.hpp"
 #include "dahlia_lib/Builtins.h"
+#include "dahlia_lib/DiagnosticPrinter.h"
 #include "dahlia_lib/Interpreter.h"
 #include "dahlia_lib/Lexer.h"
 #include "dahlia_lib/Parser.h"
@@ -14,7 +15,7 @@
 int main(int argc, char** argv) {
     CLI::App app;
 
-    std::filesystem::path file_path;
+    std::string file_path;
     std::string program_string;
 
     auto* program_opt =
@@ -42,6 +43,9 @@ int main(int argc, char** argv) {
     auto parser = Parser(Lexer(*input, LexerOptions{}));
 
     auto const program = parser.parse();
+
+    std::string source_name = *file_opt ? file_path : "input";
+    auto printer = DiagnosticPrinter(std::move(source_name), std::cout, *input);
     if (!program) {
         std::println("Parsing failed");
         return 1;
@@ -52,7 +56,8 @@ int main(int argc, char** argv) {
 
     auto const result = interpreter.run(*program);
     if (!result) {
-        std::println("Program failed");
+        printer.printErrorWithStackTrace(result.error(),
+                                         interpreter.stackTrace());
         return 1;
     }
     std::println("{}", *result);

@@ -1,0 +1,62 @@
+#include "dahlia_lib/DiagnosticPrinter.h"
+
+#include <format>
+#include <print>
+
+#include "dahlia_lib/DiagnosticMessages.h"
+#include "dahlia_lib/Position.h"
+#include "dahlia_lib/RuntimeError.h"
+#include "dahlia_lib/Stack.h"
+
+DiagnosticPrinter::DiagnosticPrinter(std::string source, std::ostream& output,
+                                     std::istream& input)
+    : source_name_(std::move(source)), output_(output), input_(input) {
+    input_.clear();
+}
+
+void DiagnosticPrinter::printErrorWithStackTrace(RuntimeError const& err,
+                                                 StackTrace const& stacktrace) {
+    printStackTrace(stacktrace);
+    printError(err);
+}
+
+void DiagnosticPrinter::printStackTrace(StackTrace const& stacktrace) const {
+    for (auto const& info : stacktrace) {
+        println(output_, "{} in {}", formatLocation(info.pos), info.name);
+    }
+}
+
+void DiagnosticPrinter::printError(RuntimeError const& err) {
+    auto msg = messageFor(err.kind);
+    std::println(output_, "{}", formatLocation(err.pos));
+    std::println(output_, "{}", getLine(err.pos));
+    std::println(output_, "{}", pointToErrorLine(err.pos));
+    std::println(output_, "Error: {}", std::move(msg));
+}
+
+std::string DiagnosticPrinter::formatLocation(Position pos) const {
+    return std::format("{}:{}", source_name_, formatPosition(pos));
+}
+
+std::string DiagnosticPrinter::formatPosition(Position pos) {
+    return std::format("{}:{}", pos.line, pos.column);
+}
+
+std::string DiagnosticPrinter::getLine(Position pos) {
+    // Assumes stream is seekable
+    assert(pos.line > 0);
+
+    input_.seekg(0);
+    std::string line;
+    for (int current = 1; std::getline(input_, line); ++current) {
+        if (current == pos.line) {
+            return line;
+        }
+    }
+    return "";
+}
+
+constexpr std::string DiagnosticPrinter::pointToErrorLine(Position pos) {
+    assert(pos.column > 0);
+    return std::string(pos.column - 1, ' ') + "^";
+}

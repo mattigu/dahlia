@@ -17,6 +17,9 @@ add_library(dahlia_lib STATIC
     src/Stack.cpp
     src/Value.cpp
     src/Builtins.cpp
+    src/DiagnosticPrinter.cpp
+    src/DiagnosticMessages.cpp
+
 )
 
 target_link_libraries(dahlia_lib
