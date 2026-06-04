@@ -125,6 +125,10 @@ struct ExpectedFunction {
     bool operator==(ExpectedFunction const&) const noexcept = default;
 };
 
+struct VoidMapFunction {
+    bool operator==(VoidMapFunction const&) const noexcept = default;
+};
+
 using RuntimeErrorKind =
     std::variant<UnexpectedBreak, UnexpectedContinue, MissingMainFunction,
                  UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow,
@@ -134,7 +138,7 @@ using RuntimeErrorKind =
                  CallDepthExceeded, VoidTypeInExpression, MutViolation,
                  MutArgExpression, ArgumentCountMismatch, MissingReturnValue,
                  UnexpectedReturnValue, CannotInferEmptyVec, MutArgTypeMismatch,
-                 BuiltinRedifined, IndexOutOfBounds, ExpectedFunction>;
+                 BuiltinRedifined, IndexOutOfBounds, ExpectedFunction, VoidMapFunction>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

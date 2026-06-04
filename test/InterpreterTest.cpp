@@ -737,40 +737,108 @@ TEST_CASE_FIXTURE(
 
     auto const value = run();
 
-    CHECK(value == std::unexpected(RuntimeError{.kind=MutViolation{}, .pos=pos3}));
+    CHECK(value ==
+          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos3}));
 }
 
-TEST_CASE_FIXTURE(
-    InterpreterFixture,
-    "Interpreter, filter expression throws when a function is not given/found") {
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter, filter expression throws when a function is "
+                  "not given/found") {
     initExpr(
         {.return_type = Type::vec(PrimitiveType::Int)},
         ExprNode(
             pos1,
             FilterExpr(ExprNode(pos1, VecLiteral{.elements = makeExprs(ExprNode(
                                                      pos1, IntLiteral{4}))}),
-                       ExprNode(pos3, IntLiteral{1})))
-);
+                       ExprNode(pos3, IntLiteral{1}))));
 
     auto const value = run();
 
-    CHECK(value == std::unexpected(RuntimeError{.kind=ExpectedFunction{}, .pos=pos3}));
+    CHECK(value == std::unexpected(
+                       RuntimeError{.kind = ExpectedFunction{}, .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(
     InterpreterFixture,
     "Interpreter, filter expression throws when a vector is not given") {
+    initExpr({.return_type = Type::vec(PrimitiveType::Int)},
+             ExprNode(pos1, FilterExpr(ExprNode(pos3, IntLiteral{2}),
+                                       ExprNode(pos1, IntLiteral{1}))));
+
+    auto const value = run();
+
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = InvalidOperand{.type = PrimitiveType::Int},
+                       .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals map expression") {
     initExpr(
         {.return_type = Type::vec(PrimitiveType::Int)},
         ExprNode(
             pos1,
-            FilterExpr(ExprNode(pos3, IntLiteral{2}),
-                       ExprNode(pos1, IntLiteral{1})))
-);
+            MapExpr(
+                ExprNode(pos1, VecLiteral{.elements = makeExprs(
+                                              ExprNode(pos1, IntLiteral{1}),
+                                              ExprNode(pos1, IntLiteral{2}),
+                                              ExprNode(pos1, IntLiteral{3}),
+                                              ExprNode(pos1, IntLiteral{4}))}),
+                ExprNode(pos1, Identifier{"add_one"}))),
+        add_one(pos1));
 
     auto const value = run();
 
-    CHECK(value == std::unexpected(RuntimeError{.kind=InvalidOperand{.type=PrimitiveType::Int}, .pos=pos3}));
+    CHECK(value ==
+          VecValue{.type = PrimitiveType::Int, .elements = {2, 3, 4, 5}});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter throws when map func is void") {
+    initExpr(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        ExprNode(
+            pos1,
+            MapExpr(
+                ExprNode(pos1, VecLiteral{.elements = makeExprs(
+                                              ExprNode(pos1, IntLiteral{1}),
+                                              ExprNode(pos1, IntLiteral{2}),
+                                              ExprNode(pos1, IntLiteral{3}),
+                                              ExprNode(pos1, IntLiteral{4}))}),
+                ExprNode(pos3, Identifier{"void"}))),
+        fun_void());
+
+    auto const value = run();
+
+    CHECK(value == std::unexpected(
+                       RuntimeError{.kind = VoidMapFunction{}, .pos = pos3}));
+}
+
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter doesn't allow mut variables in map expr(also filter)") {
+    initExpr(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        ExprNode(
+            pos1,
+            MapExpr(
+                ExprNode(pos1, VecLiteral{.elements = makeExprs(
+
+                                              ExprNode(pos1, IntLiteral{4}))}),
+                ExprNode(pos3, Identifier{"add_one"}))),
+        FunctionNode(
+            pos1,
+            Function{.identifier = "add_one",
+                     .params = makeVec<ParamNode>(ParamNode(
+                         pos1, Param{.type = TypeNode(pos1, PrimitiveType::Int),
+                                     .identifier = "b",
+                                     .mut = true})),
+                     .return_type = TypeNode(pos1, PrimitiveType::Int),
+                     .block = BlockNode(pos1, Block{})}));
+
+    auto const value = run();
+
+    CHECK(value ==
+          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,

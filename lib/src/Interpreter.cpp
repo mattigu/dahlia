@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <expected>
+#include <optional>
 #include <ranges>
 #include <utility>
 #include <variant>
@@ -183,6 +184,9 @@ Value Interpreter::visitFunctionDefinition(FunctionNode const& fun) {
             },
             [&](FilterExpr const& filter) -> EvalResult {
                 return visitFilterExpr(filter, expr.pos());
+            },
+            [&](MapExpr const& map) -> EvalResult {
+                return visitMapExpr(map, expr.pos());
             },
 
             [](auto const& value) -> EvalResult { return Value{}; }
@@ -583,7 +587,7 @@ Value Interpreter::visitFilterExpr(FilterExpr const& expr, Position pos) {
     auto lhs = visitExpr(*expr.left);
 
     auto const vec_pos = expr.left->pos();
-    auto const filter_pos = expr.right->pos();
+    auto const filter_func_pos = expr.right->pos();
 
     auto* const lhs_vec = std::get_if<VecValue>(&lhs);
     if (lhs_vec == nullptr) {
@@ -593,7 +597,7 @@ Value Interpreter::visitFilterExpr(FilterExpr const& expr, Position pos) {
 
     auto const* const func_ident = std::get_if<Identifier>(&**expr.right);
     if (func_ident == nullptr) {
-        throw RuntimeError{.kind = ExpectedFunction{}, .pos = filter_pos};
+        throw RuntimeError{.kind = ExpectedFunction{}, .pos = filter_func_pos};
     }
 
     std::vector<Value> filtered_vec{};
@@ -605,16 +609,63 @@ Value Interpreter::visitFilterExpr(FilterExpr const& expr, Position pos) {
     for (auto& elem : lhs_vec->elements) {
         temp->data() = elem;
         std::vector<ExprNode> args;
-        args.emplace_back(filter_pos, Identifier{.identifier = "temp"});
+        args.emplace_back(filter_func_pos, Identifier{.identifier = "temp"});
         auto const fun_call = FunctionCall{.identifier = func_ident->identifier,
                                            .args = std::move(args)};
-        auto res = visitFunctionCall(fun_call, filter_pos);
+        auto res = visitFunctionCall(fun_call, filter_func_pos);
         if (toBool(res)) {
             filtered_vec.push_back(elem);
         }
     }
     stack_.current().popScope();
     return VecValue{.type = lhs_vec->type, .elements = std::move(filtered_vec)};
+}
+
+Value Interpreter::visitMapExpr(MapExpr const& expr, Position pos) {
+    auto lhs = visitExpr(*expr.left);
+
+    auto const vec_pos = expr.left->pos();
+    auto const map_func_pos = expr.right->pos();
+
+    auto* const lhs_vec = std::get_if<VecValue>(&lhs);
+    if (lhs_vec == nullptr) {
+        throw RuntimeError{.kind = InvalidOperand{.type = typeFor(lhs)},
+                           .pos = vec_pos};
+    }
+
+    auto const* const func_ident = std::get_if<Identifier>(&**expr.right);
+    if (func_ident == nullptr) {
+        throw RuntimeError{.kind = ExpectedFunction{}, .pos = map_func_pos};
+    }
+    auto const map_func = program_->functions.find(func_ident->identifier);
+    if (map_func == program_->functions.cend() ||
+        map_func->second->return_type == std::nullopt) {
+        throw RuntimeError{.kind = VoidMapFunction{}, .pos = map_func_pos};
+    }
+
+    Type return_type =
+        **map_func->second->return_type;  // Placeholder filled below
+
+    std::vector<Value> mapped_vec{};
+    mapped_vec.reserve(lhs_vec->elements.size());
+
+    stack_.current().pushScope();
+    stack_.current().declareVariable("temp", Variable(Value{}, false, vec_pos));
+    auto* temp = stack_.current().lookupVariable("temp");
+
+    for (auto& elem : lhs_vec->elements) {
+        temp->data() = elem;
+        std::vector<ExprNode> args;
+        args.emplace_back(map_func_pos, Identifier{.identifier = "temp"});
+        auto const fun_call = FunctionCall{.identifier = func_ident->identifier,
+                                           .args = std::move(args)};
+        auto res = visitFunctionCall(fun_call, map_func_pos);
+
+        mapped_vec.push_back(std::move(res));
+    }
+    stack_.current().popScope();
+    return VecValue{.type = std::move(return_type),
+                    .elements = std::move(mapped_vec)};
 }
 
 EvalResult Interpreter::coerceIfNeeded(Value val, Type const& target) {
