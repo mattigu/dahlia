@@ -26,6 +26,7 @@ target_link_libraries(dahlia_lib
     PRIVATE magic_enum::magic_enum
 )
 
+target_include_directories(dahlia_lib PRIVATE ${CMAKE_SOURCE_DIR}/third_party/utf8cpp/)
 target_include_directories(dahlia_lib
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

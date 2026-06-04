@@ -24,7 +24,8 @@ private:
     [[nodiscard]] std::string formatLocation(Position pos) const;
     static std::string formatPosition(Position pos);
 
-    static constexpr std::string pointToErrorLine(Position pos);
+    static std::string pointToErrorLine(std::string const& line,
+                                                  Position pos);
 
     std::string getLine(Position pos);
 

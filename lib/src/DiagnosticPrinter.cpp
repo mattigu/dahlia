@@ -8,6 +8,8 @@
 #include "dahlia_lib/RuntimeError.h"
 #include "dahlia_lib/Stack.h"
 
+#include <utf8.h>
+
 DiagnosticPrinter::DiagnosticPrinter(std::string source, std::ostream& output,
                                      std::istream& input)
     : source_name_(std::move(source)), output_(output), input_(input) {
@@ -29,8 +31,9 @@ void DiagnosticPrinter::printStackTrace(StackTrace const& stacktrace) const {
 void DiagnosticPrinter::printError(RuntimeError const& err) {
     auto msg = messageFor(err.kind);
     std::println(output_, "{}", formatLocation(err.pos));
-    std::println(output_, "{}", getLine(err.pos));
-    std::println(output_, "{}", pointToErrorLine(err.pos));
+    auto const error_line = getLine(err.pos);
+    std::println(output_, "{}", error_line);
+    std::println(output_, "{}", pointToErrorLine(error_line, err.pos));
     std::println(output_, "Error: {}", std::move(msg));
 }
 
@@ -56,7 +59,11 @@ std::string DiagnosticPrinter::getLine(Position pos) {
     return "";
 }
 
-constexpr std::string DiagnosticPrinter::pointToErrorLine(Position pos) {
+std::string DiagnosticPrinter::pointToErrorLine(std::string const& line,
+                                                Position pos) {
     assert(pos.column > 0);
-    return std::string(pos.column - 1, ' ') + "^";
+    auto begin = line.begin();
+    auto end = line.begin() + (pos.column - 1);
+    int width = utf8::distance(begin, end);
+    return std::string(width, ' ') + "^";
 }
