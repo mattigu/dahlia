@@ -62,8 +62,8 @@ std::string DiagnosticPrinter::getLine(Position pos) {
 std::string DiagnosticPrinter::pointToErrorLine(std::string const& line,
                                                 Position pos) {
     assert(pos.column > 0);
-    auto begin = line.begin();
-    auto end = line.begin() + (pos.column - 1);
-    int width = utf8::distance(begin, end);
+    auto const begin = line.begin();
+    auto const end = line.begin() + (pos.column - 1);
+    auto const width = utf8::distance(begin, end);
     return std::string(width, ' ') + "^";
 }
