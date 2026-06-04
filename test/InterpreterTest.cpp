@@ -1744,8 +1744,9 @@ TEST_CASE_FIXTURE(
                                                   pos1, IntLiteral{1}))})})),
              fun_return_1());
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = ArgumentCountMismatch{},
-                                                .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = ArgumentCountMismatch{.expected = 0, .got = 1},
+                       .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,

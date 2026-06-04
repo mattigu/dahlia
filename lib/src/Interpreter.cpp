@@ -475,7 +475,10 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
     auto const& fun = iter->second;
 
     if (fun->params.size() != fun_call.args.size()) {
-        throw RuntimeError{.kind = ArgumentCountMismatch{}, .pos = pos};
+        throw RuntimeError{
+            .kind = ArgumentCountMismatch{.expected = static_cast<int>(fun->params.size()),
+                                          .got = static_cast<int>(fun_call.args.size())},
+            .pos = pos};
     }
 
     std::vector<Variable> args_vars;

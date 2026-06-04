@@ -92,6 +92,9 @@ struct MutArgExpression {
 };
 
 struct ArgumentCountMismatch {
+    int expected;
+    int got;
+
     bool operator==(ArgumentCountMismatch const&) const noexcept = default;
 };
 
