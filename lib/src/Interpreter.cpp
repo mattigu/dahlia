@@ -31,7 +31,9 @@ std::expected<Value, RuntimeError> Interpreter::run(
     }
 }
 
-StackTrace Interpreter::stackTrace() const  noexcept{ return stack_.stackTrace(); }
+StackTrace Interpreter::stackTrace() const noexcept {
+    return stack_.stackTrace();
+}
 
 Value Interpreter::visitProgram(ProgramNode const& program) {
     auto const main = program->functions.find("main");
@@ -417,7 +419,7 @@ void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
     auto val = visitExpr(let.value);
     auto val_type = typeFor(val);
 
-    if (!let.type && val_type == PrimitiveType::EmptyVec) {
+    if (!let.type && isCoercibleEmptyVec(val_type)) {
         throw RuntimeError{.kind = CannotInferEmptyVec{}, .pos = pos};
     }
 
