@@ -287,24 +287,12 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
     auto const val_type = typeFor(value);
     auto const var_type = typeFor(val_ref);
 
-    if (isCoercibleEmptyVec(val_type)) {
-        auto coerced = coerceVec(std::move(value), var_type);
-
-        if (!coerced) {
-            throw RuntimeError{
-                .kind = InvalidConversion{.from = val_type, .to = var_type},
-                .pos = pos};
-        }
-        val_ref = std::move(*coerced);
-
-    } else {
-        auto coerced = coerceIfNeeded(value, var_type);
-        if (!coerced) {
-            throw RuntimeError{.kind = coerced.error(),
-                               .pos = statement.value.pos()};
-        }
-        val_ref = std::move(*coerced);
+    auto coerced = coerceIfNeeded(value, var_type);
+    if (!coerced) {
+        throw RuntimeError{.kind = coerced.error(),
+                           .pos = statement.value.pos()};
     }
+    val_ref = std::move(*coerced);
 }
 
 Value& Interpreter::visitLValue(LValue const& lval, Position pos) {
