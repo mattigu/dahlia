@@ -80,14 +80,14 @@ Type::Type(VecType vec) : value_(std::move(vec)) {}
 
 Type Type::vec(Type inner) { return Type{VecType{std::move(inner)}}; }
 
-bool Type::isVec() const { return std::holds_alternative<VecType>(value_); }
+bool Type::isVec() const noexcept { return std::holds_alternative<VecType>(value_); }
 
 Type const& Type::element() const {
     assert(isVec());
     return *std::get<VecType>(value_).inner;
 }
 
-bool Type::isPrimitive() const {
+bool Type::isPrimitive() const noexcept {
     return std::holds_alternative<PrimitiveType>(value_);
 }
 

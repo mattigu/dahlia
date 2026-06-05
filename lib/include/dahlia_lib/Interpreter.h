@@ -22,7 +22,7 @@ public:
 
     std::expected<Value, RuntimeError> run(ProgramNode const& program);
 
-    StackTrace stackTrace() const;
+    StackTrace stackTrace() const noexcept;
 
 private:
     Stack stack_;

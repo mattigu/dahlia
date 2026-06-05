@@ -61,12 +61,12 @@ public:
 
     static Type vec(Type inner);
 
-    [[nodiscard]] bool isVec() const;
+    [[nodiscard]] bool isVec() const noexcept;
 
     //! Returns the inner type of Vec.
     [[nodiscard]] Type const& element() const;
 
-    [[nodiscard]] bool isPrimitive() const;
+    [[nodiscard]] bool isPrimitive() const noexcept;
     [[nodiscard]] PrimitiveType asPrimitive() const;
 
     bool operator==(Type const& other) const = default;

@@ -31,7 +31,7 @@ std::expected<Value, RuntimeError> Interpreter::run(
     }
 }
 
-StackTrace Interpreter::stackTrace() const { return stack_.stackTrace(); }
+StackTrace Interpreter::stackTrace() const  noexcept{ return stack_.stackTrace(); }
 
 Value Interpreter::visitProgram(ProgramNode const& program) {
     auto const main = program->functions.find("main");
@@ -40,7 +40,7 @@ Value Interpreter::visitProgram(ProgramNode const& program) {
         throw RuntimeError{.kind = MissingMainFunction{}, .pos = program.pos()};
     }
 
-    auto duplicate = std::ranges::find_if(
+    auto const duplicate = std::ranges::find_if(
         program->functions,
         [&](auto const& val) { return builtins_.contains(val.first); });
 
