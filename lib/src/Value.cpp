@@ -418,8 +418,53 @@ EvalResult coerce(Value const& value, Type const& target) noexcept {
     if (target == Type(PrimitiveType::Int)) {
         return toInt(value);
     }
+    if (isCoercibleEmptyVec(typeFor(value))) {
+        if (auto coerced = coerceVec(value, target)) {
+            return *coerced;
+        }
+    }
     return std::unexpected(
         InvalidConversion{.from = typeFor(value), .to = target});
+}
+
+std::optional<Value> coerceVec(Value value, Type const& target) {
+    if (!target.isVec()) {
+        return std::nullopt;
+    }
+
+    if (std::holds_alternative<UninitVec>(value)) {
+        return VecValue{.type = target.element(), .elements = {}};
+    }
+
+    auto* vec = std::get_if<VecValue>(&value);
+    if (vec == nullptr) {
+        return std::nullopt;
+    }
+
+    if (vec->type == target.element()) {
+        return value;
+    }
+
+    std::vector<Value> coerced;
+    coerced.reserve(vec->elements.size());
+    for (auto& elem : vec->elements) {
+        auto result = coerceVec(std::move(elem), target.element());
+        if (!result) {
+            return std::nullopt;
+        }
+        coerced.push_back(std::move(*result));
+    }
+    return VecValue{.type = target.element(), .elements = std::move(coerced)};
+}
+
+bool isCoercibleEmptyVec(Type const& type) noexcept {
+    if (type == PrimitiveType::EmptyVec) {
+        return true;
+    }
+    if (type.isVec()) {
+        return isCoercibleEmptyVec(type.element());
+    }
+    return false;
 }
 
 using DoubleResult = std::expected<double, RuntimeErrorKind>;

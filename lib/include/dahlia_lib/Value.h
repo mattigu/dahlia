@@ -93,11 +93,9 @@ EvalResult contains(Value const& lhs, Value const& rhs) noexcept;
 using IndexResult = std::expected<Value*, RuntimeErrorKind>;
 IndexResult index(Value& lhs, Value const& rhs) noexcept;
 
-
-
-
-
 EvalResult coerce(Value const& val, Type const& target) noexcept;
+std::optional<Value> coerceVec(Value value, Type const& target);
+bool isCoercibleEmptyVec(Type const& type) noexcept;
 
 bool toBool(Value const& val) noexcept;
 

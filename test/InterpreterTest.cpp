@@ -1987,6 +1987,42 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                                                 .pos = pos3}));
 }
 
+TEST_CASE_FIXTURE(
+    InterpreterFixture,
+    "Interpreter converts empty vecs as expressions in function arguments") {
+    // return empty_vec_test([[]]);
+    initMain(
+        {.return_type = Type::vec(Type::vec(PrimitiveType::Int))},
+        makeStatements(StatementNode(
+            pos1,
+            ReturnStmt{
+                .value = ExprNode(
+                    pos1,
+                    FunctionCall{
+                        .identifier = "empty_vec_test",
+                        .args = makeExprs(ExprNode(
+                            pos1, VecLiteral{.elements = makeExprs(ExprNode(
+                                                 pos1, VecLiteral{}))}))})})),
+        FunctionNode(
+            pos1,
+            Function{
+                .identifier = "empty_vec_test",
+                .params = makeParams(ParamNode(
+                    pos1,
+                    Param{.type = TypeNode(
+                              pos1, Type::vec(Type::vec(PrimitiveType::Int))),
+                          .identifier = "a",
+                          .mut = false})),
+                .return_type =
+                    TypeNode(pos1, Type::vec(Type::vec(PrimitiveType::Int))),
+                .block = BlockNode(pos1, Block{makeStatements(return_a())})}));
+
+    auto const value = run();
+    CHECK(value == VecValue{.type = Type::vec(PrimitiveType::Int),
+                            .elements = {VecValue{.type = PrimitiveType::Int,
+                                                  .elements = {}}}});
+}
+
 TEST_CASE_FIXTURE(InterpreterFixture,
                   "Interpreter converts return value if possible") {
     initMain(
