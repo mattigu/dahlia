@@ -425,7 +425,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
-                  "Interpreter let binding requires type when assigning a "
+                  "Interpreter let binding requires type when binding a "
                   "empty vec literal") {
     initMain({}, makeStatements(StatementNode(
                      pos2, LetBinding{.identifier = "a",
@@ -438,7 +438,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
-                  "Interpreter let binding requires type when assigning a "
+                  "Interpreter let binding requires type when binding a "
                   "nested empty vec literal") {
     initMain(
         {}, makeStatements(StatementNode(
@@ -456,7 +456,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
-                  "Interpreter assigns empty vec literal to variable") {
+                  "Interpreter binds empty vec literal to variable") {
     initMain({.return_type = Type::vec(PrimitiveType::Int)},
              makeStatements(
                  StatementNode(
@@ -473,7 +473,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 
 TEST_CASE_FIXTURE(
     InterpreterFixture,
-    "Interpreter assigns double nested empty vec literal to variable") {
+    "Interpreter binds double nested empty vec literal to variable") {
     initMain(
         {.return_type = Type::vec(Type::vec(PrimitiveType::Int))},
         makeStatements(
@@ -1035,6 +1035,52 @@ TEST_CASE_FIXTURE(InterpreterFixture,
 
     auto const value = run();
     CHECK(value == Value{2});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter assigns empty vec to variable") {
+    initMain({.return_type = Type::vec(PrimitiveType::Int)},
+             makeStatements(
+                 StatementNode(
+                     pos1, LetBinding{.identifier = "a",
+                                      .mut = true,
+                                      .type = TypeNode(
+                                          pos1, Type::vec(PrimitiveType::Int)),
+                                      .value = ExprNode(pos1, VecLiteral{})}),
+                 StatementNode(pos1, AssignStmt(LValue{.identifier = "a"},
+                                                ExprNode(pos1, VecLiteral{}))),
+                 return_a()));
+
+    auto const value = run();
+    CHECK(value == VecValue{.type = PrimitiveType::Int, .elements = {}});
+}
+
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter assigns nested empty vec to variable") {
+    initMain(
+        {.return_type = Type::vec(Type::vec(PrimitiveType::Int))},
+        makeStatements(
+            StatementNode(
+                pos1,
+                LetBinding{.identifier = "a",
+                           .mut = true,
+                           .type = TypeNode(
+                               pos1, Type::vec(Type::vec(PrimitiveType::Int))),
+                           .value = ExprNode(
+                               pos1, VecLiteral{.elements = makeExprs(ExprNode(
+                                                    pos1, VecLiteral{}))})}),
+            StatementNode(
+                pos1,
+                AssignStmt(
+                    LValue{.identifier = "a"},
+                    ExprNode(pos1, VecLiteral{.elements = makeExprs(ExprNode(
+                                                  pos1, VecLiteral{}))}))),
+            return_a()));
+
+    auto const value = run();
+    CHECK(value == VecValue{.type = Type::vec(PrimitiveType::Int),
+                            .elements = {VecValue{.type = PrimitiveType::Int,
+                                                  .elements = {}}}});
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
