@@ -6,11 +6,23 @@ Dahlia is a general purpouse scripting language.
 - Immutable bindings by default
 - Reference semantics for objects, value semantics for primitives
 
+## Compilation
+The project uses c++26 for it's checked arithmetic which requires libstdc++ 15, otherwise it's all c++23.
+
+to build the project run
+
+```
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+The cli executable is at `build/app/dahlia`, the tests are at `/build/test/dahlia_test`
+
+
 ## Interpreter usage
 
 ### Interpreter options
 ```
-$ dal [options] [file]
+$ dahlia [options] [file]
 ```
 
 | Option | Description |
@@ -32,12 +44,6 @@ $ dal example.dal
 Hello from file.
 ```
 
-### Running from a stream
-
-```
-$ echo 'fn main() { println("Hello from stream."); }' | dal
-Hello from stream.
-```
 
 ## Language features
 
@@ -102,51 +108,7 @@ The `@` operator returns the size of the string.
 let a = "123";
 let size = @a;  # 3
 ```
-#### struct
-!!! Structs might not be implemented, but this is roughly how they would work.
 
-`struct` is a user defined type that groups named fields together.
-Structures can only be defined in the top level scope.
-```
-struct Point {
-    x: int,
-    y: int,     # Comma after last field is optional
-}
-
-
-let p = Point { x: 1, y: 2 };   # named field initialization
-let x = 1;
-let p = Point { x, y: 2 };      # shorthand when variable name matches field name
-```
-Field mutability follows the binding - if the binding is `mut`, all fields are mutable:
-```
-let p = Point { x: 1, y: 2 };
-p.x = 5;                        # error - p is immutable
-
-let mut p = Point { x: 1, y: 2 };
-p.x = 5;                        # fine
-```
-
-Invalid states
-```
-# A struct must have at least 1 field. ( May be changed if methods are added )
-
-struct Point {}
-ERROR: struct "Point" must have at least 1 field.
-
-
-# Field names must not repeat inside a struct.
-struct Point {
-    a : int,
-    a : int,
-}
-ERROR: field "a" is already defined in struct "Point"
-
-# A struct with the same name can't be redefined.
-struct Point { ... }
-struct Point { ... }
-ERROR: struct "Point" is already defined.
-```
 
 #### Numeric literals
 `int` and `float` support "_" separators for readability.
@@ -923,7 +885,7 @@ WARNING: variable "a" is declared but never used.
 ### Insertion sort
 
 ```
-fn insertionSort(mut arr : vec<int>) {
+fn insertionSort(mut arr : [int]) {
     for mut i in 1..(@arr) {
         let x = arr[i];
 
@@ -938,47 +900,9 @@ fn insertionSort(mut arr : vec<int>) {
 fn main() {
     let mut nums = [3, 1 , -4, 10];
     insertionSort(nums);
-    for i in 0..(@nums) {
-        println(nums[i]);
-    }
+    println(nums);
 }
 
-# Result
->>> -4
->>> 1
->>> 3
->>> 10
-```
 
-### Possible features
-- Importing other files
-- Vector initialization similar to `for x in 0..5` loop syntax.
+>>> [-4, 1, 3, 10]
 ```
-let a = [0..5..2]   # [0, 2, 4]
-```
-- indexing vectors with the syntax described above. `let a = some_vec[0..5]`. Could also make a slice type for vecs along with this.
-- release mode which doens't check number safety?
-- separation of variable declaration and definition.
-
-Variable declaration and definition can be separate, although the type must be specified before assignment.
-```
-let a : int;
-a = 10;
-
-let b;
-b = 3
-ERROR: The type of "b" cannot be inferred.
-```
-
-The value must be initialized before use.
-```
-let a: int;
-myfunction(a);
-ERROR: use of uninitialized variable "a".
-```
-- `for x in vec/str` loops
-- `Option<T>` type
-- `struct` methods
-- `tuple` or `pair<T, V>` with unpacking syntax
-- `enum`
-- `Result<T, E>` for errors
