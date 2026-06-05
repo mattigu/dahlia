@@ -981,7 +981,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                      pos1, ReturnStmt{ExprNode(pos2, Identifier{"a"})})));
 
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = UseOfUnkownIdentifier{},
+    CHECK(value == std::unexpected(RuntimeError{.kind = UseOfUnkownIdentifier{"a"},
                                                 .pos = pos2}));
 }
 

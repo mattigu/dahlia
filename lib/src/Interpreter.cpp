@@ -310,7 +310,8 @@ void Interpreter::visitAssign(AssignStmt const& statement, Position pos) {
 Value& Interpreter::visitLValue(LValue const& lval, Position pos) {
     auto* const var = stack_.current().lookupVariable(lval.identifier);
     if (var == nullptr) {
-        throw RuntimeError{.kind = UseOfUnkownIdentifier{}, .pos = pos};
+        throw RuntimeError{.kind = UseOfUnkownIdentifier{lval.identifier},
+                           .pos = pos};
     }
     if (!var->mut()) {
         throw RuntimeError{.kind = AssignmentToImmutable{}, .pos = pos};
@@ -489,7 +490,8 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
 
     auto const iter = program_->functions.find(fun_call.identifier);
     if (iter == program_->functions.cend()) {
-        throw RuntimeError{.kind = UseOfUnkownIdentifier{}, .pos = pos};
+        throw RuntimeError{.kind = UseOfUnkownIdentifier{fun_call.identifier},
+                           .pos = pos};
     }
     auto const& fun = iter->second;
 
@@ -551,7 +553,7 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
 EvalResult Interpreter::visitIdentifier(Identifier const& ident) const {
     auto const* val = stack_.current().lookupValue(ident.identifier);
     if (val == nullptr) {
-        return std::unexpected(UseOfUnkownIdentifier{});
+        return std::unexpected(UseOfUnkownIdentifier{ident.identifier});
     }
     return *val;
 }

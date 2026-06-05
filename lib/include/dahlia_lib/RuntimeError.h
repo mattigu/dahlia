@@ -24,6 +24,7 @@ struct VariableRedefinition {
 };
 
 struct UseOfUnkownIdentifier {
+    std::string identifier;
     bool operator==(UseOfUnkownIdentifier const&) const noexcept = default;
 };
 

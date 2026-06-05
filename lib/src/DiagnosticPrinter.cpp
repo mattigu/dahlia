@@ -55,7 +55,7 @@ void DiagnosticPrinter::printErrorWithStackTrace(RuntimeError const& err,
 }
 
 void DiagnosticPrinter::printStackTrace(StackTrace const& stacktrace) const {
-    std::println(output_, "Stacktrace");
+    std::println(output_, "Stacktrace:");
     for (auto const& info : stacktrace) {
         println(output_, "{} in {}", formatLocation(info.pos), info.name);
     }

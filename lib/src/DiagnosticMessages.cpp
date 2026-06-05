@@ -110,7 +110,8 @@ std::string messageFor(RuntimeErrorKind const& err) {
                 return std::string("no main function found");
             },
             [](UseOfUnkownIdentifier const& err) {
-                return std::string("use of unknown identifier");
+                return std::format("use of unknown identifier {}",
+                                   err.identifier);
             },
             [](VecTypeMismatch const& err) {
                 return std::string("values in vec are not of the same type");
@@ -128,7 +129,7 @@ std::string messageFor(RuntimeErrorKind const& err) {
                 return std::format("invalid operands {}", err.type);
             },
             [](UnparsableString const& err) {
-                return std::format("string {} unparsable to {}", err.val,
+                return std::format(R"(string "{}" unparsable to "{}")", err.val,
                                    err.targetType);
             },
             [](InvalidConversion const& err) {
@@ -139,7 +140,8 @@ std::string messageFor(RuntimeErrorKind const& err) {
                 return std::string("invalid for range");
             },
             [](LetBindingTypeMismatch const& err) {
-                return std::string("types must explictly match when given");
+                return std::string(
+                    "types must explictly match with the type annotation");
             },
             [](VariableRedefinition const& err) {
                 return std::format(
