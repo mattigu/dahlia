@@ -31,6 +31,8 @@ static constexpr auto SINGLE_CHAR_TOKENS =
 static constexpr auto KEYWORDS =
     std::to_array<std::pair<std::string_view, TokenKind>>({
         {"let", TokenKind::Let},
+        {"and", TokenKind::And},
+        {"or", TokenKind::Or},
         {"mut", TokenKind::Mut},
         {"fn", TokenKind::Fn},
         {"if", TokenKind::If},

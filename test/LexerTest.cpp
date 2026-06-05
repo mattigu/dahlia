@@ -291,6 +291,8 @@ TEST_CASE_FIXTURE(LexerFixture, "Lexer tokenizes keywords") {
         {.src = "let", .expected = TokenKind::Let},
         {.src = "mut", .expected = TokenKind::Mut},
         {.src = "fn", .expected = TokenKind::Fn},
+        {.src = "and", .expected = TokenKind::And},
+        {.src = "or", .expected = TokenKind::Or},
         {.src = "if", .expected = TokenKind::If},
         {.src = "else", .expected = TokenKind::Else},
         {.src = "for", .expected = TokenKind::For},
