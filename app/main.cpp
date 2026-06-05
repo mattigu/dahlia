@@ -10,7 +10,6 @@
 #include "dahlia_lib/Interpreter.h"
 #include "dahlia_lib/Lexer.h"
 #include "dahlia_lib/Parser.h"
-#include "dahlia_lib/Value.h"
 
 int main(int argc, char** argv) {
     CLI::App app;
@@ -26,6 +25,8 @@ int main(int argc, char** argv) {
 
     app.require_option(1);
     CLI11_PARSE(app, argc, argv);
+
+    file_path = std::filesystem::path(file_path).lexically_normal().string();
 
     std::optional<std::ifstream> file_stream;
     std::optional<std::istringstream> string_stream;
