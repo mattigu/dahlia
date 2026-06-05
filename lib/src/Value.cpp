@@ -478,13 +478,11 @@ IntResult toInt(Value const& val) noexcept {
                 if (ec == std::errc() && ptr == num.data() + num.size()) {
                     return result;
                 }
-                if (ec == std::errc::invalid_argument) {
-                    return std::unexpected(UnparsableString{
-                        .val = num, .targetType = Type(PrimitiveType::Int)});
-                }
                 if (ec == std::errc::result_out_of_range) {
                     return std::unexpected(ArithmeticOverflow{});
                 }
+                return std::unexpected(UnparsableString{
+                    .val = num, .targetType = Type(PrimitiveType::Int)});
             },
             [](auto const& num) -> IntResult {
                 return std::unexpected(InvalidConversion{
@@ -518,9 +516,7 @@ std::ostream& operator<<(std::ostream& oss, VecValue const& value) {
 inline std::string toString(Value const& value) {
     return std::visit(
         Overloaded{
-            [](std::monostate) -> std::string {
-                return "None";
-            },  // Never happens
+            [](std::monostate) -> std::string { return "None"; },
             [](bool val) -> std::string { return val ? "true" : "false"; },
             [](std::int64_t val) -> std::string { return std::to_string(val); },
             [](double val) -> std::string {
