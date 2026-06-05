@@ -18,6 +18,7 @@ struct MissingMainFunction {
 };
 
 struct VariableRedefinition {
+    std::string identifier;
     Position original_pos;
     bool operator==(VariableRedefinition const&) const noexcept = default;
 };
@@ -32,8 +33,8 @@ struct VecTypeMismatch {
     bool operator==(VecTypeMismatch const&) const noexcept = default;
 };
 
-struct AssignmentTypeMismatch {
-    bool operator==(AssignmentTypeMismatch const&) const noexcept = default;
+struct LetBindingTypeMismatch {
+    bool operator==(LetBindingTypeMismatch const&) const noexcept = default;
 };
 
 struct ArithmeticOverflow {
@@ -76,6 +77,8 @@ struct InvalidForRange {
 };
 
 struct CallDepthExceeded {
+    int max_depth;
+
     bool operator==(CallDepthExceeded const&) const noexcept = default;
 };
 
@@ -83,8 +86,12 @@ struct VoidTypeInExpression {
     bool operator==(VoidTypeInExpression const&) const noexcept = default;
 };
 
-struct MutViolation {
-    bool operator==(MutViolation const&) const noexcept = default;
+struct AssignmentToImmutable {
+    bool operator==(AssignmentToImmutable const&) const noexcept = default;
+};
+
+struct ImmutablePassedToMut {
+    bool operator==(ImmutablePassedToMut const&) const noexcept = default;
 };
 
 struct MutArgExpression {
@@ -128,8 +135,8 @@ struct ExpectedFunction {
     bool operator==(ExpectedFunction const&) const noexcept = default;
 };
 
-struct VoidMapFunction {
-    bool operator==(VoidMapFunction const&) const noexcept = default;
+struct VoidFunctionInMapFilter {
+    bool operator==(VoidFunctionInMapFilter const&) const noexcept = default;
 };
 
 using RuntimeErrorKind =
@@ -137,11 +144,12 @@ using RuntimeErrorKind =
                  UseOfUnkownIdentifier, VecTypeMismatch, ArithmeticOverflow,
                  DivisionByZero, InvalidOperands, InvalidOperand,
                  UnparsableString, InvalidConversion, InvalidForRange,
-                 AssignmentTypeMismatch, VariableRedefinition,
-                 CallDepthExceeded, VoidTypeInExpression, MutViolation,
-                 MutArgExpression, ArgumentCountMismatch, MissingReturnValue,
-                 UnexpectedReturnValue, CannotInferEmptyVec, MutArgTypeMismatch,
-                 BuiltinRedifined, IndexOutOfBounds, ExpectedFunction, VoidMapFunction>;
+                 LetBindingTypeMismatch, VariableRedefinition,
+                 AssignmentToImmutable, ImmutablePassedToMut, CallDepthExceeded,
+                 VoidTypeInExpression, MutArgExpression, ArgumentCountMismatch,
+                 MissingReturnValue, UnexpectedReturnValue, CannotInferEmptyVec,
+                 MutArgTypeMismatch, BuiltinRedifined, IndexOutOfBounds,
+                 ExpectedFunction, VoidFunctionInMapFilter>;
 
 struct RuntimeError {
     RuntimeErrorKind kind;

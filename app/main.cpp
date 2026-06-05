@@ -45,7 +45,9 @@ int main(int argc, char** argv) {
     auto const program = parser.parse();
 
     std::string source_name = *file_opt ? file_path : "input";
-    auto printer = DiagnosticPrinter(std::move(source_name), std::cout, *input);
+    auto printer = DiagnosticPrinter(std::move(source_name), std::cerr, *input);
+    printer.printLexerAndParserDiags(parser.lexerDiagnostics().all(),
+                                     parser.diagnostics().all());
     if (!program) {
         std::println("Parsing failed");
         return 1;

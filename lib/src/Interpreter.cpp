@@ -31,9 +31,7 @@ std::expected<Value, RuntimeError> Interpreter::run(
     }
 }
 
-StackTrace Interpreter::stackTrace() const {
-    return stack_.stackTrace();
-}
+StackTrace Interpreter::stackTrace() const { return stack_.stackTrace(); }
 
 Value Interpreter::visitProgram(ProgramNode const& program) {
     auto const main = program->functions.find("main");
@@ -303,7 +301,7 @@ Value& Interpreter::visitLValue(LValue const& lval, Position pos) {
         throw RuntimeError{.kind = UseOfUnkownIdentifier{}, .pos = pos};
     }
     if (!var->mut()) {
-        throw RuntimeError{.kind = MutViolation{}, .pos = pos};
+        throw RuntimeError{.kind = AssignmentToImmutable{}, .pos = pos};
     }
 
     Value* val = &var->data();
@@ -433,7 +431,7 @@ void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
     }
 
     if (let.type && **let.type != val_type) {
-        throw RuntimeError{.kind = AssignmentTypeMismatch{}, .pos = pos};
+        throw RuntimeError{.kind = LetBindingTypeMismatch{}, .pos = pos};
     }
 
     auto const duplicate_pos = stack_.current().declareVariable(
@@ -441,7 +439,8 @@ void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
 
     if (duplicate_pos) {
         throw RuntimeError{
-            .kind = VariableRedefinition{.original_pos = *duplicate_pos},
+            .kind = VariableRedefinition{.identifier = let.identifier,
+                                         .original_pos = *duplicate_pos},
             .pos = pos};
     }
 }
@@ -464,7 +463,9 @@ Signal Interpreter::visitBlock(BlockNode const& block) {
 Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
                                      Position pos) {
     if (stack_.callDepth() >= options_.max_call_depth) {
-        throw RuntimeError{.kind = CallDepthExceeded{}, .pos = pos};
+        throw RuntimeError{
+            .kind = CallDepthExceeded{.max_depth = options_.max_call_depth},
+            .pos = pos};
     }
 
     auto builtin = builtins_.find(fun_call.identifier);
@@ -500,7 +501,8 @@ Value Interpreter::visitFunctionCall(FunctionCall const& fun_call,
             }
             auto* var = stack_.current().lookupVariable(ident->identifier);
             if (!var->mut()) {
-                throw RuntimeError{.kind = MutViolation{}, .pos = arg.pos()};
+                throw RuntimeError{.kind = ImmutablePassedToMut{},
+                                   .pos = arg.pos()};
             }
             if (*param->type != typeFor(var->data())) {
                 throw RuntimeError{.kind = MutArgTypeMismatch{},
@@ -609,6 +611,13 @@ Value Interpreter::visitFilterExpr(FilterExpr const& expr, Position pos) {
         throw RuntimeError{.kind = ExpectedFunction{}, .pos = filter_func_pos};
     }
 
+    auto const filter_func = program_->functions.find(func_ident->identifier);
+    if (filter_func == program_->functions.cend() ||
+        filter_func->second->return_type == std::nullopt) {
+        throw RuntimeError{.kind = VoidFunctionInMapFilter{},
+                           .pos = filter_func_pos};
+    }
+
     std::vector<Value> filtered_vec{};
 
     stack_.current().pushScope();
@@ -649,11 +658,11 @@ Value Interpreter::visitMapExpr(MapExpr const& expr, Position pos) {
     auto const map_func = program_->functions.find(func_ident->identifier);
     if (map_func == program_->functions.cend() ||
         map_func->second->return_type == std::nullopt) {
-        throw RuntimeError{.kind = VoidMapFunction{}, .pos = map_func_pos};
+        throw RuntimeError{.kind = VoidFunctionInMapFilter{},
+                           .pos = map_func_pos};
     }
 
-    Type return_type =
-        **map_func->second->return_type;  // Placeholder filled below
+    Type return_type = **map_func->second->return_type;
 
     std::vector<Value> mapped_vec{};
     mapped_vec.reserve(lhs_vec->elements.size());
@@ -703,7 +712,8 @@ Value Interpreter::callBuiltin(BuiltinFunction const& builtin,
             }
             auto* var = stack_.current().lookupVariable(ident->identifier);
             if (!var->mut()) {
-                throw RuntimeError{.kind = MutViolation{}, .pos = arg.pos()};
+                throw RuntimeError{.kind = ImmutablePassedToMut{},
+                                   .pos = arg.pos()};
             }
             if (param.type != typeFor(var->data())) {
                 throw RuntimeError{.kind = MutArgTypeMismatch{},

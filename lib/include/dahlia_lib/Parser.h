@@ -15,6 +15,7 @@
 #include "ParserDiagnostics.h"
 #include "Position.h"
 #include "Token.h"
+#include "dahlia_lib/LexerDiagnostics.h"
 
 template <typename L>
 class ParserTemplate {
@@ -68,6 +69,11 @@ public:
     [[nodiscard]] Diagnostics<ParserDiagnosticKind> const& diagnostics()
         const noexcept {
         return diagnostics_;
+    }
+
+    [[nodiscard]] Diagnostics<LexerDiagnosticKind> const& lexerDiagnostics()
+        const noexcept {
+        return lexer_.diagnostics();
     }
 
 private:

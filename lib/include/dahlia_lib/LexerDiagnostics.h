@@ -30,10 +30,6 @@ struct InvalidNumericSeparator {
     bool operator==(InvalidNumericSeparator const&) const = default;
 };
 
-struct InvalidNumericLiteral {
-    bool operator==(InvalidNumericLiteral const&) const = default;
-};
-
 struct IntegerOverflow {
     bool operator==(IntegerOverflow const&) const = default;
 };
@@ -57,6 +53,6 @@ struct IdentifierTooLong {
 using LexerDiagnosticKind =
     std::variant<UnterminatedString, InvalidEscapeSequence, InvalidHexEscape,
                  UnexpectedChar, ExpectedChar, InvalidNumericSeparator,
-                 InvalidNumericLiteral, IntegerOverflow, FloatOutOfRange,
-                 StringTooLong, CommentTooLong, IdentifierTooLong>;
+                 IntegerOverflow, FloatOutOfRange, StringTooLong,
+                 CommentTooLong, IdentifierTooLong>;
 using LexerDiagnostic = Diagnostic<LexerDiagnosticKind>;

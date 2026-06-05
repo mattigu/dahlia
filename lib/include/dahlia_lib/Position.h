@@ -12,7 +12,7 @@ struct Position {
 template <>
 struct std::formatter<Position> : std::formatter<std::string_view> {
     static auto format(Position const& pos, std::format_context& ctx) {
-        return std::format_to(ctx.out(), "{{{}:{} +{}}}", pos.line, pos.column,
+        return std::format_to(ctx.out(), "{}:{}", pos.line, pos.column,
                               pos.offset);
     }
 };

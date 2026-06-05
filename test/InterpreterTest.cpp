@@ -733,12 +733,13 @@ TEST_CASE_FIXTURE(
                          pos1, Param{.type = TypeNode(pos1, PrimitiveType::Int),
                                      .identifier = "b",
                                      .mut = true})),
+                     .return_type = TypeNode(pos1, PrimitiveType::Int),
                      .block = BlockNode(pos1, Block{})}));
 
     auto const value = run();
 
-    CHECK(value ==
-          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{.kind = ImmutablePassedToMut{},
+                                                .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
@@ -801,16 +802,32 @@ TEST_CASE_FIXTURE(InterpreterFixture,
             MapExpr(
                 ExprNode(pos1, VecLiteral{.elements = makeExprs(
                                               ExprNode(pos1, IntLiteral{1}),
-                                              ExprNode(pos1, IntLiteral{2}),
-                                              ExprNode(pos1, IntLiteral{3}),
-                                              ExprNode(pos1, IntLiteral{4}))}),
+                                              ExprNode(pos1, IntLiteral{2}))}),
                 ExprNode(pos3, Identifier{"void"}))),
         fun_void());
 
     auto const value = run();
 
-    CHECK(value == std::unexpected(
-                       RuntimeError{.kind = VoidMapFunction{}, .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = VoidFunctionInMapFilter{}, .pos = pos3}));
+}
+TEST_CASE_FIXTURE(InterpreterFixture,
+                  "Interpreter throws when map func is void") {
+    initExpr(
+        {.return_type = Type::vec(PrimitiveType::Int)},
+        ExprNode(
+            pos1,
+            FilterExpr(
+                ExprNode(pos1, VecLiteral{.elements = makeExprs(
+                                              ExprNode(pos1, IntLiteral{1}),
+                                              ExprNode(pos1, IntLiteral{2}))}),
+                ExprNode(pos3, Identifier{"void"}))),
+        fun_void());
+
+    auto const value = run();
+
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = VoidFunctionInMapFilter{}, .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(
@@ -837,8 +854,8 @@ TEST_CASE_FIXTURE(
 
     auto const value = run();
 
-    CHECK(value ==
-          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{.kind = ImmutablePassedToMut{},
+                                                .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
@@ -908,7 +925,8 @@ TEST_CASE_FIXTURE(
 
     auto const value = run();
     CHECK(value == std::unexpected(RuntimeError{
-                       .kind = VariableRedefinition{.original_pos = pos2},
+                       .kind = VariableRedefinition{.identifier = "a",
+                                                    .original_pos = pos2},
                        .pos = pos3}));
 }
 
@@ -936,7 +954,7 @@ TEST_CASE_FIXTURE(
 
     auto const value = run();
     CHECK(value == std::unexpected(RuntimeError{
-                       .kind = AssignmentTypeMismatch{}, .pos = pos2}));
+                       .kind = LetBindingTypeMismatch{}, .pos = pos2}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
@@ -1036,8 +1054,8 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                  return_a()));
 
     auto const value = run();
-    CHECK(value ==
-          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos2}));
+    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{},
+                                                .pos = pos2}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
@@ -1093,8 +1111,8 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                      return_a()));
 
     auto const value = run();
-    CHECK(value ==
-          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{},
+                                                .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(
@@ -1407,8 +1425,8 @@ TEST_CASE_FIXTURE(
                             AssignStmt(LValue{.identifier = "b"},
                                        ExprNode(pos1, IntLiteral{99}))))})})));
     auto const value = run();
-    CHECK(value ==
-          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{},
+                                                .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(
@@ -1851,8 +1869,8 @@ TEST_CASE_FIXTURE(
                      .block = BlockNode(pos1, Block{})}));
 
     auto const value = run();
-    CHECK(value ==
-          std::unexpected(RuntimeError{.kind = MutViolation{}, .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{.kind = ImmutablePassedToMut{},
+                                                .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(
@@ -2013,8 +2031,9 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                                                   pos1, IntLiteral{4}))})})),
              makeRecursiveCounter(pos3));
     auto const value = run();
-    CHECK(value == std::unexpected(
-                       RuntimeError{.kind = CallDepthExceeded{}, .pos = pos3}));
+    CHECK(value ==
+          std::unexpected(RuntimeError{
+              .kind = CallDepthExceeded{.max_depth = 4}, .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
