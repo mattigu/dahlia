@@ -430,7 +430,8 @@ void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
     auto val_type = typeFor(val);
 
     if (!let.type && isCoercibleEmptyVec(val_type)) {
-        throw RuntimeError{.kind = CannotInferEmptyVec{}, .pos = pos};
+        throw RuntimeError{.kind = CannotInferEmptyVec{},
+                           .pos = let.value.pos()};
     }
 
     // For cases when:  let : [int] = []
@@ -443,7 +444,8 @@ void Interpreter::visitLetBinding(LetBinding const& let, Position pos) {
     }
 
     if (let.type && **let.type != val_type) {
-        throw RuntimeError{.kind = LetBindingTypeMismatch{}, .pos = pos};
+        throw RuntimeError{.kind = LetBindingTypeMismatch{},
+                           .pos = let.value.pos()};
     }
 
     auto const duplicate_pos = stack_.current().declareVariable(

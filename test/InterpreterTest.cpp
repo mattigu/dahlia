@@ -430,7 +430,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
     initMain({}, makeStatements(StatementNode(
                      pos2, LetBinding{.identifier = "a",
                                       .value = ExprNode(
-                                          pos1, VecLiteral{.elements = {}})})));
+                                          pos2, VecLiteral{.elements = {}})})));
 
     auto const value = run();
     CHECK(value == std::unexpected(RuntimeError{.kind = CannotInferEmptyVec{},
@@ -442,11 +442,11 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                   "nested empty vec literal") {
     initMain(
         {}, makeStatements(StatementNode(
-                pos2,
+                pos1,
                 LetBinding{
                     .identifier = "a",
                     .value = ExprNode(
-                        pos1, VecLiteral{
+                        pos2, VecLiteral{
                                   .elements = {makeExprs(ExprNode(
                                       pos1, VecLiteral{.elements = {}}))}})})));
 
@@ -966,9 +966,9 @@ TEST_CASE_FIXTURE(
     "Interpreter let binding with type, requires types to match") {
     initMain({},
              makeStatements(StatementNode(
-                 pos2, LetBinding{.identifier = "a",
+                 pos1, LetBinding{.identifier = "a",
                                   .type = TypeNode(pos1, PrimitiveType::Str),
-                                  .value = ExprNode(pos1, IntLiteral{1})})));
+                                  .value = ExprNode(pos2, IntLiteral{1})})));
 
     auto const value = run();
     CHECK(value == std::unexpected(RuntimeError{
