@@ -507,11 +507,11 @@ private:
         };
     }
 
-    // range = term, "..", [ "=" ], term, [ "..", term ];
+    // range = unary_expr, "..", [ "=" ], unary_expr, [ "..", unary_expr ];
     std::optional<RangeNode> tryParseRange() {
         auto const start_pos = current_.pos();
 
-        auto start = tryParseTerm();
+        auto start = tryParseUnaryExpr();
         if (!start) {
             return std::nullopt;
         }
@@ -520,7 +520,7 @@ private:
             consume(TokenKind::DotDot);
         }
 
-        auto end = tryParseTerm();
+        auto end = tryParseUnaryExpr();
         if (!end) {
             throwDiag(ExpectedExpression{}, current_.pos());
         }
@@ -530,7 +530,7 @@ private:
                                               .inclusive = inclusive,
                                               .end = std::move(*end)});
         }
-        auto step = tryParseTerm();
+        auto step = tryParseUnaryExpr();
 
         if (!step) {
             throwDiag(ExpectedExpression{}, current_.pos());
