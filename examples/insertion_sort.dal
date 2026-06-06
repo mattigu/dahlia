@@ -1,0 +1,17 @@
+fn insertionSort(mut arr : [int]) {
+    for mut i in 1..@arr {
+        let x = arr[i];
+
+        while i > 0 and arr[i-1] > x {
+            arr[i] = arr[i-1];
+            i -= 1;
+        }
+        arr[i] = x;
+    }
+}
+
+fn main() {
+    let mut nums = [3, 1 , -4, 10];
+    insertionSort(nums);
+    println(nums);
+}

@@ -1,0 +1,15 @@
+fn is_odd(n : int) -> bool {
+    return n % 2 == 1;
+}
+
+fn square(n: int) -> int {
+    return n*n;
+}
+
+fn main() {
+    let nums = [1, 2, 3, 4, 5];
+    let result = nums ? is_odd :> square;
+    println(result);
+
+    # [1, 9, 25]
+}

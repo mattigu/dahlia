@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     }
 
     auto interpreter = Interpreter(makeDefaultBuiltins(std::cout),
-                                   InterpreterOpts{.max_call_depth = 200});
+                                   InterpreterOpts{.max_call_depth = 1000});
 
     auto const result = interpreter.run(*program);
     if (!result) {

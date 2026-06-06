@@ -110,7 +110,7 @@ std::string messageFor(RuntimeErrorKind const& err) {
                 return std::string("no main function found");
             },
             [](UseOfUnkownIdentifier const& err) {
-                return std::format("use of unknown identifier {}",
+                return std::format("use of unknown identifier \"{}\"",
                                    err.identifier);
             },
             [](VecTypeMismatch const& err) {

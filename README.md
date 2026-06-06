@@ -28,8 +28,11 @@ $ dahlia [options] [file]
 | Option | Description |
 |---|---|
 | `--help`, `-h` | Print help information |
-| `--version`, `-v` | Print the interpreter version |
-| `--no-warnings`, `-w` | Disable all warnings |
+| `--file`, `-f` | The file to execute |
+| `--program`, `-p` | The program to execute |
+| `--result`, `-r` | Print the result of the main fuction |
+
+
 
 ### Running from a file
 ```
@@ -40,10 +43,15 @@ fn main() {
 ```
 
 ```
-$ dal example.dal
+$ dahlia -f example.dal
 Hello from file.
 ```
 
+### Running from input string
+```
+dahlia -p "fn main() { println("Hello from input string."); }"
+Hello from input string.
+```
 
 ## Language features
 
@@ -52,8 +60,7 @@ Hello from file.
 - [`float`](#float) - IEEE 754 64-bit float
 - [`bool`](#bool) - true or false
 - [`str`](#str) - a sequence of ASCII characters.
-- [`struct`](#struct) - a user defined type that groups named fields together
-- [`vector`](#vec) -`vec<T>` a homogeneous collection where `T` is the element type
+- [`vector`](#vec) - a dynamic size array
 
 
 #### int
@@ -86,22 +93,6 @@ let a = "abc\"
 ERROR: Invalid escape sequence in "abc\".
 ```
 
-Strings are indexable.
-```
-let a = "123";
-let b = a[0];   # 1 (copy)
-```
-If the index is out of bounds, the result is an error.
-```
-let a = "123";
-let b = a[10];
-ERROR: index out of bounds - index 10 is out of range for string "b" of length 3
-```
-Individual characters can be modified.
-```
-let mut a = "123";
-a[1] = "8";         # "183"
-```
 
 The `@` operator returns the size of the string.
 ```
@@ -134,33 +125,6 @@ println(123);
 >>> 123
 ```
 
-`clone(obj : T) -> T` - creates a deep copy of the object.
-
-```
-let a = "123"
-
-let b = a;              # immutable reference
-let mut c = a           # illegal
-let mut d = clone(a);   # mutable independent copy
-```
-
-`str(obj : str)` `float(obj : float)` `int(obj : int)` are functions that cast the argument to the given type.
-
-```
-str(1);         # "1"
-str(1.23);      # "1,23"
-
-int(2.71);      # 2         Floating point numbers are truncated towards 0.
-int("617");     # 617
-
-float("1.23");  # 1.23
-float(1);       # 1.0
-```
-If the conversion is impossible an error is raised.
-```
-int("a");
-ERROR: str "a" can not be converted to "int".
-```
 
 ### Comments
 The `#` character is used for comments
@@ -172,38 +136,22 @@ The `#` character is used for comments
 
 Variables are declared with the `let` keyword.
 ```
-let a : int = 1;
-```
-
-If no type is specified, the variable’s type is inferred from the assigned expression. The inferred types are `int`, `float` or `str`.
-
-```
 let a = 3;      # int
 let b = 1.0;    # float
 let c = "abc";  # str
 ```
 
-When a variable is assigned from another variable, the source variable’s type is used.
-
+The type can be stated using an annotation.
 ```
-let a : float = 3.0;
-let b = a;              # float
-let c : int = a;        # int
-```
-
-Variables are weakly(loosely) typed. Numbers and strings are easily convertible both ways. `let a : type = expression` is equivalent to `let a = type(expression)`
-
-```
-let a : str = 123;      # "123"
-let b : str = 1.12;     # "1.12"
-
-let c : int = "123";    # 123
-let d : float = "1.12"; # 1.12
+let a : int = 3;        # int
+let b : float = 1.0;    # float
+let c : str = "abc";    # str
 ```
 
-If the type of the expression is not convertible to the type of the variable, an error is raised.
+Variables with type annotations will do no implicit conversions while binding.
 ```
-let a : int = [1, 2, 3];    # ERROR: vector "[1, 2, 3]" is not convertible to int
+let a : int = "4";
+Error: types must explictly match with the type annotation
 ```
 
 Variables are immutable and non reassignable by default unless specified otherwise with the `mut` keyword.
@@ -211,37 +159,32 @@ Variables are immutable and non reassignable by default unless specified otherwi
 ```
 let a = 1;
 a = 3;
-ERROR: assignment to immutable variable "a".
+Error: cannot assign to immutable variable "a"
 
 let mut a = 1
 a = 3;
 ```
 
-When assigning from another variable, `int`, `float` and `bool` are copied. All other types are referenced.
-
+When assinging, variables will attempt to convert to the variable type
 ```
-let a = 3;
+let mut a = 3;
+a = "4";
+// a is now 4
+```
+
+If the conversion fails an error is thrown.
+```
+let mut a = 3;
+a = "hello";
+Error: string "hello" unparsable to "Int"
+```
+
+Assigning a variable value always results in a copy.
+```
+let mut a = 4;
 let b = a;  # copy
-
-let c = [1, 2, 3]
-let d = c;  # immutable reference
+a = 4       # b is not modified.
 ```
-
-This requires that a mutable binding cannot reference an immutable object.
-```
-let a = 3;
-let mut b = a;      # copy
-
-let c = [1, 2, 3]
-let mut d = c;      # error
-
-let mut c = [1, 2, 3];
-let d = c;                  # immutable reference
-
-let mut e = [1, 2, 3];
-let mut f = e;              # mutable reference
-```
-
 
 ### Scopes
 A new scope is created with `{}`. Variables declared inside a scope are only visible within it and are destroyed when the scope ends.
@@ -262,18 +205,11 @@ if condition {
 # x is not accessible here
 ```
 
-Variables can be redefined in the same scope.
+Variables cannot be redefined in the same scope.
 ```
-let a = "abc";
-let b = a;
-let a = 1;
-
-# "abc" still exists, but can only be accessed through b.
-
-println(b);
->>> abc
-println(a);
->>> 1
+let a = "ab";
+let a = "cd";
+Error: redefinition of variable "a" (previously defined at 3:1)
 ```
 ### Functions
 Functions are declared with the `fn` keyword. Functions can only be defined in the top level scope.
@@ -285,48 +221,54 @@ fn add(a: int, b: int) -> int { return a + b; }
 # A function with no return type (void).
 fn test_void() { return; }
 ```
+For non `mut` parameters, functions can convert the argument to match the parameter type.
+
+```
+let a = add("1", "2");
+# a is now 3
+```
+All arguments are passed by reference. Return types are always copies.
 
 Parameters can be made mutable with the `mut` keyword.
 ```
-fn add(mut a : int, b : int) -> int {
-    a += b;
-    # b += a will not work since b is immutable
-    return a;
+fn increment(mut a : int) {
+    a += 1;
 }
+
+# a is modified on the outside
 ```
 
-All arguments are passed by reference. Return types (`int`, `float`, `bool`) are copied, while everything else is referenced.
+`mut` parameters only take `mut` variable arguments, and perform no converions.
 ```
-fn test(mut a : vec<int>, b : vec<int>) -> int {
-    # a is a mutable reference
-    # b is an immutable reference
-}
+increment(1);
+Error: cannot pass expression to a mutable parameter
 ```
 
-The arguments will be converted to match the functions signature if possible. However the conversion returns a copy, so the changes might not be reflected in the original.
+```
+let mut a = "1";
+increment(a);
+Error: mutable parameters require exact type match
+```
 
-IDEA: Make the conversions only legal for non mut?
+`mut` parameters require the argument variable to be mut
 
 ```
-fn add(a : int) { ... }
-
-add("12") # equivalent to add(12)
-
-add("abc")
-ERROR: argument "abc" is not convertible to "int"
+let a = 1;
+increment(a);
+Error: cannot pass immutable variable to mutable parameter
 ```
 
 There can't exist two functions with the same name.
 ```
 fn test() {}
 fn test() {}
-ERROR: function "test" was already defined.
+Error: redefinition of function "test" (previously defined at 3:1)
 ```
 
 Parameter names can't be the same within a function.
 ```
 fn test(a : int, a : int) {}
-ERROR: multiple parameters with the identifier "a" in function "fn test(a : int, a : int)"
+Error: duplicate function parameter "a"
 ```
 
 Recursion example
@@ -337,6 +279,7 @@ fn factorial(n : int) -> int {
     }
     return n * factorial(n-1);
 }
+
 ```
 The maximum call depth is 1000. Exceeding this limit, for example through infinite recursion, results in a runtime error.
 ```
@@ -344,18 +287,15 @@ fn foo() {
     foo();
 }
 foo();
-ERROR: maximum call depth of 1000 exceeded.
+Error: max call depth of 200 exceeded
 ```
 
-Functions with a void type can't be used in expressions.
+Functions with a no return type can't be used in expressions.
 ```
 fn void_fun() {}
 
 let a = void_fun();
-ERROR: cannot assign result of void function "void_fun".
-
-void_fun() < 4;
-ERROR: function "void_fun" has no return value and can't be used in expressions.
+Error: void type in expression
 ```
 ### if/else
 
@@ -370,16 +310,6 @@ if condition {
 ```
 The `else if` and `else` block are optional. Any type can be used as a condition. See [bool coercion](#logic-operators-and-bool-coercion)
 
-It's also possible to do `if/else` expressions.
-
-```
-# Type is mandatory, the result will attempt to get coerced into that type.
-let a : int = if condition { 5 } else { "10" }; # else is mandatory
-
-let a = if ...
-ERROR: if expression requires a specified type.
-```
-If expressions are non recursive, and only work when assigning, or creating a new binding.
 
 ### Loops
 
@@ -417,11 +347,10 @@ for x in 0..=4..2 {
     # Repeat 3 times with values of x: 0, 2, 4
 }
 
-Providing an incorrect step results in an error.
+Providing an incorrect range results in an error.
 
 for x in 0..4..-2 {}
-ERROR: step must be positive for forward range (0..4..-2)
-HINT: did you mean 0..4..2
+Error: invalid for range
 ```
 
 Both loop types support the `break` and `continue` operations.
@@ -440,9 +369,9 @@ The loop variable shadows other variables of the same name, exactly like block s
 ```
 let a = 10;
 for a in 0..4 {
-    println("{}", a);   # prints 0, 1, - a is the loop variable
+    println(a);
 }
-println(a);         # prints 10 - outer a is back
+println(a);
 >>> 0
 >>> 1
 >>> 10
@@ -459,12 +388,10 @@ for mut a in 0..3 {
 >>> 2
 ```
 
-It's possible to use expressions in the `a..b` for loop syntax. Parentheses are required. `..` is not an operator, just syntax sugar for loops.
+Unary expressions like `@vec`, or indexing expressions like `vec[idx]` work directly in ranges. Expressions like `1 + 2` require parenthesis
 ```
-for i in 0..(1 + 2) { println(i); }
->>> 0
->>> 1
->>> 2
+for i in 0..(1 + 2) {  }
+
 ```
 
 
@@ -484,7 +411,7 @@ Order of operands never affects the result type.
 
 __`+` operator__
 
-`int` get promoted to float when needed. `str` always concatenates with string of the second operand.
+`int` get promoted to float when needed. `str` always concatenates with string of the second operand. Order of operations only matters for `vec + non vec`, since `non vec + vec` will not prepend.
 | Operant A | Operant B | Result | Notes |
 |---|---|---|---|
 | int | int | int | |
@@ -498,7 +425,7 @@ __`+` operator__
 | str | float | str | float stringified and appended |
 | str | bool | str | concatenates "true" or "false" |
 | vec | vec | vec | concatenation |
-| vec | T | vec | element appended, must match element type |
+| vec | T | vec | element appended, but coerced into vec type, can throw |
 
 
 __` - * / %` operators__
@@ -529,7 +456,8 @@ Common operation examples.
 ```
 If the conversion is not possible an error is thrown.
 ```
-ERROR: cannot evaluate (3.4 * "a") - str "a" is not parseable as float.
+let a = 3.4 * "a";
+Error: string "a" unparsable to "Float"
 ```
 
 Other interactions.
@@ -537,9 +465,9 @@ Other interactions.
 # int / int is always integer division.
 5 / 2   # 2
 
-# modulo for negative numbers
--5 % 2      # 1
-5 % -2      # -1
+# modulo for negative numbers (like in c++)
+-5 % 2   →  -1
+5 % -2  →   1
 ```
 
 #### Logic operators and bool coercion
@@ -572,10 +500,9 @@ else if truthy { println(2); }
 
 `int` and `float` comparisons promote the integer to `float`. Because of how floats are built though, the condition will rarely ever be true after any arithmetic operations.
 ```
-1 == 1.0    # true
+1 == 1.0        # true
 
-2 == 1.0 + 1.0          # false
-2 == int(1.0 + 1.0)     # true
+1 == 2.2 / 1.1    # false
 ```
 
 
@@ -600,9 +527,9 @@ ERROR: cannot compare vec<int> with vec<vec<str>>.
 ```
 
 Cross type comparisons are described in the tables below. The general rules are:
-- `== and !=` nevers throws, while `< > <= >=` can throw if comparison is impossible
-- `== and !=` for `str` and anything other than `str` is always false
-- `< > <= >=` tries to parse all strings as floats.
+- incompatible types will throw
+- `bool` `int` `float` freely convert between each other
+- `str` `vec` only compare with their own type
 
 __`== and !=` operators__
 
@@ -610,11 +537,11 @@ __`== and !=` operators__
 |---|---|---|
 | int, float | bool | int promoted to float |
 | bool, int | bool | bool promoted to int |
-| bool, float | bool | bool promoted to int, then float |
+| bool, float | bool | bool promoted to float |
 | str, str | bool | exact character match |
-| str, non-str | bool | always false |
-| vec, vec | bool | element-wise, incompatible element types always false |
-| incompatible types | bool | always `false`, never throws |
+| vec, vec | bool | element-wise, types must match |
+| Incompatible types | bool | Error |
+
 
 __`< > <= >=` operators__
 
@@ -624,19 +551,8 @@ __`< > <= >=` operators__
 | bool, int | bool | bool promoted to int |
 | bool, float | bool | bool promoted to int, then float |
 | str, str | bool | lexicographical |
-| str, int | bool | str parsed as float, int promoted to float |
-| str, float | bool | str parsed as float |
-| str, bool | bool | str parsed as float, bool promoted to int |
 | vec, vec | bool | lexicographical, element types must match |
-| incompatible types | ERROR | |
-
-All other combinations throw.
-If the type is not convertible also throw.
-```
-"abc" > 4;
-ERROR: cannot evaluate ("abc" > 4) - str "abc" is not parseable as float
-```
-
+| incompatible types | Error | |
 
 #### Vector operator
 | `vec<T>` Operator | Description |
@@ -673,11 +589,6 @@ let a = 8 / 1 + 1   # 9
 let b = 8 / (1 + 1) # 4
 ```
 
-Comparison is done by comparing values.
-```
-"123" == "123"  # Always true
-```
-
 #### Logic operators
 
 `and`, `or` and `!` work on any type and always produce a `bool`. Each operand is converted to a bool. The rules were already described in more detail in the if/else section.
@@ -688,14 +599,14 @@ Integers can overflow and underflow. A runtime error is thrown when that happens
 # Integer overflow
 let a = 9223372036854775807;    # INT64_MAX
 let b = a + 1;
-ERROR: Integer overflow in expression (9223372036854775807 + 1)
+Error: overflow in arithmetic expression
 
 # Integer underflow
 let a = -9223372036854775808;   # INT64_MIN
 let b = a - 1;
-ERROR: Integer underflow in expression (-9223372036854775808 - 1)
+Error: overflow in arithmetic expression
 ```
-Creating a variable with a value too big or too low to also throws an error.
+Creating a variable with a value too big or too low too also throws an error.
 
 #### Invalid float states
 Floats can reach states like `NaN`, `-Inf`, `Inf`. A runtime error is thrown when that happens.
@@ -706,35 +617,37 @@ Floats can reach states like `NaN`, `-Inf`, `Inf`. A runtime error is thrown whe
 # Float overflow
 let a = 2e308;
 let b = a * 10.0;
-ERROR: Float overflow in expression (1.8e308 * 10.0)
+Error: overflow in arithmetic expression
 
 # Float invalid operation (same applies for int division by 0)
 let a = 0.0 / 0.0;
-ERROR: Invalid float operation (0.0 / 0.0) - result is NaN
+Error: overflow in arithmetic expression
 
 # Float underflow
 let a = 5e-323;
 let b = a / 100.0;
-ERROR: Float underflow in expression (5e-324 / 10.0)
+Error: overflow in arithmetic expression
 ```
 
 ### Collections
 
 #### vec
-Vector or `vec<T>` is an ordered collection of elements packed consecutively in memory.
+Vector or `[]` is an ordered collection of elements packed consecutively in memory.
 
 Initialization
 ```
-let nums : vec<int> = [1, 2, 3, 4, 5,]; # optional trailing comma
+let nums : [int] = [1, 2, 3, 4, 5,]; # optional trailing comma
 let nums = [1, 2, 3, 4, 5];             # The type can be skipped, if the list is not empty.
 
-let nums : vec<int> = [];
 let nums = [];
-ERROR: The type of "nums" cannot be inferred.
+Error: cannot infer type of empty vector, type annotation required
+
+let nums : [int] = [];
+
 
 # The values must all be the same type
-let nums : vec<int> = [1, 2, "3"];      # No coercion
-ERROR: "3" is not of type "int"
+let nums = [1, 2, "3"];     # No coercion
+Error: values in vec are not of the same type
 ```
 
 Elements can be indexed with the `[index]` operator.
@@ -743,15 +656,8 @@ let nums = [1, 2, 3, 4, 5,];
 
 let a = nums[1];    # 2
 let b = nums[10];
-ERROR: index out of bounds - index 10 is out of range for vec<int> "b" of length 3
+Error: index 10 is out of bounds
 
-# Indexing follows existing reference semantics.
-let a = nums[0];        # copy
-let mut b = nums[1];    # copy
-
-let letters = ["a", "b", "c"];
-let a = letters[0];         # immutable reference
-let mut b = letters[1];     # illegal - letters is not mut
 ```
 Indexing can be used to modify the element at a given index.
 ```
@@ -770,29 +676,25 @@ let size = @nums;   # 5
 
 Elements can be appended with the `+` and `+=` operator.
 `+` always creates a new vector.
-Appending follows existing reference semantics. `int`, `float`, `bool` are appended as copies, others referenced.
-
 ```
 let mut a = [1, 2];
 a += 3;             # [1, 2, 3]
 
 let b = a + 4;      # independent vector [1, 2, 3, 4]
 ```
-Elements can also be inserted at the start when creating a vector with the `+` operator.
-```
-let a = 1 + [2, 3, 4]   # [1, 2, 3, 4]
-```
+
 Appending a non vector, will attempt to convert the appended element to match the vector,
 ```
 let a = [1, 2] + "3";
+# [1, 2, 3]
 ```
 
 Vectors can be concatenated with the `+` and `+=` operator. Types of vectors must explictly match.
 ```
 let a = [1, 2] + [3, 4];    # [1, 2, 3, 4]
 
-let a = [1, 2] + ["3"]
-ERROR: Can't concatenate vectors vec<int>[1, 2] with vec<str>["3"] of non matching types.
+let a = [1, 2] + ["3"];
+Error: invalid operands [Int], [Str]
 ```
 
 When appending or concatenating, the types of vectors decide the correct operation. Order of operands only affects the side on which the operation happens.
@@ -802,13 +704,12 @@ When appending or concatenating, the types of vectors decide the correct operati
 ```
 [1, 2, 3] + 0               # [1, 2, 3, 0] - append, int matches element type
 [1, 2, 3] + "0"             # [1, 2, 3, 0] - append, str converted to int
-[1, 2, 3] + "abc"           # ERROR: cannot append str "abc" to vec<int>
+[1, 2, 3] + "abc"           # Error: string "abc" unparsable to "Int"
 
 [1, 2, 3] + [4]             # [1, 2, 3, 4] - concatenation
 [[1, 2], [3, 4]] + [5, 6]       # [[1, 2], [3, 4], [5, 6]] - append, vec<int> matches element type
 [[1, 2], [3, 4]] + [[5, 6]]     # [[1, 2], [3, 4], [5, 6]] - concatenation
 
-[1, 2] + []                     # [1, 2]
 [[1, 2]] + []                   # [[1, 2], []]
 ```
 The `in` operator can be used, to check if an element is contained in the vector.
@@ -835,11 +736,11 @@ let squared = nums :> square;    # [1, 4, 9, 16, 25]
 ```
 If the predicate signature for `:>` or `?` doesn't match the vector's element type a runtime error is produced.
 ```
-fn min(n : vec<int>) -> int { ... }
+fn min(n : [int]) -> int { ... }
 
 let nums = [1, 2, 3]
 let a = nums :> min;
-ERROR: predicate "min" and "nums" do not match.
+Error: cannot convert from Int to [Int]
 ```
 
 The `><` operator returns elements common to both vectors. Duplicates are removed.
@@ -854,55 +755,16 @@ let c = a >< b;         # [1, 4]
 When an error is detected, the interpreted program is stopped.
 The error is logged in the following format.
 
-`ERROR in {{file_path} at line { line } column { column }: {message}`
+`ERROR in {file_name}:{line}:{column}: Error: {message}`
 
-An additional hint can be provided if the cause of the error easy to detect.
-
+Example error:
 ```
-ERROR in ./example.dal at line 10, column 43
-    Error description
-HINT: Hint description
-```
-
-### Warnings
-Warnings might be reported when code that is likely to be a mistake is detected.
-
-The warning is logged in the following format.
-`WARNING in { file_path } at line { line } column { column }: { message }`
-
-```
-if 1 { ... }
-WARNING: expression "1" always evaluates to true.
-```
-
-```
-let a = 5;
-# a never used
-WARNING: variable "a" is declared but never used.
+Stacktrace:
+example.dal:1:1 in main
+example.dal:6:9: Error: cannot infer type of empty vector, type annotation required
+  | let a = [];
+  |         ^
 ```
 
 ## Code examples
-### Insertion sort
-
-```
-fn insertionSort(mut arr : [int]) {
-    for mut i in 1..(@arr) {
-        let x = arr[i];
-
-        while i > 0 and arr[i-1] > x {
-            arr[i] = arr[i-1];
-            i -= 1;
-        }
-        arr[i] = x;
-    }
-}
-
-fn main() {
-    let mut nums = [3, 1 , -4, 10];
-    insertionSort(nums);
-    println(nums);
-}
-
-
->>> [-4, 1, 3, 10]
-```
+Code examples are in the `examples` directory.

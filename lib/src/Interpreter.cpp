@@ -302,7 +302,8 @@ Value& Interpreter::visitLValue(LValue const& lval, Position pos) {
                            .pos = pos};
     }
     if (!var->mut()) {
-        throw RuntimeError{.kind = AssignmentToImmutable{lval.identifier}, .pos = pos};
+        throw RuntimeError{.kind = AssignmentToImmutable{lval.identifier},
+                           .pos = pos};
     }
 
     Value* val = &var->data();
