@@ -8,4 +8,6 @@ fn factorial(n : int) -> int {
 
 fn main() {
     println(factorial(3));
+
+    # 6
 }

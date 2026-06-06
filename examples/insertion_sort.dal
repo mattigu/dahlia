@@ -14,4 +14,6 @@ fn main() {
     let mut nums = [3, 1 , -4, 10];
     insertionSort(nums);
     println(nums);
+
+    # [-4, 1, 3, 10]
 }
