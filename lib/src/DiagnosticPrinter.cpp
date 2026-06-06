@@ -56,8 +56,21 @@ void DiagnosticPrinter::printErrorWithStackTrace(RuntimeError const& err,
 
 void DiagnosticPrinter::printStackTrace(StackTrace const& stacktrace) const {
     std::println(output_, "Stacktrace:");
-    for (auto const& info : stacktrace) {
-        println(output_, "{} in {}", formatLocation(info.pos), info.name);
+    for (auto it = stacktrace.begin(); it != stacktrace.end();) {
+        auto const run_end = std::find_if(
+            it, stacktrace.end(),
+            [&](auto const& frame) { return frame.name != it->name; });
+
+        auto const count = std::distance(it, run_end);
+
+        std::println(output_, "{} in {}", formatLocation(it->pos), it->name);
+
+        if (count > 2) {
+            std::println(output_, "  ... {} more calls to {}", count - 1,
+                         it->name);
+        }
+
+        it = run_end;
     }
 }
 
