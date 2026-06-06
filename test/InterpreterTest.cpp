@@ -1118,7 +1118,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                  return_a()));
 
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{},
+    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{"a"},
                                                 .pos = pos2}));
 }
 
@@ -1175,7 +1175,7 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                      return_a()));
 
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{},
+    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{"a"},
                                                 .pos = pos3}));
 }
 
@@ -1489,7 +1489,7 @@ TEST_CASE_FIXTURE(
                             AssignStmt(LValue{.identifier = "b"},
                                        ExprNode(pos1, IntLiteral{99}))))})})));
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{},
+    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{"b"},
                                                 .pos = pos3}));
 }
 

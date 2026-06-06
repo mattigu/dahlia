@@ -161,7 +161,8 @@ std::string messageFor(RuntimeErrorKind const& err) {
                     "cannot pass immutable variable to mutable parameter");
             },
             [](AssignmentToImmutable const& err) {
-                return std::string("cannot assign to immutable variable");
+                return std::format("cannot assign to immutable variable \"{}\"",
+                                   err.identifier);
             },
 
             [](MutArgExpression const& err) {

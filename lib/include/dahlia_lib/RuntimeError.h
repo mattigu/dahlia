@@ -88,6 +88,8 @@ struct VoidTypeInExpression {
 };
 
 struct AssignmentToImmutable {
+    std::string identifier;
+
     bool operator==(AssignmentToImmutable const&) const noexcept = default;
 };
 
