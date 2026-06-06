@@ -558,7 +558,7 @@ std::ostream& operator<<(std::ostream& oss, VecValue const& value) {
     return oss << std::format("{}", value);
 }
 
-inline std::string toString(Value const& value) {
+std::string toString(Value const& value) {
     return std::visit(
         Overloaded{
             [](std::monostate) -> std::string { return "None"; },
@@ -573,7 +573,7 @@ inline std::string toString(Value const& value) {
         value);
 }
 
-inline std::string toString(VecValue const& vec) {
+std::string toString(VecValue const& vec) {
     std::string out = "[";
     out.reserve(vec.elements.size() * 3);
 
