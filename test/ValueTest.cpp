@@ -70,16 +70,17 @@ TEST_CASE("add - overflow") {
     CHECK(add(1, INT_MAX) == std::unexpected(ArithmeticOverflow{}));
 }
 
+TEST_CASE("add - vec conversion") {
+    CHECK(add(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}}, "3") ==
+          VecValue{.type = PrimitiveType::Int, .elements = {1, 2, 3}});
+}
+
 TEST_CASE("add - invalid operands") {
     CHECK(
         add(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}},
             VecValue{.type = PrimitiveType::Str, .elements = {"a"}}) ==
         std::unexpected(InvalidOperands{.lhs = Type::vec(PrimitiveType::Int),
                                         .rhs = Type::vec(PrimitiveType::Str)}));
-
-    CHECK(add(VecValue{.type = PrimitiveType::Int, .elements = {1}}, "hello") ==
-          std::unexpected(InvalidOperands{.lhs = Type::vec(PrimitiveType::Int),
-                                          .rhs = PrimitiveType::Str}));
 }
 
 TEST_CASE("eq - int") {

@@ -90,8 +90,12 @@ EvalResult add(Value lhs, Value rhs) {
                     lhs.elements.push_back(std::move(rhs));
                     return lhs;
                 }
-                return std::unexpected(InvalidOperands{
-                    .lhs = Type::vec(lhs.type), .rhs = typeFor(rhs)});
+                auto coerced_rhs = coerce(rhs, lhs.type);
+                if (!coerced_rhs) {
+                    return coerced_rhs;
+                }
+                lhs.elements.push_back(std::move(*coerced_rhs));
+                return lhs;
             },
             [](auto const& lhs, auto const& rhs) -> EvalResult {
                 return std::unexpected(
@@ -561,7 +565,7 @@ std::ostream& operator<<(std::ostream& oss, VecValue const& value) {
 std::string toString(Value const& value) {
     return std::visit(
         Overloaded{
-            [](std::monostate) -> std::string { return "None"; },
+            [](std::monostate) -> std::string { return "none"; },
             [](bool val) -> std::string { return val ? "true" : "false"; },
             [](std::int64_t val) -> std::string { return std::to_string(val); },
             [](double val) -> std::string {
