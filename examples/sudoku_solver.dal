@@ -1,0 +1,119 @@
+# I know this is inefficient
+
+fn get_row(board : [[int]], idx : int) -> [int] {
+    return board[idx];
+}
+
+fn get_col(board : [[int]], idx : int) -> [int]  {
+    let mut col : [int] = [];
+
+    for row in 0..@board {
+        col += board[row][idx];
+    }
+    return col;
+}
+
+fn get_box(board : [[int]], row : int, col : int) -> [int]  {
+    let row_start = (row / 3) * 3;
+    let col_start = (col / 3) * 3;
+
+    let mut box : [int] = [];
+
+    for r in row_start..(row_start + 3) {
+        for c in col_start..(col_start + 3) {
+            box += board[r][c];
+        }
+    }
+
+    return box;
+}
+
+fn allowed(all_nums : [int] , forbidden : [int]) -> [int] {
+    let mut result : [int] = [];
+
+    for n in 0..@all_nums {
+        if !(all_nums[n] in forbidden) {
+            result += all_nums[n];
+        }
+    }
+
+    return result;
+}
+
+fn solve_recursive(mut board : [[int]], row : int, col : int) -> bool {
+    let board_size = @board;
+
+    let mut row = row;
+    let mut col = col;
+
+    if col == board_size {
+        row += 1;
+        col = 0;
+    }
+
+    if row == board_size {
+        return true;
+    }
+
+    if(board[row][col] != 0) {
+        return solve_recursive(board, row, col + 1);
+    }
+
+    let mut all_nums : [int] = [];
+    for i in 1..=@board {
+        all_nums += i;
+    }
+
+    let row_allowed = allowed(all_nums, get_row(board, row));
+    let col_allowed = allowed(all_nums, get_col(board, col));
+    let box_allowed = allowed(all_nums, get_box(board, row, col));
+
+    let possible_nums = row_allowed >< col_allowed >< box_allowed;
+
+    for num in 1..=@board {
+        if num in possible_nums {
+            board[row][col] = num;
+            if solve_recursive(board, row, col + 1) {
+                return true;
+            }
+            board[row][col] = 0;
+        }
+    }
+    return false;
+
+}
+
+fn solve_sudoku(mut board : [[int]]) {
+    solve_recursive(board, 0, 0);
+}
+
+fn print_board(board : [[int]]) {
+    for i in 0..@board {
+        println(board[i]);
+    }
+}
+
+fn main() {
+    let mut board : [[int]] = [
+        [0, 0, 3, 0, 2, 0, 6, 0, 0],
+        [9, 0, 0, 3, 0, 5, 0, 0, 1],
+        [0, 0, 1, 8, 0, 6, 4, 0, 0],
+        [0, 0, 8, 1, 0, 2, 9, 0, 0],
+        [7, 0, 0, 0, 0, 0, 0, 0, 8],
+        [0, 0, 6, 7, 0, 8, 2, 0, 0],
+        [0, 0, 2, 6, 0, 9, 5, 0, 0],
+        [8, 0, 0, 2, 0, 3, 0, 0, 9],
+        [0, 0, 5, 0, 1, 0, 3, 0, 0],
+    ];
+
+    println("Before solve:");
+    print_board(board);
+    solve_sudoku(board);
+    println("");
+
+    println("Solved:");
+    print_board(board);
+
+
+
+}

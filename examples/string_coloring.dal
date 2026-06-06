@@ -1,0 +1,13 @@
+fn color_text(color : str, text : str) -> str {
+    let clear_color = "\x1b[0m";
+    return color + text + clear_color;
+}
+
+
+fn main() {
+    let red = "\x1b[31m";
+    let green = "\x1b[32m";
+
+    println(color_text(red, "This is red"));
+    println(color_text(green, "This is green"));
+}
