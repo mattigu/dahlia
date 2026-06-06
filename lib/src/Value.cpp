@@ -358,7 +358,8 @@ EvalResult intersect(Value lhs, Value rhs) {
                        std::vector<Value> intersection;
 
                        for (auto& elem1 : lhs.elements) {
-                           if (std::ranges::contains(rhs.elements, elem1)) {
+                           if (std::ranges::contains(rhs.elements, elem1) &&
+                               !std::ranges::contains(intersection, elem1)) {
                                intersection.push_back(std::move(elem1));
                            }
                        }

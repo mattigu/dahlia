@@ -573,6 +573,12 @@ TEST_CASE("insersect - int") {
           VecValue{.type = PrimitiveType::Int, .elements = {}});
 }
 
+TEST_CASE("insersect multiple same elements") {
+    CHECK(intersect(VecValue{.type = PrimitiveType::Int, .elements = {1, 1, 2}},
+                    VecValue{.type = PrimitiveType::Int, .elements = {1, 3}}) ==
+          VecValue{.type = PrimitiveType::Int, .elements = {1}});
+}
+
 TEST_CASE("insersect - invalid operands") {
     CHECK(intersect(VecValue{.type = PrimitiveType::Int, .elements = {2}},
                     Value{1}) ==
