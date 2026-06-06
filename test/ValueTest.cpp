@@ -532,30 +532,31 @@ TEST_CASE("logical not - float") {
 }
 
 TEST_CASE("contains - int") {
-    CHECK(contains(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}},
-                   1) == true);
-    CHECK(contains(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}},
-                   3) == false);
+    CHECK(contains(1, VecValue{.type = PrimitiveType::Int,
+                               .elements = {1, 2}}) == true);
+
+    CHECK(contains(3, VecValue{.type = PrimitiveType::Int,
+                               .elements = {1, 2}}) == false);
 }
 
 TEST_CASE("contains - nested int") {
-    CHECK(contains(VecValue{.type = Type::vec(PrimitiveType::Int),
+    CHECK(contains(VecValue{.type = PrimitiveType::Int, .elements = {1, 2}},
+                   VecValue{.type = Type::vec(PrimitiveType::Int),
                             .elements = {VecValue{.type = PrimitiveType::Int,
-                                                  .elements = {1, 2}}}},
-                   VecValue{.type = PrimitiveType::Int, .elements = {1, 2}}) ==
+                                                  .elements = {1, 2}}}}) ==
           true);
 
-    CHECK(contains(VecValue{.type = Type::vec(PrimitiveType::Int),
+    CHECK(contains(VecValue{.type = PrimitiveType::Int, .elements = {1, 3}},
+                   VecValue{.type = Type::vec(PrimitiveType::Int),
                             .elements = {VecValue{.type = PrimitiveType::Int,
-                                                  .elements = {1, 2}}}},
-                   VecValue{.type = PrimitiveType::Int, .elements = {1, 3}}) ==
+                                                  .elements = {1, 2}}}}) ==
           false);
 }
 
 TEST_CASE("contains - invalid operands") {
-    CHECK(contains("abc", 1) ==
-          std::unexpected(InvalidOperands{.lhs = PrimitiveType::Str,
-                                          .rhs = PrimitiveType::Int}));
+    CHECK(contains(1, "abc") ==
+          std::unexpected(InvalidOperands{.lhs = PrimitiveType::Int,
+                                          .rhs = PrimitiveType::Str}));
 }
 
 TEST_CASE("logical not - string") {

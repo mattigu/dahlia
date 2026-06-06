@@ -670,10 +670,10 @@ TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals not expressions") {
 TEST_CASE_FIXTURE(InterpreterFixture, "Interpreter evals in expression") {
     initExpr({.return_type = PrimitiveType::Bool},
              ExprNode(pos1,
-                      InExpr(ExprNode(pos1,
+                      InExpr(ExprNode(pos1, IntLiteral{1}),
+                             ExprNode(pos1,
                                       VecLiteral{.elements = makeExprs(ExprNode(
-                                                     pos1, IntLiteral{1}))}),
-                             ExprNode(pos1, IntLiteral{1}))));
+                                                     pos1, IntLiteral{1}))}))));
 
     auto const value = run();
 
@@ -981,8 +981,8 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                      pos1, ReturnStmt{ExprNode(pos2, Identifier{"a"})})));
 
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = UseOfUnkownIdentifier{"a"},
-                                                .pos = pos2}));
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = UseOfUnkownIdentifier{"a"}, .pos = pos2}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
@@ -1118,8 +1118,8 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                  return_a()));
 
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{"a"},
-                                                .pos = pos2}));
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = AssignmentToImmutable{"a"}, .pos = pos2}));
 }
 
 TEST_CASE_FIXTURE(InterpreterFixture,
@@ -1175,8 +1175,8 @@ TEST_CASE_FIXTURE(InterpreterFixture,
                      return_a()));
 
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{"a"},
-                                                .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = AssignmentToImmutable{"a"}, .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(
@@ -1489,8 +1489,8 @@ TEST_CASE_FIXTURE(
                             AssignStmt(LValue{.identifier = "b"},
                                        ExprNode(pos1, IntLiteral{99}))))})})));
     auto const value = run();
-    CHECK(value == std::unexpected(RuntimeError{.kind = AssignmentToImmutable{"b"},
-                                                .pos = pos3}));
+    CHECK(value == std::unexpected(RuntimeError{
+                       .kind = AssignmentToImmutable{"b"}, .pos = pos3}));
 }
 
 TEST_CASE_FIXTURE(

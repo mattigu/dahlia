@@ -339,8 +339,8 @@ EvalResult logicalNot(Value const& val) noexcept { return !toBool(val); }
 EvalResult contains(Value const& lhs, Value const& rhs) noexcept {
     // Maybe it should cast to the vec type and ignore conversion errors?
     return std::visit(
-        Overloaded{[](VecValue const& lhs, auto const& rhs) -> EvalResult {
-                       return std::ranges::contains(lhs.elements, Value{rhs});
+        Overloaded{[](auto const& lhs, VecValue const& rhs) -> EvalResult {
+                       return std::ranges::contains(rhs.elements, Value{lhs});
                    },
                    [](auto const& lhs, auto const& rhs) -> EvalResult {
                        return std::unexpected(InvalidOperands{
