@@ -4,7 +4,7 @@ Dahlia is a general purpouse scripting language.
 ## Key features
 - Statically and weakly typed
 - Immutable bindings by default
-- Function arguments captured by reference.\
+- Function arguments captured by reference.
 
 ## Compilation
 The project uses c++26 for it's checked arithmetic which requires libstdc++15 (g++15), otherwise it's all c++23.
